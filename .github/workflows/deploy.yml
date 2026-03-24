@@ -2,28 +2,32 @@ name: Deploy Vue to GitHub Pages
 
 on:
   push:
-    branches: [ main ] 
+    branches: [ main ]
+
+# 👇 解决 exit code 128 的关键：赋予 GitHub Actions 推送代码的权限
+permissions:
+  contents: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '22' # 👈 这里改成了 22，满足 Vite 的要求
+          node-version: '20' # 👇 解决 Vite 要求 Node.js 20+ 的问题
 
       - name: Install and Build 🔧
         run: |
-          cd my-blog
+          cd my-blog # 👇 进入你的 Vue 文件夹
           npm install
           npm run build
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: my-blog/dist # 👈 确保这里的路径是对的
+          folder: my-blog/dist # 👇 指定打包输出的真实路径
           branch: gh-pages
