@@ -7,8 +7,12 @@ import ProfileCard from './components/ProfileCard.vue'
 import MouseTrail from './components/MouseTrail.vue'
 import SettingDrawer from './components/SettingDrawer.vue'
 import MusicPlayer from './components/MusicPlayer.vue' 
+import Write from './components/Write.vue' 
 
 import { loadOml2d } from 'oh-my-live2d'
+
+// ================= 页面路由控制 =================
+const currentPage = ref('home') // 默认显示首页
 
 // ================= 全局状态：网站配置 =================
 const siteConfig = reactive({
@@ -232,7 +236,9 @@ const contentMarginTop = computed(() => {
     <div class="nav-container">
       <nav class="glass-box navbar">
         <div class="nav-links">
-          <span>首页</span><span>写作</span><span>项目</span>
+          <span @click="currentPage = 'home'">首页</span>
+          <span @click="currentPage = 'write'">写作</span>
+          <span>项目</span>
           <span>娱乐</span><span>留言</span><span>导航</span><span>关于</span>
         </div>
         
@@ -274,6 +280,8 @@ const contentMarginTop = computed(() => {
     </div>
 
     <!-- 2. 博客大标题 Banner -->
+  <template v-if="currentPage === 'home'">
+
     <header v-if="bannerMode !== 'hidden'" :class="['banner', bannerMode]" :style="{ height: bannerWrapperHeight }">
       <el-carousel :interval="4000" arrow="always" class="banner-carousel" :height="carouselHeight">
         <el-carousel-item v-for="(img, index) in bannerImages" :key="index">
@@ -350,6 +358,12 @@ const contentMarginTop = computed(() => {
         </el-col>
       </el-row>
     </div>
+
+  </template>
+
+  <template v-else-if="currentPage === 'write'">
+      <Write />
+    </template>
 
     <!-- 登录弹窗对话框 (临时用 el-dialog 模拟) -->
     <el-dialog v-model="showLoginDialog" title="登录 / 管理员入口" width="400px" center>
