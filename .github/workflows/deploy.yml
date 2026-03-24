@@ -1,0 +1,28 @@
+name: Deploy Vue to GitHub Pages
+
+on:
+  push:
+    branches: [ main ] # 假设你的代码提交到 main 分支
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # 使用 Node 18
+
+      - name: Install and Build 🔧
+        run: |
+          npm install
+          npm run build
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist # Vue 默认的打包输出目录
+          branch: gh-pages # 自动推送到 gh-pages 分支用于展示

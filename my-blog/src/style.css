@@ -1,0 +1,51 @@
+* {
+  /* 指向 public 文件夹里的 default.cur */
+  cursor: url('/default.cur'), auto !important;
+}
+
+/* 按钮或可点击元素的鼠标：粉色猫爪 */
+a, button, .icon-btn, .nav-links span, .img-preview, .el-switch, .el-radio, .el-slider {
+  /* 指向 public 文件夹里的 pointer.cur */
+  cursor: url('/pointer.cur'), pointer !important;
+}
+
+/* src/style.css - 全局样式 */
+body {
+  margin: 0;
+  padding: 0;
+  /* 换成高级浅灰背景，这将和波浪的最后一层完美融合 */
+  background-color: #f4f4f5; 
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #333;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+html.dark body {
+  /* 从纯黑 #141414 改为深暗紫色 */
+  background-color: #1a1525; 
+  color: #E5EAF3;
+}
+
+/* 优化毛玻璃质感，让它在纯色背景上更通透 */
+.glass-box {
+  background: rgba(255, 255, 255, 0.6); 
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px; /* 稍微加大圆角 */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05); /* 阴影调柔和 */
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: all 0.3s;
+}
+
+html.dark .glass-box {
+  background: rgba(30, 30, 30, 0.6); 
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
