@@ -18,7 +18,7 @@ jobs:
 
       - name: Install and Build 🔧
         run: |
-          cd my_blog
+          cd my-blog
           npm install
           npm run build
 
