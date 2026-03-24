@@ -2,7 +2,7 @@ name: Deploy Vue to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # 假设你的代码提交到 main 分支
+    branches: [ main ] 
 
 jobs:
   build-and-deploy:
@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # 使用 Node 18
+          node-version: '22' # 👈 这里改成了 22，满足 Vite 的要求
 
       - name: Install and Build 🔧
         run: |
@@ -25,5 +25,5 @@ jobs:
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist # Vue 默认的打包输出目录
-          branch: gh-pages # 自动推送到 gh-pages 分支用于展示
+          folder: my-blog/dist # 👈 确保这里的路径是对的
+          branch: gh-pages
