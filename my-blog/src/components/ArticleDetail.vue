@@ -75,7 +75,7 @@ const handleLike = async () => {
   try {
     // 假设文章的 slug 存在，告诉后端这篇文章被点赞了
     if (article.value && article.value.slug) {
-      await axios.post(`http://127.0.0.1:8000/api/articles/${article.value.slug}/like`)
+      await axios.post(`http://116.62.218.51:8000/api/articles/${article.value.slug}/like`)
     }
   } catch (error) {
     console.error('点赞保存到后端失败:', error)
@@ -106,7 +106,7 @@ const newComment = ref('')
 // 新增：从后端读取当前文章的评论
 const loadComments = async (slug) => {
   try {
-    const res = await axios.get(`http://127.0.0.1:8000/api/comments/${slug}`)
+    const res = await axios.get(`http://116.62.218.51:8000/api/comments/${slug}`)
     // 给所有后端返回的评论加上一个随机的游客头像
     comments.value = res.data.map(comment => ({
       ...comment,
@@ -121,7 +121,7 @@ const loadComments = async (slug) => {
 const fetchArticle = async (slug) => {
   try {
     isLoading.value = true
-    const res = await axios.get(`http://127.0.0.1:8000/api/articles/${slug}`)
+    const res = await axios.get(`http://116.62.218.51:8000/api/articles/${slug}`)
     
     // 👇【关键修改点】不管后端返回的是嵌套的，还是没嵌套的，我们都能拿到！
     const data = res.data
@@ -171,7 +171,7 @@ const submitComment = async () => {
   
   try {
     // 告诉后端我们要发评论啦
-    await axios.post('http://127.0.0.1:8000/api/comments', {
+    await axios.post('http://116.62.218.51:8000/api/comments', {
       article_slug: route.params.slug,
       content: newComment.value,
       author: '游客' // 以游客身份

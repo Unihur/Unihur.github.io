@@ -83,7 +83,7 @@ onMounted(async () => {
 
   // ========== 新增：页面加载时从数据库读取设置 ==========
   try {
-    const res = await fetch('http://127.0.0.1:8000/api/settings')
+    const res = await fetch('http://116.62.218.51:8000/api/settings')
     if (res.ok) {
       const data = await res.json()
       // 1. 恢复 Banner 模式
@@ -192,7 +192,7 @@ const handleLoginClick = () => {
 }
 const doLogin = async () => {
   try {
-    const res = await axios.post('http://127.0.0.1:8000/api/login', loginForm)
+    const res = await axios.post('http://116.62.218.51:8000/api/login', loginForm)
     if (res.data.status === 'success') {
       localStorage.setItem('admin_token', res.data.token) // 把门禁卡存进浏览器
       isLoggedIn.value = true
@@ -207,7 +207,7 @@ const doLogin = async () => {
 // ================= 把设置保存到数据库的函数 =================
 const saveSettingsToDB = async () => {
   try {
-    await fetch('http://127.0.0.1:8000/api/settings', {
+    await fetch('http://116.62.218.51:8000/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

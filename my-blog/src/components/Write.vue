@@ -24,7 +24,7 @@ onMounted(async () => {
     
     try {
       // 这里的接口是之前你写好的获取单篇文章接口
-      const res = await axios.get(`http://127.0.0.1:8000/api/articles/${querySlug}`)
+      const res = await axios.get(`http://116.62.218.51:8000/api/articles/${querySlug}`)
       const data = res.data.article || res.data // 兼容格式
       
       // 把后端拿到的数据塞进表单里
@@ -121,10 +121,11 @@ const handlePublish = async () => {
     
     // 如果是编辑模式，发送 PUT 请求给刚才后端写的更新接口
     if (isEditMode.value) {
-      response = await axios.put(`http://127.0.0.1:8000/api/articles/${originalSlug.value}`, article)
+      // 👇 注意这里最后加了 , config
+      response = await axios.put(`http://116.62.218.51:8000/api/articles/${originalSlug.value}`, article, config)
     } else {
-      // 如果是新建文章，发送 POST 请求
-      response = await axios.post('http://127.0.0.1:8000/api/articles', article)
+      // 👇 这里最后也加了 , config
+      response = await axios.post('http://116.62.218.51:8000/api/articles', article, config)
     }
     
     if (response.data.status === 'success') {

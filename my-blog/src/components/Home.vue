@@ -30,7 +30,7 @@ const fetchArticles = async () => {
   try {
     isLoading.value = true
     // 请求我们刚才写好的 Python 后端接口
-    const res = await axios.get('http://127.0.0.1:8000/api/articles')
+    const res = await axios.get('http://116.62.218.51:8000/api/articles')
     // 把拿到的真实数据赋值给变量
     articleList.value = res.data
   } catch (error) {
