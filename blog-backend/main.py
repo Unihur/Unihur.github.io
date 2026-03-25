@@ -46,6 +46,35 @@ class ArticleResponse(ArticleCreate):
 
 # ===== 路由 API =====
 
+class SettingUpdate(BaseModel):
+    banner_mode: str
+    is_dark: bool
+
+class CommentCreate(BaseModel):
+    article_slug: str
+    content: str
+    author: str = "游客"
+
+@app.get("/api/settings")
+def get_settings(db: Session = Depends(get_db)):
+    setting = db.query(models.SiteSetting).first()
+    if not setting:
+        setting = models.SiteSetting(banner_mode="banner", is_dark=False)
+        db.add(setting)
+        db.commit()
+    return {"banner_mode": setting.banner_mode, "is_dark": setting.is_dark}
+
+@app.post("/api/settings")
+def update_settings(setting_data: SettingUpdate, db: Session = Depends(get_db)):
+    setting = db.query(models.SiteSetting).first()
+    if not setting:
+        setting = models.SiteSetting()
+        db.add(setting)
+    setting.banner_mode = setting_data.banner_mode
+    setting.is_dark = setting_data.is_dark
+    db.commit()
+    return {"status": "success"}
+
 @app.get("/")
 def read_root():
     return {"message": "欢迎来到 UniHur 博客后端 API!"}
@@ -81,6 +110,37 @@ def create_article(article: ArticleCreate, db: Session = Depends(get_db)):
         "status": "success", 
         "message": "文章已永久保存至数据库!",
         "article_id": new_article.id
+    }
+
+# 【新增】更新已有文章
+@app.put("/api/articles/{slug}", response_model=dict)
+def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db)):
+    db_article = db.query(models.Article).filter(models.Article.slug == slug).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="文章不存在，无法更新！")
+
+    # 如果改了 URL 别名，且新别名被别的文章占用了，要报错
+    if article.slug != slug:
+        conflict = db.query(models.Article).filter(models.Article.slug == article.slug).first()
+        if conflict:
+            raise HTTPException(status_code=400, detail="新 Slug 已经被使用了，请换一个!")
+
+    # 把传过来的新数据覆盖到数据库旧对象上
+    db_article.title = article.title
+    db_article.slug = article.slug
+    db_article.content = article.content
+    db_article.intro = article.intro
+    db_article.tags = article.tags
+    db_article.category = article.category
+    db_article.cover = article.cover
+    db_article.is_hidden = article.isHidden
+    db_article.is_pinned = article.isPinned
+    db_article.publish_time = article.publishTime
+
+    db.commit()
+    return {
+        "status": "success", 
+        "message": "文章已成功更新！"
     }
 
 # 【新增】获取文章列表 (供首页调用)
@@ -170,6 +230,9 @@ def get_article(slug: str, db: Session = Depends(get_db)):
             "title": article.title,
             "slug": article.slug,
             "content": article.content,
+            "intro": article.intro,            # <-- 新增：返回简介
+            "isHidden": article.is_hidden,     # <-- 新增：返回隐藏状态
+            "isPinned": article.is_pinned,     # <-- 新增：返回置顶状态
             "tags": article.tags,
             "category": article.category,
             "publishTime": article.publish_time,
@@ -194,3 +257,20 @@ def like_article(slug: str, db: Session = Depends(get_db)):
         
     db.commit()
     return {"status": "success", "likes": article.likes}
+
+@app.post("/api/comments")
+def create_comment(comment: CommentCreate, db: Session = Depends(get_db)):
+    new_comment = models.Comment(
+        article_slug=comment.article_slug,
+        content=comment.content,
+        author=comment.author
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    return {"status": "success"}
+
+@app.get("/api/comments/{article_slug}")
+def get_comments(article_slug: str, db: Session = Depends(get_db)):
+    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).order_by(models.Comment.created_at.desc()).all()
+    return [{"id": c.id, "author": c.author, "content": c.content, "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")} for c in comments]

@@ -26,3 +26,17 @@ class Article(Base):
 
     # 👇 新增这一行：记录点赞数，默认值为 0
     likes = Column(Integer, default=0)
+
+class SiteSetting(Base):
+    __tablename__ = "site_settings"
+    id = Column(Integer, primary_key=True, index=True)
+    banner_mode = Column(String(50), default="banner")
+    is_dark = Column(Boolean, default=False)
+
+class Comment(Base):
+    __tablename__ = "comments"
+    id = Column(Integer, primary_key=True, index=True)
+    article_slug = Column(String(255), index=True) # 关联文章
+    author = Column(String(50), default="游客")
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

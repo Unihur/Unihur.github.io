@@ -3,14 +3,13 @@ import { ref, onMounted, inject, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { Calendar, Folder, PriceTag } from '@element-plus/icons-vue'
+import { Calendar, Folder, PriceTag, Share, Edit } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 
 import ProfileCard from './ProfileCard.vue'
-import { Share } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,6 +23,7 @@ const carouselHeight = inject('carouselHeight')
 const contentPaddingTop = inject('contentPaddingTop')
 const contentMarginTop = inject('contentMarginTop')
 const typewriterText = inject('typewriterText')
+const isLoggedIn = inject('isLoggedIn', ref(false))
 
 // Markdown 配置
 const md = new MarkdownIt({
@@ -37,6 +37,11 @@ const md = new MarkdownIt({
     return ''
   }
 })
+
+// 点击编辑按钮跳转到写作页（并���上当前文章的 slug，方便写作页读取数据）
+const editArticle = () => {
+  router.push(`/write?slug=${article.value.slug}`)
+}
 
 // 数据状态
 const article = ref(null) // 初始值必须是 null
@@ -94,11 +99,23 @@ const handleShare = () => {
   })
 }
 
-// 评论数据模拟
-const comments = ref([
-  { id: 1, author: 'Miku', avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=Miku', content: '写得很棒！排版非常好看。', time: '2026-03-24 10:00' }
-])
+// ================= 真实的评论功能 =================
+const comments = ref([])
 const newComment = ref('')
+
+// 新增：从后端读取当前文章的评论
+const loadComments = async (slug) => {
+  try {
+    const res = await axios.get(`http://127.0.0.1:8000/api/comments/${slug}`)
+    // 给所有后端返回的评论加上一个随机的游客头像
+    comments.value = res.data.map(comment => ({
+      ...comment,
+      avatar: '/ciel.png' + comment.author + comment.id
+    }))
+  } catch (error) {
+    console.error('获取评论失败:', error)
+  }
+}
 
 // 获取文章数据
 const fetchArticle = async (slug) => {
@@ -133,25 +150,42 @@ const fetchArticle = async (slug) => {
   }
 }
 
-// 监听路由参数变化（用于点击“上一篇/下一篇”时刷新内容）
+// 监听路由参数变化（用于点击“上一篇/下一篇”时刷新内容和评论）
 watch(() => route.params.slug, (newSlug) => {
-  if (newSlug) fetchArticle(newSlug)
+  if (newSlug) {
+    fetchArticle(newSlug)
+    loadComments(newSlug) // 👉 新增：切换文章时，拉取新文章的评论
+  }
 })
 
 onMounted(() => {
   fetchArticle(route.params.slug)
+  loadComments(route.params.slug) // 👉 新增：第一次进页面时，拉取评论
 })
 
-const submitComment = () => {
-  if (!newComment.value.trim()) return
-  comments.value.push({
-    id: Date.now(),
-    author: '访客',
-    avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=Guest',
-    content: newComment.value,
-    time: new Date().toLocaleString()
-  })
-  newComment.value = ''
+const submitComment = async () => {
+  if (!newComment.value.trim()) {
+    ElMessage.warning('评论不能为空！')
+    return
+  }
+  
+  try {
+    // 告诉后端我们要发评论啦
+    await axios.post('http://127.0.0.1:8000/api/comments', {
+      article_slug: route.params.slug,
+      content: newComment.value,
+      author: '游客' // 以游客身份
+    })
+    
+    ElMessage.success('评论发表成功！')
+    newComment.value = '' // 清空输入框
+    
+    // 重新从数据库拉取最新评论列表，让页面刷新出刚才发的评论
+    loadComments(route.params.slug) 
+  } catch (error) {
+    console.error('评论失败:', error)
+    ElMessage.error('评论失败！')
+  }
 }
 
 const navigateTo = (slug) => {
@@ -270,6 +304,14 @@ const navigateTo = (slug) => {
                     <span>{{ tag }}</span>
                   </div>
                 </template>
+
+                <!-- 👇 新增：编辑按钮 (只在管理员登录时显示) -->
+                <div class="edit-btn-wrapper" v-if="isLoggedIn">
+                  <el-button round size="small" class="pink-edit-btn" @click="editArticle">
+                    <el-icon><Edit /></el-icon> 编辑文章
+                  </el-button>
+                </div>
+
               </div>
             </div>
 
@@ -444,6 +486,18 @@ html.dark .category-list li { border-bottom-color: rgba(255,255,255,0.1); }
 }
 html.dark .article-meta { color: #aaa; }
 
+/* 新增：让编辑按钮靠最右边显示 */
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+.edit-btn-wrapper {
+  margin-left: auto; /* 核心魔法：把按钮推到最右边 */
+}
+
 .meta-row {
   display: flex;
   align-items: center;
@@ -599,5 +653,21 @@ html.dark .comment-author { color: #ddd; }
 .comment-time { font-size: 0.8rem; color: #999; }
 .comment-text { line-height: 1.5; color: #555; }
 html.dark .comment-text { color: #bbb; }
+
+/* 自定义粉色编辑按钮 */
+.pink-edit-btn {
+  background: linear-gradient(135deg, #ff79c6, #ff9a9e);
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(255, 121, 198, 0.4);
+  transition: all 0.3s;
+}
+.pink-edit-btn:hover {
+  background: linear-gradient(135deg, #ff9a9e, #ff79c6);
+  box-shadow: 0 6px 20px rgba(255, 121, 198, 0.6);
+  transform: translateY(-2px);
+  color: #fff;
+}
 
 </style>

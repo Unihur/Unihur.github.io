@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
@@ -8,6 +8,41 @@ import 'highlight.js/styles/github.css'
 
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
+const isEditMode = ref(false)   // 标记当前是新建还是编辑
+const originalSlug = ref('')    // 保存旧的 slug（修改文章时用）
+
+// 页面一加载，看有没有传 slug 过来，有的话就是编辑模式，去后端要数据
+onMounted(async () => {
+  const querySlug = route.query.slug
+  if (querySlug) {
+    isEditMode.value = true
+    originalSlug.value = querySlug
+    
+    try {
+      // 这里的接口是之前你写好的获取单篇文章接口
+      const res = await axios.get(`http://127.0.0.1:8000/api/articles/${querySlug}`)
+      const data = res.data.article || res.data // 兼容格式
+      
+      // 把后端拿到的数据塞进表单里
+      article.title = data.title
+      article.slug = data.slug
+      article.content = data.content
+      article.intro = data.intro || ''
+      article.tags = data.tags || []
+      article.category = data.category || ''
+      article.cover = data.cover || ''
+      article.isHidden = data.isHidden || false
+      article.isPinned = data.isPinned || false
+      // 注意日期格式可能需要稍微处理，简单起见直接用后端的也可以
+    } catch (error) {
+      ElMessage.error('读取旧文章数据失败！')
+    }
+  }
+})
 
 // 配置 markdown-it
 const md = new MarkdownIt({
@@ -71,23 +106,40 @@ const handlePreview = () => {
 }
 
 const handlePublish = async () => {
-  if (!article.title) {
-    ElMessage.error('文章标题不能为空！')
+  if (!article.title || !article.slug) {
+    ElMessage.error('文章标题和Slug别名不能为空！')
     return
   }
   
   try {
-    // 发送 POST 请求给 Python 后端
-    const response = await axios.post('http://127.0.0.1:8000/api/articles', article)
+    let response;
+    
+    // 如果是编辑模式，发送 PUT 请求给刚才后端写的更新接口
+    if (isEditMode.value) {
+      response = await axios.put(`http://127.0.0.1:8000/api/articles/${originalSlug.value}`, article)
+    } else {
+      // 如果是新建文章，发送 POST 请求
+      response = await axios.post('http://127.0.0.1:8000/api/articles', article)
+    }
     
     if (response.data.status === 'success') {
-      ElMessage.success('🎉 文章发布成功！')
-      console.log('后端返回:', response.data)
-      // 这里后续可以加上清空表单或者跳转回首页的逻辑
+      ElMessage.success(isEditMode.value ? '🎉 文章更新成功！' : '🎉 文章发布成功！')
+      
+      // 如果你改了 slug，下次更新需要用新 slug，同步更新一下标记
+      if (isEditMode.value) originalSlug.value = article.slug 
+
+      setTimeout(() => {
+        router.push('/')
+      }, 1000)
+
     }
   } catch (error) {
-    console.error('发布失败:', error)
-    ElMessage.error('网络请求失败，请检查后端是否启动。')
+    console.error('保存失败:', error)
+    if (error.response && error.response.data && error.response.data.detail) {
+      ElMessage.error(error.response.data.detail) // 报后端返回的具体错误（比如slug被占用）
+    } else {
+      ElMessage.error('网络请求失败，请检查后端是否启动。')
+    }
   }
 }
 

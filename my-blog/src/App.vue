@@ -1,12 +1,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch, provide } from 'vue' 
-import { Search, Setting, Brush, Picture, Sunny, Moon } from '@element-plus/icons-vue'
+import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import MouseTrail from './components/MouseTrail.vue'
 import SettingDrawer from './components/SettingDrawer.vue'
 
 import { loadOml2d } from 'oh-my-live2d'
+import { useRouter } from 'vue-router'
 
 // ================= 全局状态：网站配置 =================
 const siteConfig = reactive({
@@ -17,7 +18,7 @@ const siteConfig = reactive({
 
   live2dEnabled: true, 
   live2dPath: '/ulk/ulk.model3.json',
-  live2dScale: 0.5,
+  live2dScale: 0.4,
   live2dPosition: 'right'
 })
 
@@ -67,10 +68,31 @@ const startTypewriter = () => {
   loop()
 }
 
-onMounted(() => {
+onMounted(async () => {
   startTypewriter()
   if (siteConfig.live2dEnabled) {
     loadLive2D()
+  }
+
+  // ========== 新增：页面加载时从数据库读取设置 ==========
+  try {
+    const res = await fetch('http://127.0.0.1:8000/api/settings')
+    if (res.ok) {
+      const data = await res.json()
+      // 1. 恢复 Banner 模式
+      if (data.banner_mode) {
+        bannerMode.value = data.banner_mode
+      }
+      // 2. 恢复 夜间/日间 模式
+      isDark.value = data.is_dark
+      if (isDark.value) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+  } catch (error) {
+    console.error("加载设置失败，使用默认设置", error)
   }
 })
 
@@ -133,6 +155,18 @@ const openSetting = () => {
   showSettingDrawer.value = true
 }
 
+const router = useRouter()
+
+// 写作按钮点击逻辑
+const handleWriteClick = () => {
+  if (!isLoggedIn.value) {
+    ElMessage.warning('请先点击右侧头像登录管理员账号！')
+    showLoginDialog.value = true 
+    return
+  }
+  router.push('/write')
+}
+
 const isLoggedIn = ref(false)
 const showLoginDialog = ref(false)
 const loginForm = reactive({ username: '', password: '' })
@@ -154,12 +188,31 @@ const doLogin = () => {
   }
 }
 
+// ================= 把设置保存到数据库的函数 =================
+const saveSettingsToDB = async () => {
+  try {
+    await fetch('http://127.0.0.1:8000/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        banner_mode: bannerMode.value, 
+        is_dark: isDark.value 
+      })
+    })
+  } catch (error) {
+    console.error("保存设置失败", error)
+  }
+}
+
 // ================= 夜间模式 =================
 const isDark = ref(false)
 const toggleDarkMode = () => {
   isDark.value = !isDark.value
   if (isDark.value) document.documentElement.classList.add('dark')
   else document.documentElement.classList.remove('dark')
+  
+  // 新增：切换完模式后，立即保存到数据库
+  saveSettingsToDB()
 }
 
 // ================= Banner 高度和布局计算 =================
@@ -169,7 +222,12 @@ const bannerImages = ref([
 ])
 
 const bannerMode = ref('banner')
-const changeBannerMode = (command) => { bannerMode.value = command }
+const changeBannerMode = (command) => { 
+  bannerMode.value = command 
+  
+  // 新增：切换完Banner后，立即保存到数据库
+  saveSettingsToDB()
+}
 
 const bannerHeightValue = '30vw' 
 
@@ -198,6 +256,7 @@ provide('carouselHeight', carouselHeight)
 provide('typewriterText', typewriterText)
 provide('contentPaddingTop', contentPaddingTop)
 provide('contentMarginTop', contentMarginTop)
+provide('isLoggedIn', isLoggedIn)
 
 </script>
 <template>
@@ -208,13 +267,14 @@ provide('contentMarginTop', contentMarginTop)
       <nav class="glass-box navbar">
         <div class="nav-links">
           <router-link to="/" custom v-slot="{ navigate }">
-            <span @click="navigate">首页</span>
+            <span @click="navigate"><el-icon><HomeFilled /></el-icon>首页</span>
           </router-link>
-          <router-link to="/write" custom v-slot="{ navigate }">
-            <span @click="navigate">写作</span>
-          </router-link>
-          <span>项目</span>
-          <span>娱乐</span><span>留言</span><span>导航</span><span>关于</span>
+          <span @click="handleWriteClick"><el-icon><Edit /></el-icon>写作</span>
+          <span><el-icon><Box /></el-icon>项目</span>
+          <span><el-icon><VideoPlay /></el-icon>娱乐</span>
+          <span><el-icon><ChatDotSquare /></el-icon>留言</span>
+          <span><el-icon><Guide /></el-icon>导航</span>
+          <span><el-icon><InfoFilled /></el-icon>关于</span>
         </div>
         
         <div class="nav-icons">
@@ -262,8 +322,9 @@ provide('contentMarginTop', contentMarginTop)
       <el-input v-model="loginForm.username" placeholder="账号" style="margin-bottom: 15px;" />
       <el-input v-model="loginForm.password" placeholder="密码" type="password" show-password />
       <template #footer>
-        <el-button @click="showLoginDialog = false">取消</el-button>
-        <el-button type="primary" @click="doLogin">登录</el-button>
+        <el-button round @click="showLoginDialog = false">取 消</el-button>
+        <!-- 加上自定义的粉色 class -->
+        <el-button type="primary" round class="pink-login-btn" @click="doLogin">登 录</el-button>
       </template>
     </el-dialog>
 
@@ -391,6 +452,20 @@ html.dark .post-desc { color: #ccc; }
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* 自定义粉色登录按钮 */
+.pink-login-btn {
+  background: linear-gradient(135deg, #ff79c6, #ff9a9e);
+  border: none;
+  box-shadow: 0 4px 15px rgba(255, 121, 198, 0.4);
+  transition: all 0.3s;
+  font-weight: bold;
+}
+.pink-login-btn:hover {
+  background: linear-gradient(135deg, #ff9a9e, #ff79c6);
+  box-shadow: 0 6px 20px rgba(255, 121, 198, 0.6);
+  transform: translateY(-2px);
 }
 
 </style>
