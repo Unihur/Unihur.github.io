@@ -2,6 +2,29 @@
 import { ref, reactive } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css'
+
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
+
+// 配置 markdown-it
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  // 加上代码高亮功能
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value
+      } catch (__) {}
+    }
+    return '' // 使用额外的默认转义
+  }
+})
+
 // 表单数据
 const article = reactive({
   title: '',
@@ -34,17 +57,40 @@ const categoryOptions = ref([
   { value: '生活日记', label: '生活日记' }
 ])
 
+const showPreview = ref(false)
+const renderedHtml = ref('')
+
 // 按钮操作
 const handleImport = () => {
   console.log('点击了导入')
   // 这里可以接入读取 .md 文件的逻辑
 }
 const handlePreview = () => {
-  console.log('点击了预览')
+  renderedHtml.value = md.render(article.content || '*(暂无内容)*')
+  showPreview.value = true
 }
-const handlePublish = () => {
-  console.log('点击了发布', article)
+
+const handlePublish = async () => {
+  if (!article.title) {
+    ElMessage.error('文章标题不能为空！')
+    return
+  }
+  
+  try {
+    // 发送 POST 请求给 Python 后端
+    const response = await axios.post('http://127.0.0.1:8000/api/articles', article)
+    
+    if (response.data.status === 'success') {
+      ElMessage.success('🎉 文章发布成功！')
+      console.log('后端返回:', response.data)
+      // 这里后续可以加上清空表单或者跳转回首页的逻辑
+    }
+  } catch (error) {
+    console.error('发布失败:', error)
+    ElMessage.error('网络请求失败，请检查后端是否启动。')
+  }
 }
+
 </script>
 
 <template>
@@ -160,6 +206,18 @@ const handlePublish = () => {
         </div>
       </div>
     </div>
+  
+  <!-- 👇 新增：预览用的抽屉组件 -->
+    <el-drawer
+      v-model="showPreview"
+      title="文章预览"
+      direction="rtl"
+      size="50%"
+    >
+      <!-- 给渲染出的 HTML 套一个专门的类名 markdown-body 来美化它 -->
+      <div class="markdown-body" v-html="renderedHtml"></div>
+    </el-drawer>
+  
   </div>
 </template>
 
@@ -260,4 +318,55 @@ html.dark .cover-section :deep(.el-upload-dragger) {
   align-items: center;
   font-weight: bold;
 }
+
+/* 👇 新增：美化渲染后的 Markdown 内容 */
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+}
+html.dark .markdown-body {
+  color: #ddd;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+  margin-top: 24px;
+}
+html.dark .markdown-body h1, html.dark .markdown-body h2, html.dark .markdown-body h3 {
+  border-bottom-color: #444;
+}
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+  margin: 0;
+}
+html.dark .markdown-body blockquote {
+  color: #999;
+  border-left-color: #555;
+}
+.markdown-body pre {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+}
+html.dark .markdown-body pre {
+  background-color: #2d2d2d;
+}
+.markdown-body code {
+  background-color: rgba(27,31,35,0.05);
+  border-radius: 3px;
+  padding: 0.2em 0.4em;
+}
+html.dark .markdown-body code {
+  background-color: rgba(255,255,255,0.1);
+}
+.markdown-body pre code {
+  background-color: transparent; /* 代码块里的 code 不加背景 */
+  padding: 0;
+}
+
 </style>

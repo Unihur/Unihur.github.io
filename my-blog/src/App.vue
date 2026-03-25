@@ -1,24 +1,18 @@
 <script setup>
-import { ref, reactive, computed, onMounted,watch } from 'vue' 
+import { ref, reactive, computed, onMounted, watch, provide } from 'vue' 
 import { Search, Setting, Brush, Picture, Sunny, Moon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-import ProfileCard from './components/ProfileCard.vue' 
 import MouseTrail from './components/MouseTrail.vue'
 import SettingDrawer from './components/SettingDrawer.vue'
-import MusicPlayer from './components/MusicPlayer.vue' 
-import Write from './components/Write.vue' 
 
 import { loadOml2d } from 'oh-my-live2d'
-
-// ================= 页面路由控制 =================
-const currentPage = ref('home') // 默认显示首页
 
 // ================= 全局状态：网站配置 =================
 const siteConfig = reactive({
   name: 'UniHur',
   signature: '✨ 纸上得来终觉浅，绝知此事要躬行！ ✨',
-  avatar: '/ciel.png',
+  avatar: '/avatar.png',
   favicon: '/favicon.png',
 
   live2dEnabled: true, 
@@ -32,7 +26,6 @@ const typewriterText = ref('') // 页面上实际显示的文字
 let typeTimer = null
 
 const startTypewriter = () => {
-  // 清除旧定时器防止重复执行
   if (typeTimer) clearTimeout(typeTimer)
   
   let i = 0;
@@ -40,41 +33,33 @@ const startTypewriter = () => {
   const fullText = siteConfig.signature
 
   const loop = () => {
-    // 如果设置里把签名清空了，就停止动画
     if (!siteConfig.signature) {
       typewriterText.value = ''
       return
     }
 
-    // 防止在设置里修改了文字导致越界
     const currentFullText = siteConfig.signature
 
     if (!isDeleting) {
-      // 正在打字
       typewriterText.value = currentFullText.substring(0, i + 1)
       i++
       
       if (i === currentFullText.length) {
-        // 打字完成，停顿 2000 毫秒后开始删除
         isDeleting = true
         typeTimer = setTimeout(loop, 2000)
         return
       }
-      // 打字速度 (随机 100~200ms)
       typeTimer = setTimeout(loop, Math.random() * 100 + 100)
       
     } else {
-      // 正在删除
       typewriterText.value = currentFullText.substring(0, i - 1)
       i--
       
       if (i === 0) {
-        // 删除完成，停顿 500 毫秒后开始重新打字
         isDeleting = false
         typeTimer = setTimeout(loop, 500)
         return
       }
-      // 删除速度 (固定 50ms)
       typeTimer = setTimeout(loop, 50)
     }
   }
@@ -82,7 +67,6 @@ const startTypewriter = () => {
   loop()
 }
 
-// 当网页加载时，启动打字机
 onMounted(() => {
   startTypewriter()
   if (siteConfig.live2dEnabled) {
@@ -90,17 +74,14 @@ onMounted(() => {
   }
 })
 
-// 当我们在设置抽屉里修改了签名时，重置打字机动画
 watch(() => siteConfig.signature, () => {
   startTypewriter()
 })
 
 // ================= 深度监听配置，让网页实时变化 =================
 watch(siteConfig, (newVal) => {
-  // 1. 实时改网页标题
   document.title = `${newVal.name}'s Blog`
 
-  // 2. 实时改浏览器图标 (Favicon)
   let link = document.querySelector("link[rel~='icon']");
   if (!link) {
     link = document.createElement('link');
@@ -109,24 +90,15 @@ watch(siteConfig, (newVal) => {
   }
   link.href = newVal.favicon;
 
-  // 3. 实时通知 CSS 去改变 Live2D 的大小和位置
   document.documentElement.setAttribute('data-l2d-pos', newVal.live2dPosition)
   document.documentElement.style.setProperty('--l2d-scale', newVal.live2dScale)
 }, { deep: true, immediate: true })
 
 // ================= 看板娘初始化 =================
-let oml2dInstance = null // 用来存看板娘的实例
+let oml2dInstance = null 
 
-onMounted(() => {
-  // 如果默认开启，才去加载
-  if (siteConfig.live2dEnabled) {
-    loadLive2D()
-  }
-})
-
-// 封装一个加载函数
 const loadLive2D = () => {
-  if (oml2dInstance) return // 如果已经有了就不重复加载
+  if (oml2dInstance) return 
   oml2dInstance = loadOml2d({
     models: [{ 
       path: siteConfig.live2dPath,
@@ -137,11 +109,9 @@ const loadLive2D = () => {
   })
 }
 
-// 接收子组件传回来的数据，并合并到主数据中
 const handleConfigUpdate = (newConfig) => {
   Object.assign(siteConfig, newConfig)
 
-  // 处理看板娘加载和换装
   if (newConfig.live2dEnabled && !oml2dInstance) {
     loadLive2D() 
   } else if (!newConfig.live2dEnabled && oml2dInstance) {
@@ -152,20 +122,17 @@ const handleConfigUpdate = (newConfig) => {
   }
 }
 
-// 👇 2. 新增：控制设置抽屉显示的变量和逻辑
+// ================= 抽屉和登录逻辑 =================
 const showSettingDrawer = ref(false)
-
 const openSetting = () => {
-  // 加上权限判断：如果还没登录，就不让进设置
   if (!isLoggedIn.value) {
     ElMessage.warning('请先点击右侧头像登录管理员账号！')
-    showLoginDialog.value = true // 直接弹出登录框
+    showLoginDialog.value = true 
     return
   }
   showSettingDrawer.value = true
 }
 
-// ================= 登录逻辑 =================
 const isLoggedIn = ref(false)
 const showLoginDialog = ref(false)
 const loginForm = reactive({ username: '', password: '' })
@@ -197,22 +164,16 @@ const toggleDarkMode = () => {
 
 // ================= Banner 高度和布局计算 =================
 const bannerImages = ref([
-  '/banner/1.png',
-  '/banner/2.jpg',
-  '/banner/3.jpg',
-  '/banner/4.jpeg',
-  '/banner/5.jpg',
-  '/banner/6.jpg',
-  '/banner/7.jpg'
+  '/banner/1.png', '/banner/2.jpg', '/banner/3.jpg', '/banner/4.jpeg',
+  '/banner/5.jpg', '/banner/6.jpg', '/banner/7.jpg'
 ])
 
 const bannerMode = ref('banner')
 const changeBannerMode = (command) => { bannerMode.value = command }
 
-// 解答1：如何调整横幅图的高度？
-// 把下面的 '45vw' 改小（比如 35vw），横幅就会变矮，下面的博客内容就会露出来更多！
 const bannerHeightValue = '30vw' 
 
+// 👇 必须先定义所有的 computed 变量
 const carouselHeight = computed(() => {
   if (bannerMode.value === 'fullscreen' || bannerMode.value === 'background') return '100vh'
   return bannerHeightValue
@@ -227,8 +188,18 @@ const contentPaddingTop = computed(() => {
 const contentMarginTop = computed(() => {
   return (bannerMode.value === 'banner' || bannerMode.value === 'fullscreen') ? '0px' : '0px'
 })
-</script>
 
+// 👇 最后！在所有的变量和函数都定义完毕后，再统一把它们 provide 出去给 Home.vue 用
+provide('siteConfig', siteConfig)
+provide('bannerMode', bannerMode)
+provide('bannerImages', bannerImages)
+provide('bannerWrapperHeight', bannerWrapperHeight)
+provide('carouselHeight', carouselHeight)
+provide('typewriterText', typewriterText)
+provide('contentPaddingTop', contentPaddingTop)
+provide('contentMarginTop', contentMarginTop)
+
+</script>
 <template>
   <div class="app-root">
     
@@ -236,8 +207,12 @@ const contentMarginTop = computed(() => {
     <div class="nav-container">
       <nav class="glass-box navbar">
         <div class="nav-links">
-          <span @click="currentPage = 'home'">首页</span>
-          <span @click="currentPage = 'write'">写作</span>
+          <router-link to="/" custom v-slot="{ navigate }">
+            <span @click="navigate">首页</span>
+          </router-link>
+          <router-link to="/write" custom v-slot="{ navigate }">
+            <span @click="navigate">写作</span>
+          </router-link>
           <span>项目</span>
           <span>娱乐</span><span>留言</span><span>导航</span><span>关于</span>
         </div>
@@ -279,91 +254,8 @@ const contentMarginTop = computed(() => {
       </nav>
     </div>
 
-    <!-- 2. 博客大标题 Banner -->
-  <template v-if="currentPage === 'home'">
-
-    <header v-if="bannerMode !== 'hidden'" :class="['banner', bannerMode]" :style="{ height: bannerWrapperHeight }">
-      <el-carousel :interval="4000" arrow="always" class="banner-carousel" :height="carouselHeight">
-        <el-carousel-item v-for="(img, index) in bannerImages" :key="index">
-          <img :src="img" class="carousel-img" alt="banner">
-        </el-carousel-item>
-      </el-carousel>
-
-      <div v-if="bannerMode === 'background'" class="banner-overlay"></div>
-      
-      <!-- 解答2：在这里调标题的上下位置 (看 style 中的 .blog-title) -->
-      <h1 v-if="bannerMode !== 'background'" class="blog-title">
-        {{ siteConfig.name }}'s Blog
-        
-        <p class="blog-subtitle">
-          {{ typewriterText }}<span class="cursor">|</span>
-        </p>
-      </h1>
-
-      <!-- 波浪特效 -->
-      <div class="waves-container" v-if="bannerMode === 'banner' || bannerMode === 'fullscreen'">
-        <svg class="waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 24 150 28" preserveAspectRatio="none">
-          <defs><path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" /></defs>
-          <g class="parallax">
-            <use xlink:href="#gentle-wave" x="48" y="0" class="wave wave1" />
-            <use xlink:href="#gentle-wave" x="48" y="3" class="wave wave2" />
-            <use xlink:href="#gentle-wave" x="48" y="5" class="wave wave3" />
-            <use xlink:href="#gentle-wave" x="48" y="7" class="wave wave4" />
-          </g>
-        </svg>
-      </div>
-    </header>
-
-    <!-- 3. 主体内容区 -->
-    <div class="main-content-wrapper" :style="{ paddingTop: contentPaddingTop, marginTop: contentMarginTop }">
-      <el-row :gutter="20">
-        <!-- ================= 左侧栏 (引入了新的 ProfileCard 组件) ================= -->
-        <el-col :span="6">
-          <ProfileCard :config="siteConfig" />
-          
-          <div class="glass-box">
-            <h3>分类</h3>
-            <ul class="category-list">
-              <li><span>前端开发</span> <span>(5)</span></li>
-              <li><span>生活日记</span> <span>(3)</span></li>
-            </ul>
-          </div>
-          <div class="glass-box">
-            <h3>标签</h3>
-            <div class="tag-list">
-              <el-tag class="custom-tag">Vue3</el-tag>
-              <el-tag class="custom-tag" type="success">Vite</el-tag>
-            </div>
-          </div>
-        </el-col>
-
-        <!-- ================= 右侧栏 ================= -->
-        <el-col :span="18">
-          <MusicPlayer />
-
-          <div class="glass-box search-bar">
-            <el-input placeholder="搜索博客内容..." prefix-icon="Search" size="large" style="width: 100%; opacity: 0.8;" />
-          </div>
-          <div class="glass-box post-card" v-for="i in 3" :key="i">
-            <div class="post-info">
-              <h2>Mathematical Formulas in Markdown {{ i }}</h2>
-              <div class="post-meta"><span>📅 2026-03-23</span> | <span>👁️ 浏览: 120</span> | <span>📝 字数: 2.5k</span></div>
-              <p class="post-desc">这是博客的内容简介。展示了如何在 Markdown 中使用 LaTeX 渲染数学公式...</p>
-              <div class="post-tags"><el-tag size="small">Documentation</el-tag><el-tag size="small" type="info">LaTeX</el-tag></div>
-            </div>
-            <div class="post-cover">
-              <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop" alt="cover">
-            </div>
-          </div>
-        </el-col>
-      </el-row>
-    </div>
-
-  </template>
-
-  <template v-else-if="currentPage === 'write'">
-      <Write />
-    </template>
+    <!-- 👇 魔法标签：路由匹配到的组件会显示在这里！ -->
+    <router-view />
 
     <!-- 登录弹窗对话框 (临时用 el-dialog 模拟) -->
     <el-dialog v-model="showLoginDialog" title="登录 / 管理员入口" width="400px" center>
@@ -382,6 +274,7 @@ const contentMarginTop = computed(() => {
     />
 
     <MouseTrail />
+
   </div>
 </template>
 
