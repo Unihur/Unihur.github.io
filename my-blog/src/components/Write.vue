@@ -120,7 +120,7 @@ const handleDelete = async () => {
     const config = { headers: { Authorization: `Bearer ${token}` } }
     
     // 3. 发送删除请求 (⚠️ 注意：如果你已经换成了线上域名，这里的 IP 记得换成你的实际地址)
-    const response = await axios.delete(`http://127.0.0.1:8000/api/articles/${originalSlug.value}`, config)
+    const response = await axios.delete(`http://116.62.218.51:8000/api/articles/${originalSlug.value}`, config)
     
     if (response.data.status === 'success') {
       ElMessage.success('🗑️ 文章已成功删除！')
@@ -167,14 +167,7 @@ const handlePublish = async () => {
       if (isEditMode.value) originalSlug.value = article.slug 
 
       setTimeout(() => {
-        // 👇 这里修改跳转逻辑：
-        if (isEditMode.value) {
-          // 优化 2：如果是编辑模式，跳回文章详情页
-          router.push(`/post/${targetSlug}`)
-        } else {
-          // 如果是第一次新建发布，跳回主页
-          router.push('/')
-        }
+        router.push('/')
       }, 1000)
 
     }
