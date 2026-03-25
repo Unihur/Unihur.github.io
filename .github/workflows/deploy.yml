@@ -25,7 +25,7 @@ jobs:
         working-directory: ./my-blog
         run: |
           npm install
-          npm run build
+          CI=false npm run build
 
       # 4. 把前端产物传到服务器 Nginx 目录
       - name: Deploy Frontend to Server

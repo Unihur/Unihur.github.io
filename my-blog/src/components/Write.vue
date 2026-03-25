@@ -7,7 +7,7 @@ import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -105,6 +105,37 @@ const handlePreview = () => {
   showPreview.value = true
 }
 
+// ================= 新增：删除文章逻辑 =================
+const handleDelete = async () => {
+  try {
+    // 1. 弹出二次确认框
+    await ElMessageBox.confirm('确定要永久删除这篇文章吗？操作不可恢复！', '警告', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    
+    // 2. 携带门禁卡
+    const token = localStorage.getItem('admin_token')
+    const config = { headers: { Authorization: `Bearer ${token}` } }
+    
+    // 3. 发送删除请求 (⚠️ 注意：如果你已经换成了线上域名，这里的 IP 记得换成你的实际地址)
+    const response = await axios.delete(`http://127.0.0.1:8000/api/articles/${originalSlug.value}`, config)
+    
+    if (response.data.status === 'success') {
+      ElMessage.success('🗑️ 文章已成功删除！')
+      setTimeout(() => {
+        router.push('/') // 删除后跳回主页
+      }, 1000)
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败，请检查网络或后端配置。')
+    }
+  }
+}
+
 const handlePublish = async () => {
   if (!article.title || !article.slug) {
     ElMessage.error('文章标题和Slug别名不能为空！')
@@ -128,6 +159,7 @@ const handlePublish = async () => {
       response = await axios.post('http://116.62.218.51:8000/api/articles', article, config)
     }
     
+    const targetSlug = article.slug // 获取当前文章的最新的 slug
     if (response.data.status === 'success') {
       ElMessage.success(isEditMode.value ? '🎉 文章更新成功！' : '🎉 文章发布成功！')
       
@@ -135,7 +167,14 @@ const handlePublish = async () => {
       if (isEditMode.value) originalSlug.value = article.slug 
 
       setTimeout(() => {
-        router.push('/')
+        // 👇 这里修改跳转逻辑：
+        if (isEditMode.value) {
+          // 优化 2：如果是编辑模式，跳回文章详情页
+          router.push(`/post/${targetSlug}`)
+        } else {
+          // 如果是第一次新建发布，跳回主页
+          router.push('/')
+        }
       }, 1000)
 
     }
@@ -155,9 +194,18 @@ const handlePublish = async () => {
   <div class="write-container">
     <!-- 顶部操作按钮 -->
     <div class="action-bar">
+      <el-button 
+        v-if="isEditMode" 
+        type="danger" 
+        @click="handleDelete" 
+        style="margin-right: auto;"
+      >
+        删除
+      </el-button>
+
       <el-button @click="handleImport">导入</el-button>
       <el-button @click="handlePreview">预览</el-button>
-      <el-button type="primary" @click="handlePublish">发布</el-button>
+      <el-button type="primary" @click="handlePublish">{{ isEditMode ? '更新' : '发布' }}</el-button>
     </div>
 
     <!-- 主体编辑区 -->

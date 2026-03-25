@@ -1,4 +1,9 @@
-#重启服务器指令：uvicorn main:app --reload
+#本地重启服务器指令：uvicorn main:app --reload
+
+# ===== 重启后端服务器 =====
+#查看状态：systemctl status blog-backend
+#重启服务（比如更新代码后）：systemctl restart blog-backend
+#停止服务：systemctl stop blog-backend
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -307,3 +312,19 @@ def create_comment(comment: CommentCreate, db: Session = Depends(get_db)):
 def get_comments(article_slug: str, db: Session = Depends(get_db)):
     comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).order_by(models.Comment.created_at.desc()).all()
     return [{"id": c.id, "author": c.author, "content": c.content, "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")} for c in comments]
+
+# 【新增】删除已有文章
+@app.delete("/api/articles/{slug}", response_model=dict)
+def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+    # 1. 在数据库里找这篇文章
+    db_article = db.query(models.Article).filter(models.Article.slug == slug).first()
+    
+    # 2. 如果没找到，报错
+    if not db_article:
+        raise HTTPException(status_code=404, detail="文章不存在，无法删除！")
+    
+    # 3. 找到的话就删除它，并保存更改
+    db.delete(db_article)
+    db.commit()
+    
+    return {"status": "success", "message": "文章已成功删除"}
