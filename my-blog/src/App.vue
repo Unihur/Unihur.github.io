@@ -9,6 +9,8 @@ import SettingDrawer from './components/SettingDrawer.vue'
 import { loadOml2d } from 'oh-my-live2d'
 import { useRouter } from 'vue-router'
 
+import axios from 'axios'
+
 // ================= 全局状态：网站配置 =================
 const siteConfig = reactive({
   name: 'UniHur',
@@ -69,6 +71,11 @@ const startTypewriter = () => {
 }
 
 onMounted(async () => {
+
+  if (localStorage.getItem('admin_token')) {
+    isLoggedIn.value = true
+  }
+
   startTypewriter()
   if (siteConfig.live2dEnabled) {
     loadLive2D()
@@ -95,6 +102,11 @@ onMounted(async () => {
     console.error("加载设置失败，使用默认设置", error)
   }
 })
+
+const handleLogout = () => {
+  localStorage.removeItem('admin_token')
+  isLoggedIn.value = false
+}
 
 watch(() => siteConfig.signature, () => {
   startTypewriter()
@@ -178,13 +190,17 @@ const handleLoginClick = () => {
     showLoginDialog.value = true
   }
 }
-const doLogin = () => {
-  if (loginForm.username === 'admin') {
-    isLoggedIn.value = true
-    showLoginDialog.value = false
-    ElMessage.success('管理员登录成功！')
-  } else {
-    ElMessage.error('账号或密码错误 (测试账号是 admin)')
+const doLogin = async () => {
+  try {
+    const res = await axios.post('http://127.0.0.1:8000/api/login', loginForm)
+    if (res.data.status === 'success') {
+      localStorage.setItem('admin_token', res.data.token) // 把门禁卡存进浏览器
+      isLoggedIn.value = true
+      showLoginDialog.value = false
+      ElMessage.success('管理员登录成功！')
+    }
+  } catch (error) {
+    ElMessage.error('账号或密码错误')
   }
 }
 

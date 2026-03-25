@@ -114,6 +114,11 @@ const handlePublish = async () => {
   try {
     let response;
     
+    const token = localStorage.getItem('admin_token')
+    const config = {
+      headers: { Authorization: `Bearer ${token}` }
+    }
+    
     // 如果是编辑模式，发送 PUT 请求给刚才后端写的更新接口
     if (isEditMode.value) {
       response = await axios.put(`http://127.0.0.1:8000/api/articles/${originalSlug.value}`, article)

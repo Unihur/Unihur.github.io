@@ -1,5 +1,5 @@
 #重启服务器指令：uvicorn main:app --reload
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from datetime import datetime
 # 引入我们刚才写的数据库模块
 from database import engine, Base, get_db
 import models
+import jwt
 
 # 1. 自动创建数据库表 (如果在硬盘里没找到 blog.db，会自动建一个)
 models.Base.metadata.create_all(bind=engine)
@@ -43,6 +44,38 @@ class ArticleResponse(ArticleCreate):
 
     class Config:
         orm_mode = True # 允许从 SQLAlchemy 模型读取数据
+
+# 在 Pydantic 模型区下面，新增登录模型
+class LoginData(BaseModel):
+    username: str
+    password: str
+
+# 设定你的管理员账号、密码和用于加密的密钥
+ADMIN_USER = "unihur"
+ADMIN_PASS = "Zyh176626149" # 换成你想要的复杂密码
+SECRET_KEY = "unihur_super_admin_key" # 随便写一串复杂的英文字符
+
+# =========== 新增：登录接口 ===========
+@app.post("/api/login")
+def login(data: LoginData):
+    if data.username == ADMIN_USER and data.password == ADMIN_PASS:
+        # 签发令牌，这就像给前端发了一张“门禁卡”
+        token = jwt.encode({"user": data.username}, SECRET_KEY, algorithm="HS256")
+        return {"status": "success", "token": token}
+    else:
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+
+# =========== 新增：检查令牌的依赖函数 ===========
+def verify_token(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未登录或令牌缺失")
+    token = authorization.split(" ")[1]
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="令牌已过期，请重新登录")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="无效的令牌")
 
 # ===== 路由 API =====
 
@@ -81,7 +114,7 @@ def read_root():
 
 # 【新增】发布文章 (存入数据库)
 @app.post("/api/articles", response_model=dict)
-def create_article(article: ArticleCreate, db: Session = Depends(get_db)):
+def create_article(article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
     # 检查 slug 是否已存在，防止 URL 重复
     db_article = db.query(models.Article).filter(models.Article.slug == article.slug).first()
     if db_article:
@@ -114,7 +147,7 @@ def create_article(article: ArticleCreate, db: Session = Depends(get_db)):
 
 # 【新增】更新已有文章
 @app.put("/api/articles/{slug}", response_model=dict)
-def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db)):
+def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
     db_article = db.query(models.Article).filter(models.Article.slug == slug).first()
     if not db_article:
         raise HTTPException(status_code=404, detail="文章不存在，无法更新！")
