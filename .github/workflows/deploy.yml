@@ -1,33 +1,63 @@
-name: Deploy Vue to GitHub Pages
+name: Deploy to Alibaba Cloud
 
 on:
   push:
-    branches: [ main ]
-
-# 👇 解决 exit code 128 的关键：赋予 GitHub Actions 推送代码的权限
-permissions:
-  contents: write
+    branches:
+      - main  # 如果你的主分支叫 master，这里改成 master
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v4
+      # 1. 拉取最新代码
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      # 2. 安    Node.js 环境
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '20' # 👇 解决 Vite 要求 Node.js 20+ 的问题
+          node-version: '18'
 
-      - name: Install and Build 🔧
+      # 3. 自动打包前端
+      - name: Build Frontend
+        working-directory: ./my-blog
         run: |
-          cd my-blog # 👇 进入你的 Vue 文件夹
           npm install
           npm run build
 
-      - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4
+      # 4. 把前端产物传到服务器 Nginx 目录
+      - name: Deploy Frontend to Server
+        uses: appleboy/scp-action@master
         with:
-          folder: my-blog/dist # 👇 指定打包输出的真实路径
-          branch: gh-pages
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "my-blog/dist/*"
+          target: "/var/www/unihur-blog"
+          strip_components: 2 # 自动剥离 "my-blog/dist" 这两层外壳
+
+      # 5. 把后端代码传到服务器 /root/blog-backend 目录
+      - name: Deploy Backend to Server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "blog-backend/*"
+          target: "/root"
+          # 由于我们设置了 .gitignore，所以数据库文件不会被传上去覆盖
+
+      # 6. 远程登录服务器，重启后端进程
+      - name: Restart Backend Service
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /root/blog-backend
+            fuser -k 8000/tcp || true
+            source .venv/bin/activate
+            nohup uvicorn main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
