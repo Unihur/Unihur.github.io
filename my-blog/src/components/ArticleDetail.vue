@@ -87,23 +87,23 @@ const handleLike = async () => {
 const tocList = ref([]) // 用于存放提取出来的目录
 
 const generateTOC = () => {
-  // 1. 找到文章渲染的那个 div
   const container = document.querySelector('.markdown-body')
-  if (!container) return
+  if (!container) {
+    console.log("没找到 .markdown-body 容器") // 用于排错
+    return
+  }
   
-  // 2. 获取里面所有的 h1, h2, h3 标签
-  const headers = container.querySelectorAll('h1, h2, h3')
+  // 👇 修改这里：增加 h4, h5, h6，以防你文章里用的是四级或五级标题
+  const headers = container.querySelectorAll('h1, h2, h3, h4, h5, h6')
   const toc = []
   
   headers.forEach((header, index) => {
-    // 3. 给每个标题打个标记 (id)，方便等下点击跳转
     const id = `heading-${index}`
     header.id = id 
     
-    // 4. 判断它是几级标题
+    // 取出标题级别
     const level = parseInt(header.tagName.replace('H', ''))
     
-    // 5. 存到数组里
     toc.push({
       id: id,
       text: header.innerText,
@@ -111,7 +111,8 @@ const generateTOC = () => {
     })
   })
   
-  tocList.value = toc // 把提取好的目录交给 Vue
+  tocList.value = toc 
+  console.log("成功提取目录：", tocList.value) // 用于看控制台是否成功抓到了
 }
 
 // 点击目录跳转的方法
@@ -181,10 +182,10 @@ const fetchArticle = async (slug) => {
       renderedHtml.value = md.render(article.value.content || '*无内容*')
       document.title = `${article.value.title} - UniHur's Blog`
       
-      // 👇 【步骤B的核心】：等上面这句 render 渲染出真实的 DOM 之后，再去提取目录
-      nextTick(() => {
+      // 👇 改为 setTimeout，延迟 100 毫秒，等它彻底排版完再抓取
+      setTimeout(() => {
         generateTOC()
-      })
+      }, 100)
       
     } else {
       ElMessage.error('文章数据格式错误: 找不到标题')
