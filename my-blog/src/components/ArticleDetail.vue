@@ -3,7 +3,7 @@ import { ref, onMounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { Calendar, Folder, PriceTag, Share, Edit } from '@element-plus/icons-vue'
+import { Calendar, Folder, PriceTag, Share, Edit, View } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
@@ -355,11 +355,17 @@ const navigateTo = (slug) => {
 
             <!-- 元信息：时间、分类、标签 (带图标) -->
             <div class="article-meta">
-              <!-- 第一行：时间 -->
-              <div class="meta-row">
+              <!-- 第一行：时间 和 浏览量 -->
+              <div class="meta-row" style="gap: 20px;">
+                <!-- 时间 -->
                 <div class="meta-item time">
                   <el-icon><Calendar /></el-icon>
                   <span>发布于: {{ new Date(article.publishTime).toLocaleDateString() }}</span>
+                </div>
+                <!-- 浏览量 (新增) -->
+                <div class="meta-item views">
+                  <el-icon><View /></el-icon>
+                  <span>浏览: {{ article.views || 0 }}</span>
                 </div>
               </div>
               
@@ -593,6 +599,12 @@ html.dark .article-meta { color: #aaa; }
   align-items: center;
   gap: 5px;
   font-size: 0.95rem;
+}
+/* 给它下面的图标增加防糊 buff */
+.meta-item .el-icon {
+  font-size: 1.15rem;
+  -webkit-font-smoothing: antialiased;
+  transform: translateZ(0);
 }
 
 /* 分类和标签的统一框框基础样式 */

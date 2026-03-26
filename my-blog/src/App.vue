@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch, provide } from 'vue' 
-import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled } from '@element-plus/icons-vue'
+import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled,UserFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import MouseTrail from './components/MouseTrail.vue'
@@ -355,7 +355,8 @@ provide('isLoggedIn', isLoggedIn)
           <el-tooltip :content="isLoggedIn ? '个人中心' : '点击登录'" placement="bottom">
             <el-avatar 
               :size="36" 
-              :src="siteConfig.avatar" 
+              :src="isLoggedIn ? siteConfig.avatar : ''" 
+              :icon="isLoggedIn ? '' : UserFilled"
               class="login-avatar"
               @click="handleLoginClick"
             />
@@ -552,16 +553,18 @@ html.dark .post-desc { color: #ccc; }
 
 /* ================= 手机端全局适配 ================= */
 @media screen and (max-width: 768px) {
-  /* 1. 缩小横幅标题，防止撑爆屏幕 */
+  /* 1. 彻底缩小横幅的大标题和副标题，避免遮挡和挤压 */
   .blog-title { 
-    font-size: 2.5rem !important; 
-    margin-top: -20px !important; 
+    font-size: 2rem !important;  /* 从原先的 6rem 改成 2rem */
+    margin-top: 10px !important; /* 不再用负的 margin 把标题往上提 */
+    line-height: 1.2;
   }
   .blog-subtitle { 
-    font-size: 1.2rem !important; 
+    font-size: 1rem !important; 
+    margin-top: 5px !important;
   }
 
-  /* 2. 导航栏适配：允许手指横向滑动，稍微缩小内边距 */
+  /* 2. 导航栏适配：允许手指横向滑动 */
   .nav-container { 
     top: 5px !important; 
     padding: 0 10px !important; 
@@ -572,17 +575,21 @@ html.dark .post-desc { color: #ccc; }
   }
   .nav-links { 
     overflow-x: auto; 
-    white-space: nowrap; /* 强制不换行 */
-    -webkit-overflow-scrolling: touch; /* 丝滑滚动 */
+    white-space: nowrap; 
+    -webkit-overflow-scrolling: touch; 
     padding-bottom: 2px;
   }
-  /* 隐藏导航栏滚动条 */
   .nav-links::-webkit-scrollbar { display: none; }
   .nav-links span { font-size: 0.9rem; }
   
-  /* 3. 稍微缩小全局的两侧留白 */
+  /* 3. 在手机端，把波浪往下降一点，防止遮盖掉主标题 */
+  .waves-container {
+    bottom: -5px !important; 
+  }
+
+  /* 4. 稍微缩小全局的两侧留白，如果 Banner 依然遮挡正文，这里可以加一点点上边距 */
   .main-content-wrapper {
-    padding: 0 10px 20px 10px !important;
+    padding: 10px 10px 20px 10px !important;
   }
 }
 

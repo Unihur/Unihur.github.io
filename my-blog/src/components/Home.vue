@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import ProfileCard from './ProfileCard.vue' 
 import MusicPlayer from './MusicPlayer.vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, Folder, PriceTag, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, Folder, PriceTag, Edit, Delete, Plus, Search, View } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
 const router = useRouter()
@@ -217,7 +217,7 @@ const formatDate = (dateStr) => {
       <el-row :gutter="20">
         <!-- ================= 左侧栏 (引入了新的 ProfileCard 组件) ================= -->
         <el-col :xs="24" :md="6">
-          <ProfileCard :config="siteConfig" />
+          <ProfileCard :config="siteConfig" :articles="articleList" />
           
           <div class="glass-box">
             <h3 style="padding: 0 10px;">文章分类</h3>
@@ -226,20 +226,19 @@ const formatDate = (dateStr) => {
               <li
                 v-for="cat in categories"
                 :key="cat.name"
+                class="category-item-box"
                 :class="{ 'is-active-cat': selectedCategory === cat.name }"
                 @click="toggleCategory(cat.name)"
-                style="cursor: pointer;"
               >
-                <!-- 左侧：分类名 -->
-                <span class="cat-name">
-                  <el-icon style="margin-right: 5px;"><Folder /></el-icon>
-                  {{ cat.name }}
-                </span>
+                <!-- 左侧：图标 + 分类名 -->
+                <div class="cat-left">
+                  <el-icon><Folder /></el-icon>
+                  <span>{{ cat.name }}</span>
+                </div>
                 
-                <!-- 右侧：数量 + 管理员操作 -->
+                <!-- 右侧：编辑 -> 删除 -> 数量 -->
                 <div class="cat-right-info">
-                  <span class="cat-count">({{ cat.count }})</span>
-                  
+                  <!-- 管理员操作：重命名 -> 删除 -->
                   <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
                     <el-tooltip content="重命名分类" placement="top">
                       <el-icon class="admin-icon" @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
@@ -248,6 +247,8 @@ const formatDate = (dateStr) => {
                       <el-icon class="admin-icon" @click.stop="handleDeleteCategory(cat.name)"><Delete /></el-icon>
                     </el-tooltip>
                   </div>
+                  <!-- 数量放在最右边 -->
+                  <span class="cat-count">({{ cat.count }})</span>
                 </div>
               </li>
               <li v-if="categories.length === 0" style="color: #999; font-size: 0.9rem; justify-content: center; border: none;">暂无分类</li>
@@ -292,8 +293,16 @@ const formatDate = (dateStr) => {
           <MusicPlayer />
 
           <div class="glass-box search-bar">
-            <!-- 加上 v-model="searchQuery" 即可实现实时过滤 -->
-            <el-input v-model="searchQuery" placeholder="搜索博客标题或简介..." prefix-icon="Search" size="large" style="width: 100%; opacity: 0.8;" />
+            <el-input 
+              v-model="searchQuery" 
+              placeholder="搜索博客标题/简介/分类/标签..." 
+              size="large" 
+              style="width: 100%; opacity: 0.8;"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
           </div>
 
           <div v-if="isLoading" class="glass-box post-card" style="justify-content: center; padding: 40px;">
@@ -324,12 +333,16 @@ const formatDate = (dateStr) => {
               </h2>
               
               <div class="post-meta">
-                <span>📅 {{ formatDate(item.publishTime) }}</span> | 
-                <span>👁️ 浏览: {{ item.views || 0 }}</span> | 
-                <span>📝 字数: {{ item.content?.length || 0 }}</span> | 
-                <!-- 修复了点赞和转发的格式 -->
-                <span>❤️ 点赞: {{ item.likes || 0 }}</span> | 
-                <span>🔗 转发: {{ item.shares || 0 }}</span>
+                <div style="margin-bottom: 5px;">
+                  <span>📅 {{ formatDate(item.publishTime) }}</span> | 
+                  <span>📝 字数: {{ item.content?.length || 0 }}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                  <!-- 这里换成了漂亮的 View 图标 -->
+                  <span style="display: flex; align-items: center; gap: 3px;"><el-icon><View /></el-icon> 浏览: {{ item.views || 0 }}</span> | 
+                  <span>❤️ 点赞: {{ item.likes || 0 }}</span> | 
+                  <span>🔗 转发: {{ item.shares || 0 }}</span>
+                </div>
               </div>
               
               <p class="post-desc">
@@ -435,6 +448,14 @@ html.dark .post-desc { color: #ccc; }
 .post-cover { width: 280px; height: 180px; border-radius: 8px; overflow: hidden;flex-shrink: 0; }
 .post-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
 .post-cover img:hover { transform: scale(1.1); }
+
+/* 强制让主页文章卡片里的所有图标按原比例渲染，增加锐度防模糊 */
+.post-meta .el-icon {
+  font-size: 1.1rem; /* 稍微给大一点，防止被浏览器默认缩放压糊 */
+  -webkit-font-smoothing: antialiased; /* 开启 macOS/iOS 字体平滑 */
+  transform: translateZ(0); /* 开启硬件加速防模糊 */
+  margin-right: 2px; /* 和文字稍微隔开一点点 */
+}
 
 /* 新增：文章卡片中的分类和标签框框 */
 .post-tags-row {
@@ -545,10 +566,12 @@ html.dark .post-desc { color: #ccc; }
 
 /* 标签折叠容器 */
 .tag-collapse-container {
-  max-height: 120px; /* 约等于 4 行标签的高度 */
+  max-height: 125px; /* 稍微增加5px高度补偿 */
   overflow: hidden;
   transition: max-height 0.4s ease;
+  padding: 4px 10px 0 10px; 
 }
+
 /* 展开后的高度 */
 .tag-collapse-container.is-expanded {
   max-height: 1000px; /* 给一个足够大的值以便完全展开 */
@@ -660,36 +683,66 @@ html.dark .cat-count { color: #bbb; }
   gap: 10px; /* 每个分类之间的间距 */
 }
 
-/* 每一个 li 就是一个橙色的框框 */
+/* ============ 左侧分类栏 (带橙色框) ============ */
+.category-list {
+  list-style: none;
+  padding: 0 10px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* 每个分类之间的间距 */
+}
+
 .category-item-box {
   display: flex;
-  justify-content: space-between; /* 左右两端对齐 */
+  justify-content: space-between; 
   align-items: center;
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
   
-  /* 默认橙色框样式 (类似右侧分类框) */
+  /* 👇 重点：图二中的橙色框框样式 */
   background: rgba(230, 162, 60, 0.05);
   color: #e6a23c;
-  border: 1px solid rgba(230, 162, 60, 0.3);
+  border: 1px solid rgba(230, 162, 60, 0.5); /* 橙色边框 */
   font-size: 0.9rem;
   font-weight: bold;
 }
 
-/* 鼠标悬浮时微微放大 */
+/* 鼠标悬浮 */
 .category-item-box:hover {
   transform: translateY(-2px);
-  background: rgba(230, 162, 60, 0.1);
+  background: rgba(230, 162, 60, 0.15);
 }
 
-/* 选中该分类时的激活状态 (实心橙色) */
+/* 点击选中时的实心状态 */
 .category-item-box.is-active-cat {
   background: #e6a23c;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(230, 162, 60, 0.3);
+}
+
+/* 布局对齐 */
+.cat-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cat-right-info {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* 图标和数量的间距 */
+}
+.cat-count {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+.cat-admin-ops {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 编辑和删除按钮的间距 */
 }
 
 /* 布局：左侧名字和右侧操作区 */
