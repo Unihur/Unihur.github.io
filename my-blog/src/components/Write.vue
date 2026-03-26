@@ -97,9 +97,33 @@ const renderedHtml = ref('')
 
 // 按钮操作
 const handleImport = () => {
-  console.log('点击了导入')
-  // 这里可以接入读取 .md 文件的逻辑
+  if (fileInput.value) {
+    fileInput.value.click() // 模拟点击隐藏的 input
+  }
 }
+
+const onFileChange = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  // 确保是文本/Markdown文件
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    article.content = event.target.result
+    
+    // （可选增强）如果当前文章没有标题，自动用文件名作为标题
+    if (!article.title) {
+      article.title = file.name.replace(/\.md$/i, '')
+    }
+    
+    ElMessage.success('导入 .md 文件成功！')
+  }
+  reader.readAsText(file)
+  
+  // 清空 input 值，防止下次选择同一个文件时不触发 change 事件
+  e.target.value = ''
+}
+
 const handlePreview = () => {
   renderedHtml.value = md.render(article.content || '*(暂无内容)*')
   showPreview.value = true
@@ -197,6 +221,13 @@ const handlePublish = async () => {
       </el-button>
 
       <el-button @click="handleImport">导入</el-button>
+      <input 
+        type="file" 
+        accept=".md, .markdown, text/markdown" 
+        ref="fileInput" 
+        style="display: none" 
+        @change="onFileChange"
+      />
       <el-button @click="handlePreview">预览</el-button>
       <el-button type="primary" @click="handlePublish">{{ isEditMode ? '更新' : '发布' }}</el-button>
     </div>

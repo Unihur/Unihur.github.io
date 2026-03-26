@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, inject, watch } from 'vue'
+import { ref, onMounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
@@ -83,6 +83,47 @@ const handleLike = async () => {
   }
 }
 
+// ================= 新增：动态目录功能 =================
+const tocList = ref([]) // 用于存放提取出来的目录
+
+const generateTOC = () => {
+  // 1. 找到文章渲染的那个 div
+  const container = document.querySelector('.markdown-body')
+  if (!container) return
+  
+  // 2. 获取里面所有的 h1, h2, h3 标签
+  const headers = container.querySelectorAll('h1, h2, h3')
+  const toc = []
+  
+  headers.forEach((header, index) => {
+    // 3. 给每个标题打个标记 (id)，方便等下点击跳转
+    const id = `heading-${index}`
+    header.id = id 
+    
+    // 4. 判断它是几级标题
+    const level = parseInt(header.tagName.replace('H', ''))
+    
+    // 5. 存到数组里
+    toc.push({
+      id: id,
+      text: header.innerText,
+      level: level
+    })
+  })
+  
+  tocList.value = toc // 把提取好的目录交给 Vue
+}
+
+// 点击目录跳转的方法
+const scrollToAnchor = (id) => {
+  const element = document.getElementById(id)
+  if (element) {
+    // 减去80是为了给顶部的导航栏留点空间，不会被挡住
+    const top = element.offsetTop - 80 
+    window.scrollTo({ top, behavior: 'smooth' })
+  }
+}
+
 // 复制链接功能
 const handleShare = () => {
   // 获取当前网页完整的 URL
@@ -139,6 +180,12 @@ const fetchArticle = async (slug) => {
       // 渲染 Markdown
       renderedHtml.value = md.render(article.value.content || '*无内容*')
       document.title = `${article.value.title} - UniHur's Blog`
+      
+      // 👇 【步骤B的核心】：等上面这句 render 渲染出真实的 DOM 之后，再去提取目录
+      nextTick(() => {
+        generateTOC()
+      })
+      
     } else {
       ElMessage.error('文章数据格式错误: 找不到标题')
     }
@@ -255,12 +302,21 @@ const navigateTo = (slug) => {
             </div>
           </div>
 
-          <!-- 新增：文章目录 -->
-          <div class="glass-box toc-box">
+          <!-- 修改后的：文章目录 -->
+          <div class="glass-box toc-box" v-if="tocList.length > 0">
             <h3>📖 文章目录</h3>
             <ul class="toc-list">
-              <li><a href="#">一、基本代数 (Basic Algebra)</a></li>
-              <li><a href="#">二、核心内容展示</a></li>
+              <!-- 用 v-for 循环我们提取出来的目录 -->
+              <li 
+                v-for="item in tocList" 
+                :key="item.id"
+                :style="{ paddingLeft: (item.level - 1) * 15 + 'px' }"
+              >
+                <!-- 点击时阻止默认跳转，使用我们自己写的滚动函数 -->
+                <a href="#" @click.prevent="scrollToAnchor(item.id)">
+                  {{ item.text }}
+                </a>
+              </li>
             </ul>
           </div>
         </el-col>
