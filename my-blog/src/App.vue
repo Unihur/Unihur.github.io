@@ -359,7 +359,17 @@ provide('isLoggedIn', isLoggedIn)
 /* 样式部分基本保持不变，新增了头像和分割线样式 */
 .app-root { width: 100%; }
 
-.nav-container { position: absolute; top: 20px; left: 0; width: 100%; display: flex; justify-content: center; z-index: 999; padding: 0 20px; box-sizing: border-box; }
+.nav-container { 
+  position: fixed; /* 👈 将 absolute 改为 fixed 即可吸顶跟随 */
+  top: 15px; 
+  left: 0; 
+  width: 100%; 
+  display: flex; 
+  justify-content: center; 
+  z-index: 999; 
+  padding: 0 20px; 
+  box-sizing: border-box; 
+}
 .navbar { width: 100%; max-width: 1160px; display: flex; justify-content: space-between; align-items: center; border-radius: 50px; padding: 10px 30px; margin: 0; background: rgba(255, 255, 255, 0.6); }
 .nav-links { display: flex; gap: 20px; }
 .nav-links span { font-weight: bold; cursor: pointer; transition: color 0.3s; }

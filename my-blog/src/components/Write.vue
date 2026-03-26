@@ -194,7 +194,12 @@ const handlePublish = async () => {
       if (isEditMode.value) originalSlug.value = article.slug 
 
       setTimeout(() => {
-        router.push('/')
+        // 如果是更新文章，跳转回文章详情页；如果是新发布，回到主页
+        if (isEditMode.value) {
+          router.push(`/post/${article.slug}`)
+        } else {
+          router.push('/')
+        }
       }, 1000)
 
     }

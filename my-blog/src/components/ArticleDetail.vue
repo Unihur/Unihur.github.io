@@ -494,10 +494,16 @@ html.dark .category-list li { border-bottom-color: rgba(255,255,255,0.1); }
 /* 目录样式 */
 .toc-box { padding: 20px; margin-top: 20px; position: sticky; top: 80px; }
 .toc-box h3 { margin-top: 0; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 10px; }
+html.dark .toc-box h3 { border-bottom-color: rgba(255,255,255,0.1); color: #fff; } /* 夜间模式标题变白 */
+
 .toc-list { list-style: none; padding-left: 0; }
 .toc-list li { margin: 10px 0; }
+
 .toc-list a { text-decoration: none; color: #555; transition: color 0.3s; }
+html.dark .toc-list a { color: #ccc; } /* 夜间模式默认浅灰白 */
+
 .toc-list a:hover { color: #409eff; }
+html.dark .toc-list a:hover { color: #66b1ff; } /* 夜间模式悬浮时用更亮的蓝色 */
 
 /* ================= 右侧核心文章区域 (已去重并修复对齐) ================= */
 .article-main-card {

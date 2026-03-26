@@ -137,13 +137,21 @@ const formatDate = (dateStr) => {
           >
             <div class="post-info">
               <!-- 真实标题 -->
-              <h2>{{ item.title }}</h2>
+              <h2>
+                <!-- 新增：如果是置顶文章，显示橙色空心方框的标签 -->
+                <el-tag v-if="item.isPinned" effect="plain" style="margin-right: 8px; color: #ff9800; border-color: #ff9800;" size="small">置顶</el-tag>
+                {{ item.title }}
+              </h2>
               <div class="post-meta">
                 <!-- 真实时间，字数先简单用内容的长度模拟 -->
                 <span>📅 {{ formatDate(item.publishTime) }}</span> | 
                 <span>👁️ 浏览: 0</span> | 
-                <span>📝 字数: {{ item.content?.length || 0 }}</span>
+                <span>📝 字数: {{ item.content?.length || 0 }}</span> | 
+                <!-- 新增：点赞和转发，因为转发目前没做后端功能，先写死为0 -->
+                <span>❤️ 点赞: {{ item.likes || 0 }}</span> | 
+                <span>🔗 转发: 0</span>
               </div>
+              
               <!-- 真实简介 -->
               <p class="post-desc">
                 {{ item.intro || '这篇作者很懒，没有写简介...' }}

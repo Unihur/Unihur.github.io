@@ -184,10 +184,9 @@ def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_
 # 【新增】获取文章列表 (供首页调用)
 @app.get("/api/articles", response_model=List[ArticleResponse])
 def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    # 从数据库里拿，跳过隐藏文章，按时间倒序
-    articles = db.query(models.Article).filter(models.Article.is_hidden == False).order_by(models.Article.publish_time.desc()).offset(skip).limit(limit).all()
+    # 👇 1. 修复排序逻辑：优先按照置顶(is_pinned)降序排列，然后再按时间倒序
+    articles = db.query(models.Article).filter(models.Article.is_hidden == False).order_by(models.Article.is_pinned.desc(), models.Article.publish_time.desc()).offset(skip).limit(limit).all()
     
-    # 因为 Pydantic 变量名和数据库驼峰名有点差异，我们需要简单转换一下再返回��前端
     result = []
     for a in articles:
         result.append({
@@ -202,7 +201,8 @@ def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
             "isHidden": a.is_hidden,
             "isPinned": a.is_pinned,
             "cover": a.cover,
-            "created_at": a.created_at
+            "created_at": a.created_at,
+            "likes": a.likes  
         })
     return result
 
