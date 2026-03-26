@@ -340,40 +340,13 @@ const formatDate = (dateStr) => {
               <div class="post-tags-row" v-if="item.category || (item.tags && item.tags.length)">
                 
                 <!-- 分类框 (借用之前设定的样式) -->
-                <div
-                v-for="cat in categories"
-                :key="cat.name"
-                class="meta-box category-box"
-                :class="{ 'is-active': selectedCategory === cat.name }"
-                @click="toggleCategory(cat.name)"
-                style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box;"
-              >
-                <!-- 左半边：图标 + 分类名 -->
-                <div style="display: flex; align-items: center; gap: 5px;">
+                <div class="meta-box category-box" v-if="item.category">
                   <el-icon><Folder /></el-icon>
-                  <span>{{ cat.name }}</span>
+                  <span>{{ item.category }}</span>
                 </div>
-                
-                <!-- 右半边：文章数量 + (管理员才有的) 编辑和删除图标 -->
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 0.8rem; opacity: 0.8;">({{ cat.count }})</span>
-                  
-                  <!-- 管理员特权：重命名和删除 -->
-                  <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
-                    <el-tooltip content="重命名分类" placement="top">
-                      <el-icon @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
-                    </el-tooltip>
-                    <el-tooltip content="删除分类" placement="top">
-                      <el-icon @click.stop="handleDeleteCategory(cat.name)"><Delete /></el-icon>
-                    </el-tooltip>
-                  </div>
-                </div>
-              </div>
 
                 <!-- 标签框 -->
                 <div class="meta-box tag-box" v-for="tag in item.tags" :key="tag">
-                  <el-icon><PriceTag /></el-icon>
-                  <span>{{ tag }}</span>
                 </div>
               </div>
             </div>
@@ -468,6 +441,8 @@ html.dark .post-desc { color: #ccc; }
   gap: 10px;
   margin-top: 15px;
 }
+
+/* 基础框框样式 */
 .meta-box {
   display: inline-flex;
   align-items: center;
@@ -476,18 +451,34 @@ html.dark .post-desc { color: #ccc; }
   border-radius: 6px; 
   font-size: 0.8rem;
   font-weight: bold;
+  background: transparent; /* 确保背景透明 */
+  line-height: 1; /* 防止文字被挤没 */
 }
 .category-box {
-  background: rgba(230, 162, 60, 0.1);
-  color: #e6a23c;
+  /* 背景设置得很淡（或者全透明），不抢风头 */
+  background: rgba(230, 162, 60, 0.05); 
+  /* 文字和图标用明亮的黄色 */
+  color: #e6a23c; 
+  /* 增加一条细细的边框 */
   border: 1px solid rgba(230, 162, 60, 0.3);
+  transition: all 0.3s;
 }
+/* 标签样式 (绿色细框，文字绿色) */
 .tag-box {
-  background: rgba(103, 194, 58, 0.1);
-  color: #67c23a;
-  border: 1px solid rgba(103, 194, 58, 0.3);
+  color: #67c23a !important; /* 强制文字颜色为绿色 */
+  border: 1px solid rgba(103, 194, 58, 0.5) !important;
+  background: transparent !important; /* 默认空心透明 */
 }
 
+/* 鼠标悬浮时背景变浅绿 */
+.tag-box:hover {
+  background: rgba(103, 194, 58, 0.1) !important;
+}
+.category-box:hover {
+  background: rgba(230, 162, 60, 0.15);
+  border-color: rgba(230, 162, 60, 0.6);
+  transform: translateY(-2px);
+}
 /* ================= 魔法 CSS 区域 ================= */
 /* 强制覆盖 oh-my-live2d 的默认位置，实现左/右切换 */
 :global(html[data-l2d-pos="right"] #oml2d-stage) {
