@@ -221,30 +221,37 @@ const formatDate = (dateStr) => {
           
           <div class="glass-box">
             <h3 style="padding: 0 10px;">文章分类</h3>
-            <div class="post-tags-row" style="padding: 0 10px;">
-              <div
+            <!-- 恢复 ul -> li 的传统列表结构 -->
+            <ul class="category-list">
+              <li
                 v-for="cat in categories"
                 :key="cat.name"
-                class="meta-box category-box"
-                :class="{ 'is-active': selectedCategory === cat.name }"
+                :class="{ 'is-active-cat': selectedCategory === cat.name }"
                 @click="toggleCategory(cat.name)"
-                style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px; display: flex; align-items: center;"
+                style="cursor: pointer;"
               >
-                <el-icon><Folder /></el-icon>
-                <span>{{ cat.name }} ({{ cat.count }})</span>
+                <!-- 左侧：分类名 -->
+                <span class="cat-name">
+                  <el-icon style="margin-right: 5px;"><Folder /></el-icon>
+                  {{ cat.name }}
+                </span>
                 
-                <!-- 管理员特权：重命名和删除 -->
-                <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
-                  <el-tooltip content="重命名分类" placement="top">
-                    <el-icon @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
-                  </el-tooltip>
-                  <el-tooltip content="删除分类" placement="top">
-                    <el-icon @click.stop="handleDeleteCategory(cat.name)"><Delete /></el-icon>
-                  </el-tooltip>
+                <!-- 右侧：数量 + 管理员操作 -->
+                <div class="cat-right-info">
+                  <span class="cat-count">({{ cat.count }})</span>
+                  
+                  <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
+                    <el-tooltip content="重命名分类" placement="top">
+                      <el-icon class="admin-icon" @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
+                    </el-tooltip>
+                    <el-tooltip content="删除分类" placement="top">
+                      <el-icon class="admin-icon" @click.stop="handleDeleteCategory(cat.name)"><Delete /></el-icon>
+                    </el-tooltip>
+                  </div>
                 </div>
-              </div>
-              <div v-if="categories.length === 0" style="color: #999; font-size: 0.9rem;">暂无分类</div>
-            </div>
+              </li>
+              <li v-if="categories.length === 0" style="color: #999; font-size: 0.9rem; justify-content: center; border: none;">暂无分类</li>
+            </ul>
 
             <!-- 管理员特权：添加分类按钮 -->
             <div v-if="isLoggedIn" style="text-align: center; margin-top: 15px;">
@@ -331,11 +338,37 @@ const formatDate = (dateStr) => {
               
               <!-- 👇 新增：带框框的分类和标签 -->
               <div class="post-tags-row" v-if="item.category || (item.tags && item.tags.length)">
+                
                 <!-- 分类框 (借用之前设定的样式) -->
-                <div class="meta-box category-box" v-if="item.category">
+                <div
+                v-for="cat in categories"
+                :key="cat.name"
+                class="meta-box category-box"
+                :class="{ 'is-active': selectedCategory === cat.name }"
+                @click="toggleCategory(cat.name)"
+                style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box;"
+              >
+                <!-- 左半边：图标 + 分类名 -->
+                <div style="display: flex; align-items: center; gap: 5px;">
                   <el-icon><Folder /></el-icon>
-                  <span>{{ item.category }}</span>
+                  <span>{{ cat.name }}</span>
                 </div>
+                
+                <!-- 右半边：文章数量 + (管理员才有的) 编辑和删除图标 -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 0.8rem; opacity: 0.8;">({{ cat.count }})</span>
+                  
+                  <!-- 管理员特权：重命名和删除 -->
+                  <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
+                    <el-tooltip content="重命名分类" placement="top">
+                      <el-icon @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
+                    </el-tooltip>
+                    <el-tooltip content="删除分类" placement="top">
+                      <el-icon @click.stop="handleDeleteCategory(cat.name)"><Delete /></el-icon>
+                    </el-tooltip>
+                  </div>
+                </div>
+              </div>
 
                 <!-- 标签框 -->
                 <div class="meta-box tag-box" v-for="tag in item.tags" :key="tag">
@@ -572,31 +605,126 @@ html.dark .expand-arrow-wrapper:hover {
   .meta-box { font-size: 0.75rem; padding: 3px 8px; }
 }
 
-/* 选中的分类高亮 */
-.category-box.is-active {
+/* ============ 分类列表专属样式 ============ */
+.category-list li {
+  display: flex;
+  justify-content: space-between; /* 左右两端对齐 */
+  align-items: center;
+  padding: 10px 10px;
+  border-bottom: 1px dashed rgba(0,0,0,0.1);
+  transition: all 0.3s;
+}
+/* 鼠标悬浮或选中时的高亮 */
+.category-list li:hover {
+  background: rgba(230, 162, 60, 0.05);
+  color: #e6a23c;
+  border-radius: 6px;
+}
+.category-list li.is-active-cat {
+  background: rgba(230, 162, 60, 0.1);
+  color: #e6a23c;
+  font-weight: bold;
+  border-radius: 6px;
+}
+
+/* 左侧分类名 */
+.cat-name {
+  display: flex;
+  align-items: center;
+}
+
+/* 右侧盒子：包含操作区和数字 */
+.cat-right-info {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* 图标和数字之间的间距 */
+}
+
+/* 数量显示 */
+.cat-count {
+  color: #888;
+  font-size: 0.9rem;
+}
+html.dark .cat-count { color: #bbb; }
+
+/* ============ 左侧分类栏 (ul -> li 结构带橙色框) ============ */
+.category-list {
+  list-style: none;
+  padding: 0 10px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* 每个分类之间的间距 */
+}
+
+/* 每一个 li 就是一个橙色的框框 */
+.category-item-box {
+  display: flex;
+  justify-content: space-between; /* 左右两端对齐 */
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  
+  /* 默认橙色框样式 (类似右侧分类框) */
+  background: rgba(230, 162, 60, 0.05);
+  color: #e6a23c;
+  border: 1px solid rgba(230, 162, 60, 0.3);
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* 鼠标悬浮时微微放大 */
+.category-item-box:hover {
+  transform: translateY(-2px);
+  background: rgba(230, 162, 60, 0.1);
+}
+
+/* 选中该分类时的激活状态 (实心橙色) */
+.category-item-box.is-active-cat {
   background: #e6a23c;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(230, 162, 60, 0.3);
 }
 
-/* 分类管理图标 */
+/* 布局：左侧名字和右侧操作区 */
+.cat-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cat-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cat-count {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* 管理员的编辑/删除图标 */
 .cat-admin-ops {
   display: inline-flex;
-  gap: 6px;
-  margin-left: 8px;
-  border-left: 1px solid rgba(0,0,0,0.1);
-  padding-left: 8px;
+  gap: 8px;
+  margin-left: 4px;
 }
 .cat-admin-ops .el-icon {
   font-size: 14px;
-  transition: color 0.3s;
+  transition: color 0.3s, transform 0.3s;
+  /* 没激活时，图标默认颜色跟着文字走，但可以稍微淡一点 */
+  opacity: 0.7; 
 }
 .cat-admin-ops .el-icon:hover {
-  color: #f56c6c;
+  color: #f56c6c; /* 悬浮变成警告红 */
+  opacity: 1;
+  transform: scale(1.1);
 }
-.category-box.is-active .cat-admin-ops {
-  border-left-color: rgba(255,255,255,0.3);
+/* 激活状态下，因为底色是实心橙色，图标颜色变成纯白 */
+.category-item-box.is-active-cat .cat-admin-ops .el-icon:hover {
+  color: #fff;
 }
 
 </style>

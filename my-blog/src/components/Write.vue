@@ -17,6 +17,9 @@ const originalSlug = ref('')    // 保存旧的 slug（修改文章时用）
 
 // 页面一加载，看有没有传 slug 过来，有的话就是编辑模式，去后端要数据
 onMounted(async () => {
+  
+  fetchCategories()
+  
   const querySlug = route.query.slug
   if (querySlug) {
     isEditMode.value = true
@@ -86,11 +89,21 @@ const handleRemoveTag = (tag) => {
   article.tags = article.tags.filter(t => t !== tag)
 }
 
-// 分类选项（支持动态添加）
-const categoryOptions = ref([
-  { value: '前端开发', label: '前端开发' },
-  { value: '生活日记', label: '生活日记' }
-])
+const categoryOptions = ref([])
+
+// 获取后端所有分类
+const fetchCategories = async () => {
+  try {
+    const res = await axios.get('http://116.62.218.51:8000/api/categories')
+    // 将后端返回的 [{name: 'xx', count: 1}] 转换成下拉框需要的 {value: 'xx', label: 'xx'}
+    categoryOptions.value = res.data.map(cat => ({
+      value: cat.name,
+      label: cat.name
+    }))
+  } catch (error) {
+    console.error('获取分类失败', error)
+  }
+}
 
 const showPreview = ref(false)
 const renderedHtml = ref('')
