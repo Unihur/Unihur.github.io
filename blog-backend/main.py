@@ -5,7 +5,7 @@
 # 如果代码 push 到 GitHub 同步后，后端逻辑未生效，请在服务器终端依次执行：
 #
 # 1. 进入后端目录：
-#    cd ~/blog-backend  (根据你服务器的实际路径修改)
+#    cd /root/blog-backend  (根据你服务器的实际路径修改)
 #
 # 2. 杀掉旧的 Python 进程：
 #    pkill -f uvicorn
@@ -67,6 +67,7 @@ class ArticleResponse(ArticleCreate):
     created_at: datetime
     likes: int = 0
     shares: int = 0
+    views: int = 0
 
     class Config:
         orm_mode = True # 允许从 SQLAlchemy 模型读取数据
@@ -224,7 +225,8 @@ def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
             "cover": a.cover,
             "created_at": a.created_at,
             "likes": a.likes,
-            "shares": a.shares  
+            "shares": a.shares,
+            "views": a.views
         })
     return result
 
@@ -257,7 +259,8 @@ def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
             "publishTime": article.publish_time,
             "cover": article.cover,
             "likes": article.likes,
-            "shares": article.shares
+            "shares": article.shares,
+            "views": article.views 
         },
         "prev": {"title": prev_article.title, "slug": prev_article.slug} if prev_article else None,
         "next": {"title": next_article.title, "slug": next_article.slug} if next_article else None
@@ -272,7 +275,14 @@ def get_article(slug: str, db: Session = Depends(get_db)):
     article = db.query(models.Article).filter(models.Article.slug == slug).first()
     if not article:
         raise HTTPException(status_code=404, detail="文章不存在")
-        
+
+    # 👇 新增：每次有人查看详情，浏览数自动 +1
+    if article.views is None:
+        article.views = 1
+    else:
+        article.views += 1
+    db.commit() # 保存浏览量
+
     # 查找上一篇 (发布时间比当前文章早的第一篇)
     prev_article = db.query(models.Article).filter(
         models.Article.publish_time < article.publish_time, 
@@ -299,7 +309,8 @@ def get_article(slug: str, db: Session = Depends(get_db)):
             "publishTime": article.publish_time,
             "cover": article.cover,  
             "likes": article.likes,   
-            "shares": article.shares  
+            "shares": article.shares,
+            "views": article.views  
         },
         "prev": {"title": prev_article.title, "slug": prev_article.slug} if prev_article else None,
         "next": {"title": next_article.title, "slug": next_article.slug} if next_article else None
@@ -366,3 +377,47 @@ def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depen
     db.commit()
     
     return {"status": "success", "message": "文章已成功删除"}
+
+# =========== 分类管理 API ===========
+class CategoryCreate(BaseModel):
+    name: str
+
+@app.get("/api/categories")
+def get_categories(db: Session = Depends(get_db)):
+    cats = db.query(models.Category).all()
+    result = []
+    for c in cats:
+        # 统计该分类下有几篇文章
+        count = db.query(models.Article).filter(models.Article.category == c.name).count()
+        result.append({"name": c.name, "count": count})
+    return result
+
+@app.post("/api/categories")
+def add_category(cat: CategoryCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+    if db.query(models.Category).filter(models.Category.name == cat.name).first():
+        raise HTTPException(status_code=400, detail="分类已存在")
+    new_cat = models.Category(name=cat.name)
+    db.add(new_cat)
+    db.commit()
+    return {"status": "success"}
+
+@app.put("/api/categories/{old_name}")
+def rename_category(old_name: str, cat: CategoryCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+    db_cat = db.query(models.Category).filter(models.Category.name == old_name).first()
+    if not db_cat:
+        raise HTTPException(404, detail="分类不存在")
+    db_cat.name = cat.name
+    # 把之前所有属于旧分类的文章，全部更新为新分类名
+    db.query(models.Article).filter(models.Article.category == old_name).update({"category": cat.name})
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/categories/{name}")
+def delete_category(name: str, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+    db_cat = db.query(models.Category).filter(models.Category.name == name).first()
+    if db_cat:
+        db.delete(db_cat)
+        # 将被删除分类下的文章，分类置空
+        db.query(models.Article).filter(models.Article.category == name).update({"category": None})
+        db.commit()
+    return {"status": "success"}

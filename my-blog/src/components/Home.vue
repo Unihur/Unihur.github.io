@@ -5,7 +5,8 @@ import { ElMessage } from 'element-plus'
 import ProfileCard from './ProfileCard.vue' 
 import MusicPlayer from './MusicPlayer.vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, Folder, PriceTag } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, Folder, PriceTag, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 
@@ -18,6 +19,73 @@ const carouselHeight = inject('carouselHeight')
 const typewriterText = inject('typewriterText')
 const contentPaddingTop = inject('contentPaddingTop')
 const contentMarginTop = inject('contentMarginTop')
+
+const isLoggedIn = inject('isLoggedIn') // 获取登录状态
+
+// ================= 新增：搜索逻辑 =================
+const searchQuery = ref('') // 绑定搜索框的值
+
+// ================= 新增：分类管理逻辑 =================
+const categories = ref([])
+const selectedCategory = ref('') // 当前选中的分类
+
+const fetchCategories = async () => {
+  try {
+    const res = await axios.get('http://116.62.218.51:8000/api/categories')
+    categories.value = res.data
+  } catch (error) {
+    console.error('获取分类失败', error)
+  }
+}
+
+// 页面加载时顺便拉取分类
+onMounted(() => {
+  fetchArticles()
+  fetchCategories() // 👈 新增
+})
+
+// 分类点击过滤
+const toggleCategory = (name) => {
+  if (selectedCategory.value === name) selectedCategory.value = ''
+  else selectedCategory.value = name
+}
+
+// 管理员添加分类
+const handleAddCategory = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新分类名称', '添加分类', { confirmButtonText: '确定', cancelButtonText: '取消' })
+    if (value) {
+      await axios.post('http://116.62.218.51:8000/api/categories', { name: value }, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
+      ElMessage.success('添加成功')
+      fetchCategories()
+    }
+  } catch (e) {}
+}
+
+// 管理员重命名
+const handleRenameCategory = async (oldName) => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新名称', '重命名分类', { inputValue: oldName, confirmButtonText: '确定', cancelButtonText: '取消' })
+    if (value && value !== oldName) {
+      await axios.put(`http://116.62.218.51:8000/api/categories/${oldName}`, { name: value }, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
+      ElMessage.success('重命名成功')
+      fetchCategories()
+      fetchArticles() // 刷新文章列表以显示新分类名
+    }
+  } catch (e) {}
+}
+
+// 管理员删除
+const handleDeleteCategory = async (name) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除分类 "${name}" 吗？该分类下的文章将变为无分类。`, '警告', { type: 'warning' })
+    await axios.delete(`http://116.62.218.51:8000/api/categories/${name}`, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
+    ElMessage.success('删除成功')
+    if (selectedCategory.value === name) selectedCategory.value = ''
+    fetchCategories()
+    fetchArticles()
+  } catch(e) {}
+}
 
 // ================= 新增：从后端获取文章列表的逻辑 =================
 const articleList = ref([]) // 用来存后端返回的文章数组
@@ -54,12 +122,25 @@ const toggleTag = (tag) => {
   }
 }
 
-// 过滤后的文章列表（右侧实际渲染的数据）
 const filteredArticles = computed(() => {
-  if (selectedTags.value.length === 0) return articleList.value // 没选标签时显示全部
   return articleList.value.filter(article => {
-    if (!article.tags) return false
-    return selectedTags.value.every(t => article.tags.includes(t))
+    // 1. 搜索词匹配 (标题或简介)
+    if (searchQuery.value) {
+      const keyword = searchQuery.value.toLowerCase()
+      const matchTitle = article.title.toLowerCase().includes(keyword)
+      const matchIntro = (article.intro || '').toLowerCase().includes(keyword)
+      if (!matchTitle && !matchIntro) return false
+    }
+    // 2. 标签匹配
+    if (selectedTags.value.length > 0) {
+      if (!article.tags) return false
+      if (!selectedTags.value.every(t => article.tags.includes(t))) return false
+    }
+    // 3. 分类匹配
+    if (selectedCategory.value) {
+      if (article.category !== selectedCategory.value) return false
+    }
+    return true
   })
 })
 
@@ -139,11 +220,38 @@ const formatDate = (dateStr) => {
           <ProfileCard :config="siteConfig" />
           
           <div class="glass-box">
-            <h3>分类</h3>
-            <ul class="category-list">
-              <li><span>前端开发</span> <span>(5)</span></li>
-              <li><span>生活日记</span> <span>(3)</span></li>
-            </ul>
+            <h3 style="padding: 0 10px;">文章分类</h3>
+            <div class="post-tags-row" style="padding: 0 10px;">
+              <div
+                v-for="cat in categories"
+                :key="cat.name"
+                class="meta-box category-box"
+                :class="{ 'is-active': selectedCategory === cat.name }"
+                @click="toggleCategory(cat.name)"
+                style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px; display: flex; align-items: center;"
+              >
+                <el-icon><Folder /></el-icon>
+                <span>{{ cat.name }} ({{ cat.count }})</span>
+                
+                <!-- 管理员特权：重命名和删除 -->
+                <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
+                  <el-tooltip content="重命名分类" placement="top">
+                    <el-icon @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
+                  </el-tooltip>
+                  <el-tooltip content="删除分类" placement="top">
+                    <el-icon @click.stop="handleDeleteCategory(cat.name)"><Delete /></el-icon>
+                  </el-tooltip>
+                </div>
+              </div>
+              <div v-if="categories.length === 0" style="color: #999; font-size: 0.9rem;">暂无分类</div>
+            </div>
+
+            <!-- 管理员特权：添加分类按钮 -->
+            <div v-if="isLoggedIn" style="text-align: center; margin-top: 15px;">
+              <el-button type="warning" plain size="small" @click="handleAddCategory">
+                <el-icon><Plus /></el-icon> 添加分类
+              </el-button>
+            </div>
           </div>
 
           <div class="glass-box">
@@ -177,7 +285,8 @@ const formatDate = (dateStr) => {
           <MusicPlayer />
 
           <div class="glass-box search-bar">
-            <el-input placeholder="搜索博客内容..." prefix-icon="Search" size="large" style="width: 100%; opacity: 0.8;" />
+            <!-- 加上 v-model="searchQuery" 即可实现实时过滤 -->
+            <el-input v-model="searchQuery" placeholder="搜索博客标题或简介..." prefix-icon="Search" size="large" style="width: 100%; opacity: 0.8;" />
           </div>
 
           <div v-if="isLoading" class="glass-box post-card" style="justify-content: center; padding: 40px;">
@@ -209,7 +318,7 @@ const formatDate = (dateStr) => {
               
               <div class="post-meta">
                 <span>📅 {{ formatDate(item.publishTime) }}</span> | 
-                <span>👁️ 浏览: 0</span> | 
+                <span>👁️ 浏览: {{ item.views || 0 }}</span> | 
                 <span>📝 字数: {{ item.content?.length || 0 }}</span> | 
                 <!-- 修复了点赞和转发的格式 -->
                 <span>❤️ 点赞: {{ item.likes || 0 }}</span> | 
@@ -461,6 +570,33 @@ html.dark .expand-arrow-wrapper:hover {
   /* 缩小标签栏等间距 */
   .post-tags-row { gap: 6px; }
   .meta-box { font-size: 0.75rem; padding: 3px 8px; }
+}
+
+/* 选中的分类高亮 */
+.category-box.is-active {
+  background: #e6a23c;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(230, 162, 60, 0.3);
+}
+
+/* 分类管理图标 */
+.cat-admin-ops {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: 8px;
+  border-left: 1px solid rgba(0,0,0,0.1);
+  padding-left: 8px;
+}
+.cat-admin-ops .el-icon {
+  font-size: 14px;
+  transition: color 0.3s;
+}
+.cat-admin-ops .el-icon:hover {
+  color: #f56c6c;
+}
+.category-box.is-active .cat-admin-ops {
+  border-left-color: rgba(255,255,255,0.3);
 }
 
 </style>

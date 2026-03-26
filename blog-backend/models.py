@@ -27,6 +27,7 @@ class Article(Base):
     # 👇 新增这一行：记录点赞数，默认值为 0
     likes = Column(Integer, default=0)
     shares = Column(Integer, default=0)
+    views = Column(Integer, default=0)
 
 class SiteSetting(Base):
     __tablename__ = "site_settings"
@@ -41,3 +42,8 @@ class Comment(Base):
     author = Column(String(50), default="游客")
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class Category(Base):
+    __tablename__ = "categories"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
