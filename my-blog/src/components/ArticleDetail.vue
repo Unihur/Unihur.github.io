@@ -316,7 +316,7 @@ const navigateTo = (slug) => {
 
       <el-row :gutter="20" v-else-if="article">
         <!-- ================= 左侧栏 (包含个人信息、分类标签、目录) ================= -->
-        <el-col :span="6">
+        <el-col :xs="24" :md="6">
           <ProfileCard :config="siteConfig" />
 
           <!-- 修改后的：文章目录 -->
@@ -339,7 +339,7 @@ const navigateTo = (slug) => {
         </el-col>
 
         <!-- ================= 右侧：文章展示区 ================= -->
-        <el-col :span="18" >
+        <el-col :xs="24" :md="18">
           
           <!-- 核心文章卡片 -->
           <div class="glass-box article-main-card">
@@ -747,6 +747,33 @@ html.dark .comment-text { color: #bbb; }
   box-shadow: 0 6px 20px rgba(255, 121, 198, 0.6);
   transform: translateY(-2px);
   color: #fff;
+}
+
+/* ================= 手机端阅读页适配 ================= */
+@media screen and (max-width: 768px) {
+  /* 缩小正文外框的留白 */
+  .markdown-body {
+    padding: 0 15px 15px !important;
+    font-size: 15px !important; /* 字体稍微缩小提升阅读性 */
+  }
+  .article-meta {
+    padding: 15px 15px 0 !important;
+  }
+  /* 缩小顶部图片上悬浮的标题 */
+  .hero-title-box {
+    left: 15px !important;
+    right: 15px !important;
+    bottom: 15px !important;
+    padding: 8px 15px !important;
+  }
+  .hero-title {
+    font-size: 1.4rem !important;
+  }
+  /* 底部按钮稍微放小 */
+  .action-btn {
+    padding: 10px 20px !important;
+    font-size: 1rem !important;
+  }
 }
 
 </style>

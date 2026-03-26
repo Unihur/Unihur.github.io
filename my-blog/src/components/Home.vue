@@ -135,7 +135,7 @@ const formatDate = (dateStr) => {
     <div class="main-content-wrapper" :style="{ paddingTop: contentPaddingTop, marginTop: contentMarginTop }">
       <el-row :gutter="20">
         <!-- ================= 左侧栏 (引入了新的 ProfileCard 组件) ================= -->
-        <el-col :span="6">
+        <el-col :xs="24" :md="6">
           <ProfileCard :config="siteConfig" />
           
           <div class="glass-box">
@@ -173,7 +173,7 @@ const formatDate = (dateStr) => {
         </el-col>
 
         <!-- ================= 右侧栏 ================= -->
-        <el-col :span="18">
+        <el-col :xs="24" :md="18">
           <MusicPlayer />
 
           <div class="glass-box search-bar">
@@ -439,6 +439,28 @@ html.dark .expand-arrow-wrapper {
 }
 html.dark .expand-arrow-wrapper:hover {
   background: #409EFF;
+}
+
+/* ================= 手机端主页文章卡片适配 ================= */
+@media screen and (max-width: 768px) {
+  /* 把文章卡片改为竖向排列 (column-reverse 让位于 DOM 下方的图片跑到上面去) */
+  .post-card {
+    flex-direction: column-reverse !important;
+    padding: 15px !important;
+  }
+  /* 封面图占满宽度 */
+  .post-cover {
+    width: 100% !important;
+    height: 180px !important;
+    margin-bottom: 15px;
+  }
+  /* 去除右侧原本留给图片的内边距 */
+  .post-info {
+    padding-right: 0 !important;
+  }
+  /* 缩小标签栏等间距 */
+  .post-tags-row { gap: 6px; }
+  .meta-box { font-size: 0.75rem; padding: 3px 8px; }
 }
 
 </style>

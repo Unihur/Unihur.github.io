@@ -550,4 +550,40 @@ html.dark .post-desc { color: #ccc; }
   transform: translateY(-2px);
 }
 
+/* ================= 手机端全局适配 ================= */
+@media screen and (max-width: 768px) {
+  /* 1. 缩小横幅标题，防止撑爆屏幕 */
+  .blog-title { 
+    font-size: 2.5rem !important; 
+    margin-top: -20px !important; 
+  }
+  .blog-subtitle { 
+    font-size: 1.2rem !important; 
+  }
+
+  /* 2. 导航栏适配：允许手指横向滑动，稍微缩小内边距 */
+  .nav-container { 
+    top: 5px !important; 
+    padding: 0 10px !important; 
+  }
+  .navbar { 
+    padding: 10px !important; 
+    border-radius: 16px !important;
+  }
+  .nav-links { 
+    overflow-x: auto; 
+    white-space: nowrap; /* 强制不换行 */
+    -webkit-overflow-scrolling: touch; /* 丝滑滚动 */
+    padding-bottom: 2px;
+  }
+  /* 隐藏导航栏滚动条 */
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links span { font-size: 0.9rem; }
+  
+  /* 3. 稍微缩小全局的两侧留白 */
+  .main-content-wrapper {
+    padding: 0 10px 20px 10px !important;
+  }
+}
+
 </style>
