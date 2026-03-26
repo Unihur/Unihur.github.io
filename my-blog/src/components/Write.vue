@@ -94,6 +94,7 @@ const categoryOptions = ref([
 
 const showPreview = ref(false)
 const renderedHtml = ref('')
+const fileInput = ref(null)
 
 // 按钮操作
 const handleImport = () => {
@@ -106,23 +107,25 @@ const onFileChange = (e) => {
   const file = e.target.files[0]
   if (!file) return
 
-  // 确保是文本/Markdown文件
   const reader = new FileReader()
   reader.onload = (event) => {
+    // 将读取到的 md 内容赋值给文章的 content
     article.content = event.target.result
     
-    // （可选增强）如果当前文章没有标题，自动用文件名作为标题
+    // 如果还没填标题，自动把文件名当做标题（去掉.md后缀）
     if (!article.title) {
       article.title = file.name.replace(/\.md$/i, '')
     }
     
     ElMessage.success('导入 .md 文件成功！')
   }
+  // 以文本格式读取文件
   reader.readAsText(file)
   
-  // 清空 input 值，防止下次选择同一个文件时不触发 change 事件
+  // 清空 input，允许下次重复导入同一个文件
   e.target.value = ''
 }
+
 
 const handlePreview = () => {
   renderedHtml.value = md.render(article.content || '*(暂无内容)*')
