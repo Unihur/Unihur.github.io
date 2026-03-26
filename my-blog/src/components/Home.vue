@@ -347,6 +347,8 @@ const formatDate = (dateStr) => {
 
                 <!-- 标签框 -->
                 <div class="meta-box tag-box" v-for="tag in item.tags" :key="tag">
+                  <el-icon><PriceTag /></el-icon>
+                  <span>{{ tag }}</span>
                 </div>
               </div>
             </div>
@@ -465,14 +467,24 @@ html.dark .post-desc { color: #ccc; }
 }
 /* 标签样式 (绿色细框，文字绿色) */
 .tag-box {
-  color: #67c23a !important; /* 强制文字颜色为绿色 */
-  border: 1px solid rgba(103, 194, 58, 0.5) !important;
-  background: transparent !important; /* 默认空心透明 */
+  color: #67c23a;
+  border: 1px solid rgba(103, 194, 58, 0.5);
+  background: transparent; 
+  transition: all 0.3s;
 }
 
-/* 鼠标悬浮时背景变浅绿 */
+/* 标签悬浮稍微加深一点点背景 */
 .tag-box:hover {
-  background: rgba(103, 194, 58, 0.1) !important;
+  background: rgba(103, 194, 58, 0.1);
+}
+
+/* 当左侧栏的标签被【点击选中】时，变成显眼的绿色实心 + 白色文字 */
+.tag-box.is-active {
+  background: #67c23a;
+  color: white;
+  border-color: #67c23a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(103, 194, 58, 0.3);
 }
 .category-box:hover {
   background: rgba(230, 162, 60, 0.15);
