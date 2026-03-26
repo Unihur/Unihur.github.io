@@ -232,11 +232,13 @@ const fetchArticle = async (slug) => {
 
 // 新增：获取所有文章为了算总浏览量
 const fetchAllArticlesForStats = async () => {
-  try {
+   try {
     const res = await axios.get('http://116.62.218.51:8000/api/articles')
-    articleList.value = res.data
+    // 取决于你后端的格式，可能是 res.data，也可能是 res.data.articles
+    // 如果你在主页用的 res.data，那就统一用 res.data
+    allArticles.value = res.data 
   } catch (error) {
-    console.error('获取用于统计的文章列表失败:', error)
+    console.error('获取所有文章列表失败:', error)
   }
 }
 
@@ -798,6 +800,18 @@ html.dark .comment-text { color: #bbb; }
   .action-btn {
     padding: 10px 20px !important;
     font-size: 1rem !important;
+  }
+}
+
+/* ================= 详情页手机端专属适配 ================= */
+@media screen and (max-width: 768px) {
+  /* 防止详情页的正文太靠上，被上面的波浪特效或导航栏挡住 */
+  .main-content-wrapper {
+    margin-top: 30px !important; 
+  }
+  /* 调整顶部大标题的位置 */
+  .blog-title {
+    margin-top: 20px !important;
   }
 }
 

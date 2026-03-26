@@ -553,18 +553,28 @@ html.dark .post-desc { color: #ccc; }
 
 /* ================= 手机端全局适配 ================= */
 @media screen and (max-width: 768px) {
-  /* 1. 彻底缩小横幅的大标题和副标题，避免遮挡和挤压 */
+  /* 1. 极大幅度缩小横幅标题，让出图片空间 */
   .blog-title { 
-    font-size: 2rem !important;  /* 从原先的 6rem 改成 2rem */
-    margin-top: 10px !important; /* 不再用负的 margin 把标题往上提 */
-    line-height: 1.2;
+    font-size: 2rem !important; 
+    margin-top: 10px !important; /* 不用负数往上提了，往下放一点 */
+    padding: 0 10px;
   }
   .blog-subtitle { 
     font-size: 1rem !important; 
     margin-top: 5px !important;
+    min-height: 1.5rem !important;
   }
 
-  /* 2. 导航栏适配：允许手指横向滑动 */
+  /* 2. 增大横幅在手机端的高度，露出更多图片 */
+  .banner-carousel, .banner {
+    height: 300px !important; /* 高度从 220px 加大到 300px，让图片显示完整 */
+  }
+  /* 波浪往下移一点，不要挡住图片主体 */
+  .waves-container {
+    bottom: -15px !important; 
+  }
+
+  /* 3. 导航栏适配：允许横向滑动 */
   .nav-container { 
     top: 5px !important; 
     padding: 0 10px !important; 
@@ -582,14 +592,9 @@ html.dark .post-desc { color: #ccc; }
   .nav-links::-webkit-scrollbar { display: none; }
   .nav-links span { font-size: 0.9rem; }
   
-  /* 3. 在手机端，把波浪往下降一点，防止遮盖掉主标题 */
-  .waves-container {
-    bottom: -5px !important; 
-  }
-
-  /* 4. 稍微缩小全局的两侧留白，如果 Banner 依然遮挡正文，这里可以加一点点上边距 */
+  /* 4. 防止正文被 Banner 的波浪挡住，给手机端正文加点上边距 */
   .main-content-wrapper {
-    padding: 10px 10px 20px 10px !important;
+    padding: 20px 10px 20px 10px !important;
   }
 }
 
