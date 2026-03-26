@@ -370,7 +370,29 @@ provide('isLoggedIn', isLoggedIn)
   padding: 0 20px; 
   box-sizing: border-box; 
 }
-.navbar { width: 100%; max-width: 1160px; display: flex; justify-content: space-between; align-items: center; border-radius: 50px; padding: 10px 30px; margin: 0; background: rgba(255, 255, 255, 0.6); }
+.navbar { 
+  width: 100%; 
+  max-width: 1160px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  border-radius: 50px; 
+  padding: 10px 30px; 
+  margin: 0; 
+  /* 调高不透明度到 0.85 或 0.9，加强模糊效果 */
+  background: rgba(255, 255, 255, 0.85); 
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* 加一点淡淡的阴影区分层次 */
+}
+
+/* 如果你的网站有夜间模式，记得也给夜间模式下的 navbar 加上样式 */
+html.dark .navbar {
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
 .nav-links { display: flex; gap: 20px; }
 .nav-links span { font-weight: bold; cursor: pointer; transition: color 0.3s; }
 .nav-links span:hover { color: #409EFF; }

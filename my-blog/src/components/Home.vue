@@ -1,10 +1,12 @@
 <script setup>  
-import { inject, ref, onMounted } from 'vue'
+import { inject, ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import ProfileCard from './ProfileCard.vue' 
 import MusicPlayer from './MusicPlayer.vue'
 import { useRouter } from 'vue-router'
+import { ArrowDown, ArrowUp, Folder, PriceTag } from '@element-plus/icons-vue'
+
 const router = useRouter()
 
 // 接收从 App.vue 传过来的全局配置
@@ -20,6 +22,46 @@ const contentMarginTop = inject('contentMarginTop')
 // ================= 新增：从后端获取文章列表的逻辑 =================
 const articleList = ref([]) // 用来存后端返回的文章数组
 const isLoading = ref(true) // 加载状态，可以让页面看起来更流畅
+
+// ================= 👇 2. 新增：标签动态筛选逻辑 =================
+const selectedTags = ref([]) // 当前选中的标签数组
+const showAllTags = ref(false) // 是否展开所有标签
+
+// ���取所有不重复的标签并按字母/拼音排序
+const allTags = computed(() => {
+  const tags = new Set()
+  articleList.value.forEach(article => {
+    if (article.tags && Array.isArray(article.tags)) {
+      article.tags.forEach(t => tags.add(t))
+    }
+  })
+  return Array.from(tags).sort((a, b) => a.localeCompare(b))
+})
+
+// 控制展开/收起（默认只显示前 10 个）
+const displayedTags = computed(() => {
+  if (showAllTags.value) return allTags.value
+  return allTags.value.slice(0, 10) 
+})
+
+// 点击标签时选中/取消选中
+const toggleTag = (tag) => {
+  const index = selectedTags.value.indexOf(tag)
+  if (index > -1) {
+    selectedTags.value.splice(index, 1) // 取消选中
+  } else {
+    selectedTags.value.push(tag) // 选中
+  }
+}
+
+// 过滤后的文章列表（右侧实际渲染的数据）
+const filteredArticles = computed(() => {
+  if (selectedTags.value.length === 0) return articleList.value // 没选标签时显示全部
+  return articleList.value.filter(article => {
+    if (!article.tags) return false
+    return selectedTags.value.every(t => article.tags.includes(t))
+  })
+})
 
 // 点击卡片，跳转到详情页，并把 slug 传过去
 const goToDetail = (slug) => {
@@ -103,13 +145,30 @@ const formatDate = (dateStr) => {
               <li><span>生活日记</span> <span>(3)</span></li>
             </ul>
           </div>
+
           <div class="glass-box">
-            <h3>标签</h3>
-            <div class="tag-list">
-              <el-tag class="custom-tag">Vue3</el-tag>
-              <el-tag class="custom-tag" type="success">Vite</el-tag>
+            <h3 style="display: flex; justify-content: space-between; align-items: center; padding: 0 ;">
+                标签筛选
+                <el-icon v-if="allTags.length > 10" style="cursor:pointer;" @click="showAllTags = !showAllTags">
+                  <component :is="showAllTags ? ArrowUp : ArrowDown" />
+                </el-icon>
+              </h3>
+              <!-- 这里直接使用前面设定好的 tag-box 样式 -->
+              <div class="post-tags-row">
+                <div
+                  v-for="tag in displayedTags"
+                  :key="tag"
+                  class="meta-box tag-box"
+                  :class="{ 'is-active': selectedTags.includes(tag) }"
+                  @click="toggleTag(tag)"
+                  style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px;"
+                >
+                  <el-icon><PriceTag /></el-icon>
+                  <span>{{ tag }}</span>
+                </div>
+                <div v-if="allTags.length === 0" style="color: #999; font-size: 0.9rem; padding: 0 10px;">暂无标签</div>
+              </div>
             </div>
-          </div>
         </el-col>
 
         <!-- ================= 右侧栏 ================= -->
@@ -127,53 +186,61 @@ const formatDate = (dateStr) => {
             暂无文章，快去发布第一篇吧！
           </div>
           
+          <!-- 👇 新增：标签过滤后如果没有文章，提示玩家 -->
+          <div v-else-if="filteredArticles.length === 0" class="glass-box post-card" style="justify-content: center; padding: 40px; color: #ff9800; font-weight: bold;">
+            没有找到同时包含选中标签的文章哦~
+          </div>
+
           <div 
             v-else 
             class="glass-box post-card" 
-            v-for="item in articleList"
+            v-for="item in filteredArticles" 
             :key="item.id"
             @click="$router.push(`/post/${item.slug}`)" 
             style="cursor: pointer;" 
           >
+            <!-- 👇 确保点赞数、转发数、以及新增的带框框分类替换进来 -->
             <div class="post-info">
-              <!-- 真实标题 -->
               <h2>
-                <!-- 新增：如果是置顶文章，显示橙色空心方框的标签 -->
                 <el-tag v-if="item.isPinned" effect="plain" style="margin-right: 8px; color: #ff9800; border-color: #ff9800;" size="small">置顶</el-tag>
                 {{ item.title }}
               </h2>
+              
               <div class="post-meta">
-                <!-- 真实时间，字数先简单用内容的长度模拟 -->
                 <span>📅 {{ formatDate(item.publishTime) }}</span> | 
                 <span>👁️ 浏览: 0</span> | 
                 <span>📝 字数: {{ item.content?.length || 0 }}</span> | 
-                <!-- 新增：点赞和转发，因为转发目前没做后端功能，先写死为0 -->
+                <!-- 修复了点赞和转发的格式 -->
                 <span>❤️ 点赞: {{ item.likes || 0 }}</span> | 
                 <span>🔗 转发: 0</span>
               </div>
               
-              <!-- 真实简介 -->
               <p class="post-desc">
                 {{ item.intro || '这篇作者很懒，没有写简介...' }}
               </p>
-              <!-- 真实标签循环 -->
-              <div class="post-tags" v-if="item.tags && item.tags.length">
-                <el-tag 
-                  size="small" 
-                  v-for="(tag, index) in item.tags" 
-                  :key="index"
-                  :type="index % 2 === 0 ? 'primary' : 'success'"
-                  style="margin-right: 5px;"
-                >
-                  {{ tag }}
-                </el-tag>
+              
+              <!-- 👇 新增：带框框的分类和标签 -->
+              <div class="post-tags-row" v-if="item.category || (item.tags && item.tags.length)">
+                <!-- 分类框 (借用之前设定的样式) -->
+                <div class="meta-box category-box" v-if="item.category">
+                  <el-icon><Folder /></el-icon>
+                  <span>{{ item.category }}</span>
+                </div>
+
+                <!-- 标签框 -->
+                <div class="meta-box tag-box" v-for="tag in item.tags" :key="tag">
+                  <el-icon><PriceTag /></el-icon>
+                  <span>{{ tag }}</span>
+                </div>
               </div>
             </div>
-            <!-- 真实封面图，如果没有就用默认占位图 -->
+
+            <!-- 封面图 -->
             <div class="post-cover">
               <img :src="item.cover || '/banner/1.png'" alt="cover">
             </div>
           </div>
+
         </el-col>
       </el-row>
     </div>
@@ -251,6 +318,33 @@ html.dark .post-desc { color: #ccc; }
 .post-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
 .post-cover img:hover { transform: scale(1.1); }
 
+/* 新增：文章卡片中的分类和标签框框 */
+.post-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+.meta-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px; 
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.category-box {
+  background: rgba(230, 162, 60, 0.1);
+  color: #e6a23c;
+  border: 1px solid rgba(230, 162, 60, 0.3);
+}
+.tag-box {
+  background: rgba(103, 194, 58, 0.1);
+  color: #67c23a;
+  border: 1px solid rgba(103, 194, 58, 0.3);
+}
+
 /* ================= 魔法 CSS 区域 ================= */
 /* 强制覆盖 oh-my-live2d 的默认位置，实现左/右切换 */
 :global(html[data-l2d-pos="right"] #oml2d-stage) {
@@ -294,4 +388,13 @@ html.dark .post-desc { color: #ccc; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* 当标签被选中时，改变背景和文字颜色 */
+.tag-box.is-active {
+  background: #67c23a;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(103, 194, 58, 0.3);
+}
+
 </style>
