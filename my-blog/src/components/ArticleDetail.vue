@@ -52,6 +52,7 @@ const isLoading = ref(true)
 const likes = ref(0) 
 const shares = ref(0)
 const floatingHearts = ref([]) 
+const allArticles = ref([])
 
 let heartIdCounter = 0
 
@@ -170,6 +171,7 @@ const handleShare = async () => {
 // ================= 真实的评论功能 =================
 const comments = ref([])
 const newComment = ref('')
+const articleList = ref([])
 
 // 新增：从后端读取当前文章的评论
 const loadComments = async (slug) => {
@@ -228,6 +230,16 @@ const fetchArticle = async (slug) => {
   }
 }
 
+// 新增：获取所有文章为了算总浏览量
+const fetchAllArticlesForStats = async () => {
+  try {
+    const res = await axios.get('http://116.62.218.51:8000/api/articles')
+    articleList.value = res.data
+  } catch (error) {
+    console.error('获取用于统计的文章列表失败:', error)
+  }
+}
+
 // 监听路由参数变化（用于点击“上一篇/下一篇”时刷新内容和评论）
 watch(() => route.params.slug, (newSlug) => {
   if (newSlug) {
@@ -240,6 +252,7 @@ watch(() => route.params.slug, (newSlug) => {
 
 onMounted(() => {
   fetchArticle(route.params.slug)
+  fetchAllArticlesForStats()
   loadComments(route.params.slug) // 👉 新增：第一次进页面时，拉取评论
 })
 
@@ -317,7 +330,7 @@ const navigateTo = (slug) => {
       <el-row :gutter="20" v-else-if="article">
         <!-- ================= 左侧栏 (包含个人信息、分类标签、目录) ================= -->
         <el-col :xs="24" :md="6">
-          <ProfileCard :config="siteConfig" />
+          <ProfileCard :config="siteConfig" :articles="allArticles" />
 
           <!-- 修改后的：文章目录 -->
           <div class="glass-box toc-box" v-if="tocList && tocList.length > 0">
