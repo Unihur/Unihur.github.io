@@ -133,16 +133,50 @@ let oml2dInstance = null
 
 const loadLive2D = () => {
   if (oml2dInstance) return 
+  
+  // 动态判断当前屏幕宽度来决定初始大小和偏移量
+  const screenWidth = window.innerWidth
+  let adaptiveScale = siteConfig.live2dScale
+  let offsetX = 0
+  
+  // 简单响应式逻辑
+  if (screenWidth < 1400 && screenWidth >= 1000) {
+    adaptiveScale = siteConfig.live2dScale * 0.7
+    offsetX = -50 // 笔记本稍微往右挪一点防挡
+  } else if (screenWidth < 1000) {
+    adaptiveScale = siteConfig.live2dScale * 0.5
+    offsetX = -100 // 平板更往右一点
+  }
+
   oml2dInstance = loadOml2d({
     models: [{ 
       path: siteConfig.live2dPath,
-      scale: siteConfig.live2dScale
+      scale: adaptiveScale,
+      position: [offsetX, 0] // x轴偏移，防止挡住中间的内容框
     }],
     primaryColor: '#ff79c6',
-    menus: { disable: true }
+    // 👇 开启菜单，它会自动在左侧出现一个抽屉小图标
+    menus: { 
+      disable: false, // 启用菜单
+      items: (defaultItems) => {
+        // 你可以保留默认功能（关于、换装等），如果你只想要“收起/隐藏”功能，可以这样精简：
+        return [
+          defaultItems[0], // 换模型
+          defaultItems[1], // 换衣服
+          {
+            id: 'Hide',
+            name: '隐藏看板娘',
+            icon: 'icon-close',
+            onClick: () => {
+              // 调用内置的隐藏功能，变成右下角的待展开按钮
+              oml2dInstance.stage.slideOut() 
+            }
+          }
+        ]
+      }
+    }
   })
 }
-
 const handleConfigUpdate = (newConfig) => {
   Object.assign(siteConfig, newConfig)
 
@@ -472,7 +506,7 @@ html.dark .post-desc { color: #ccc; }
 /* 强制读取我们在 JS 中设定的 --l2d-scale 变量，实现缩放 */
 :global(#oml2d-stage) {
   transform: scale(var(--l2d-scale, 1));
-  transform-origin: bottom; /* 以脚底为准缩放，防止模型飘起来 */
+  transform-origin: bottom; /* 确保以底座为中心缩放 */
   transition: transform 0.3s ease, left 0.5s ease, right 0.5s ease;
 }
 

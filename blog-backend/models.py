@@ -26,6 +26,7 @@ class Article(Base):
 
     # 👇 新增这一行：记录点赞数，默认值为 0
     likes = Column(Integer, default=0)
+    shares = Column(Integer, default=0)
 
 class SiteSetting(Base):
     __tablename__ = "site_settings"

@@ -39,10 +39,10 @@ const allTags = computed(() => {
 })
 
 // 控制展开/收起（默认只显示前 10 个）
-const displayedTags = computed(() => {
+/*const displayedTags = computed(() => {
   if (showAllTags.value) return allTags.value
   return allTags.value.slice(0, 10) 
-})
+})*/
 
 // 点击标签时选中/取消选中
 const toggleTag = (tag) => {
@@ -147,27 +147,28 @@ const formatDate = (dateStr) => {
           </div>
 
           <div class="glass-box">
-            <h3 style="display: flex; justify-content: space-between; align-items: center; padding: 0 ;">
-                标签筛选
-                <el-icon v-if="allTags.length > 10" style="cursor:pointer;" @click="showAllTags = !showAllTags">
-                  <component :is="showAllTags ? ArrowUp : ArrowDown" />
-                </el-icon>
-              </h3>
-              <!-- 这里直接使用前面设定好的 tag-box 样式 -->
-              <div class="post-tags-row">
-                <div
-                  v-for="tag in displayedTags"
-                  :key="tag"
-                  class="meta-box tag-box"
-                  :class="{ 'is-active': selectedTags.includes(tag) }"
-                  @click="toggleTag(tag)"
-                  style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px;"
-                >
-                  <el-icon><PriceTag /></el-icon>
-                  <span>{{ tag }}</span>
-                </div>
-                <div v-if="allTags.length === 0" style="color: #999; font-size: 0.9rem; padding: 0 10px;">暂无标签</div>
+            <h3 style="padding: 0 10px;">标签筛选</h3>
+            
+            <!-- 使用 class 绑定控制高度 -->
+            <div class="post-tags-row tag-collapse-container" :class="{ 'is-expanded': showAllTags }">
+              <div
+                v-for="tag in allTags"
+                :key="tag"
+                class="meta-box tag-box"
+                :class="{ 'is-active': selectedTags.includes(tag) }"
+                @click="toggleTag(tag)"
+                style="cursor: pointer; transition: all 0.3s; margin-bottom: 5px;"
+              >
+                <el-icon><PriceTag /></el-icon>
+                <span>{{ tag }}</span>
               </div>
+              <div v-if="allTags.length === 0" style="color: #999; font-size: 0.9rem; padding: 0 10px;">暂无标签</div>
+            </div>
+
+              <div class="expand-arrow-wrapper" @click="showAllTags = !showAllTags">
+                <el-icon><component :is="showAllTags ? ArrowUp : ArrowDown" /></el-icon>
+              </div>
+
             </div>
         </el-col>
 
@@ -212,11 +213,11 @@ const formatDate = (dateStr) => {
                 <span>📝 字数: {{ item.content?.length || 0 }}</span> | 
                 <!-- 修复了点赞和转发的格式 -->
                 <span>❤️ 点赞: {{ item.likes || 0 }}</span> | 
-                <span>🔗 转发: 0</span>
+                <span>🔗 转发: {{ item.shares || 0 }}</span>
               </div>
               
               <p class="post-desc">
-                {{ item.intro || '这篇作者很懒，没有写简介...' }}
+                {{ item.intro || '这篇文章作者很懒，没有写简介...' }}
               </p>
               
               <!-- 👇 新增：带框框的分类和标签 -->
@@ -395,6 +396,49 @@ html.dark .post-desc { color: #ccc; }
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(103, 194, 58, 0.3);
+}
+
+/* 标签折叠容器 */
+.tag-collapse-container {
+  max-height: 120px; /* 约等于 4 行标签的高度 */
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+/* 展开后的高度 */
+.tag-collapse-container.is-expanded {
+  max-height: 1000px; /* 给一个足够大的值以便完全展开 */
+}
+
+/* 底部居中箭头 */
+.expand-arrow-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px auto 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.expand-arrow-wrapper:hover {
+  background: #409EFF; /* 鼠标悬浮变蓝色 */
+  color: #fff;
+  transform: translateY(2px);
+  box-shadow: 0 4px 10px rgba(64, 158, 255, 0.3);
+}
+
+/* 夜间模式专属样式：让箭头纯白更醒目 */
+html.dark .expand-arrow-wrapper {
+  background: rgba(255, 255, 255, 0.15); /* 加一点白底色防融合 */
+  color: #fff; /* 纯白色 */
+}
+html.dark .expand-arrow-wrapper:hover {
+  background: #409EFF;
 }
 
 </style>

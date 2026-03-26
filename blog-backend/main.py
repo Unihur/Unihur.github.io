@@ -46,6 +46,8 @@ class ArticleCreate(BaseModel):
 class ArticleResponse(ArticleCreate):
     id: int
     created_at: datetime
+    likes: int = 0
+    shares: int = 0
 
     class Config:
         orm_mode = True # 允许从 SQLAlchemy 模型读取数据
@@ -202,7 +204,8 @@ def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
             "isPinned": a.is_pinned,
             "cover": a.cover,
             "created_at": a.created_at,
-            "likes": a.likes  
+            "likes": a.likes,
+            "shares": a.shares  
         })
     return result
 
@@ -234,7 +237,8 @@ def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
             "category": article.category,
             "publishTime": article.publish_time,
             "cover": article.cover,
-            "likes": article.likes
+            "likes": article.likes,
+            "shares": article.shares
         },
         "prev": {"title": prev_article.title, "slug": prev_article.slug} if prev_article else None,
         "next": {"title": next_article.title, "slug": next_article.slug} if next_article else None
@@ -274,8 +278,9 @@ def get_article(slug: str, db: Session = Depends(get_db)):
             "tags": article.tags,
             "category": article.category,
             "publishTime": article.publish_time,
-            "cover": article.cover,  # 👈 这里的逗号加好了！
-            "likes": article.likes   # 👈 现在前端能顺利拿到点赞数了
+            "cover": article.cover,  
+            "likes": article.likes,   
+            "shares": article.shares  
         },
         "prev": {"title": prev_article.title, "slug": prev_article.slug} if prev_article else None,
         "next": {"title": next_article.title, "slug": next_article.slug} if next_article else None
@@ -295,6 +300,20 @@ def like_article(slug: str, db: Session = Depends(get_db)):
         
     db.commit()
     return {"status": "success", "likes": article.likes}
+
+@app.post("/api/articles/{slug}/share")
+def share_article(slug: str, db: Session = Depends(get_db)):
+    article = db.query(models.Article).filter(models.Article.slug == slug).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    
+    if article.shares is None:
+        article.shares = 1
+    else:
+        article.shares += 1
+        
+    db.commit()
+    return {"status": "success", "shares": article.shares}
 
 @app.post("/api/comments")
 def create_comment(comment: CommentCreate, db: Session = Depends(get_db)):

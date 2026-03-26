@@ -50,6 +50,7 @@ const prevPost = ref(null)
 const nextPost = ref(null)
 const isLoading = ref(true)
 const likes = ref(0) 
+const shares = ref(0)
 const floatingHearts = ref([]) 
 
 let heartIdCounter = 0
@@ -126,19 +127,22 @@ const scrollToAnchor = (id) => {
 }
 
 // 复制链接功能
-const handleShare = () => {
-  // 获取当前网页完整的 URL
-  const currentUrl = window.location.href
+const handleShare = async () => {
+  // 1. 复制当前链接到剪贴板
+  navigator.clipboard.writeText(window.location.href)
+  ElMessage.success('🔗 链接已复制！感谢您的分享~')
   
-  // 使用现代的 Clipboard API 复制到剪贴板
-  navigator.clipboard.writeText(currentUrl).then(() => {
-    ElMessage({
-      message: '✨ 链接已复制到剪贴板，快去分享吧！',
-      type: 'success'
-    })
-  }).catch(() => {
-    ElMessage.error('复制失败，请手动复制浏览器地址栏的链接')
-  })
+  // 2. 页面立刻展示转发数 +1
+  shares.value++
+  
+  // 3. 告诉后端记录这条转发
+  try {
+    if (article.value && article.value.slug) {
+      await axios.post(`http://116.62.218.51:8000/api/articles/${article.value.slug}/share`)
+    }
+  } catch (error) {
+    console.error('转发保存到后端失败:', error)
+  }
 }
 
 // ================= 真实的评论功能 =================
@@ -173,6 +177,7 @@ const fetchArticle = async (slug) => {
       article.value = articleData
       
       likes.value = articleData.likes || 0
+      shares.value = articleData.shares || 0
       
       // 提取上一篇和下一篇（如果是旧格式，这里取不到就是 null，很安全）
       prevPost.value = data.prev || null
@@ -291,22 +296,6 @@ const navigateTo = (slug) => {
         <!-- ================= 左侧栏 (包含个人信息、分类标签、目录) ================= -->
         <el-col :span="6">
           <ProfileCard :config="siteConfig" />
-          
-          <!-- 保留分类和标签 -->
-          <div class="glass-box" style="margin-top: 20px;">
-            <h3>分类</h3>
-            <ul class="category-list">
-              <li><span>前端开发</span> <span>(5)</span></li>
-              <li><span>生活日记</span> <span>(3)</span></li>
-            </ul>
-          </div>
-          <div class="glass-box" style="margin-top: 20px;">
-            <h3>标签</h3>
-            <div class="tag-list">
-              <el-tag class="custom-tag">Vue3</el-tag>
-              <el-tag class="custom-tag" type="success">Vite</el-tag>
-            </div>
-          </div>
 
           <!-- 修改后的：文章目录 -->
           <div class="glass-box toc-box" v-if="tocList && tocList.length > 0">
@@ -410,7 +399,7 @@ const navigateTo = (slug) => {
 
               <!-- 分享/转发按钮 -->
               <el-button type="primary" plain round size="large" @click="handleShare" class="action-btn">
-                <el-icon style="margin-right: 5px;"><Share /></el-icon> 分享文章
+                <el-icon style="margin-right: 5px;"><Share /></el-icon> 分享文章 ({{ shares }})
               </el-button>
               
             </div>
