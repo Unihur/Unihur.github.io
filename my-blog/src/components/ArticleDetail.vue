@@ -182,10 +182,13 @@ const fetchArticle = async (slug) => {
       renderedHtml.value = md.render(article.value.content || '*无内容*')
       document.title = `${article.value.title} - UniHur's Blog`
       
-      // 👇 改为 setTimeout，延迟 100 毫秒，等它彻底排版完再抓取
+      // 👇 清空旧目录，确保产生数据变动
+      tocList.value = []
+      
+      // 👇 把 generateTOC 的触发放在数据确实赋完值、DOM刷新后
       setTimeout(() => {
         generateTOC()
-      }, 100)
+      }, 300) // 把延迟稍微调长一点到 300ms，确保文章主体已经彻底显示出来
       
     } else {
       ElMessage.error('文章数据格式错误: 找不到标题')
@@ -201,8 +204,10 @@ const fetchArticle = async (slug) => {
 // 监听路由参数变化（用于点击“上一篇/下一篇”时刷新内容和评论）
 watch(() => route.params.slug, (newSlug) => {
   if (newSlug) {
+    // 切换文章时，也把原目录清空
+    tocList.value = []
     fetchArticle(newSlug)
-    loadComments(newSlug) // 👉 新增：切换文章时，拉取新文章的评论
+    loadComments(newSlug) 
   }
 })
 
@@ -304,7 +309,7 @@ const navigateTo = (slug) => {
           </div>
 
           <!-- 修改后的：文章目录 -->
-          <div class="glass-box toc-box" v-if="tocList.length > 0">
+          <div class="glass-box toc-box" v-if="tocList && tocList.length > 0">
             <h3>📖 文章目录</h3>
             <ul class="toc-list">
               <!-- 用 v-for 循环我们提取出来的目录 -->
