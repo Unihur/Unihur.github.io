@@ -219,6 +219,9 @@ const fetchArticle = async (slug) => {
         generateTOC()
       }, 300) // 把延迟稍微调长一点到 300ms，确保文章主体已经彻底显示出来
       
+      // 💥【新增这一步】此时后端已经给当前文章的浏览量+1了，我们现在去拉取全站总数据，绝对是最新的！
+      fetchAllArticlesForStats() 
+
     } else {
       ElMessage.error('文章数据格式错误: 找不到标题')
     }
@@ -254,7 +257,7 @@ watch(() => route.params.slug, (newSlug) => {
 
 onMounted(() => {
   fetchArticle(route.params.slug)
-  fetchAllArticlesForStats()
+  //fetchAllArticlesForStats()
   loadComments(route.params.slug) // 👉 新增：第一次进页面时，拉取评论
 })
 
@@ -800,18 +803,6 @@ html.dark .comment-text { color: #bbb; }
   .action-btn {
     padding: 10px 20px !important;
     font-size: 1rem !important;
-  }
-}
-
-/* ================= 详情页手机端专属适配 ================= */
-@media screen and (max-width: 768px) {
-  /* 防止详情页的正文太靠上，被上面的波浪特效或导航栏挡住 */
-  .main-content-wrapper {
-    margin-top: 30px !important; 
-  }
-  /* 调整顶部大标题的位置 */
-  .blog-title {
-    margin-top: 20px !important;
   }
 }
 
