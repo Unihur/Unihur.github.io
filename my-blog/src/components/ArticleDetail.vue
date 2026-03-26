@@ -126,11 +126,33 @@ const scrollToAnchor = (id) => {
   }
 }
 
-// 复制链接功能
+// 修改后的 handleShare：兼容 HTTP 和 HTTPS
 const handleShare = async () => {
-  // 1. 复制当前链接到剪贴板
-  navigator.clipboard.writeText(window.location.href)
-  ElMessage.success('🔗 链接已复制！感谢您的分享~')
+  const url = window.location.href
+  
+  // 1. 复制链接到剪贴板 (兼容处理)
+  if (navigator.clipboard && window.isSecureContext) {
+    // 如果是 HTTPS 或者 localhost，使用现代 API
+    await navigator.clipboard.writeText(url)
+  } else {
+    // 如果是 HTTP 环境，使用传统 DOM 降级方案
+    const textArea = document.createElement("textarea")
+    textArea.value = url
+    // 把输入框藏在屏幕外面
+    textArea.style.position = "absolute"
+    textArea.style.left = "-999999px"
+    document.body.prepend(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+    } catch (err) {
+      console.error('复制失败', err)
+    } finally {
+      textArea.remove() // 用完删掉
+    }
+  }
+
+  ElMessage.success('🔗 链接已复制！感谢你的分享~')
   
   // 2. 页面立刻展示转发数 +1
   shares.value++

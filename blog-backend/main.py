@@ -1,9 +1,28 @@
 #本地重启服务器指令：uvicorn main:app --reload
 
-# ===== 重启后端服务器 =====
-#查看状态：systemctl status blog-backend
-#重启服务（比如更新代码后）：systemctl restart blog-backend
-#停止服务：systemctl stop blog-backend
+# =========================================================================
+# 【服务器后端重启完整指令】
+# 如果代码 push 到 GitHub 同步后，后端逻辑未生效，请在服务器终端依次执行：
+#
+# 1. 进入后端目录：
+#    cd ~/blog-backend  (根据你服务器的实际路径修改)
+#
+# 2. 杀掉旧的 Python 进程：
+#    pkill -f uvicorn
+#
+# 3. 激活虚拟环境 (名字为 .venv)：
+#    source .venv/bin/activate
+#
+# 4. (可选) 如果修改了数据库字段且不想报错，最简单就是删掉旧数据库重建：
+#    rm blog.db  (注意：此操作会清空之前的测试数据！)
+#
+# 5. 在后台重新启动 FastAPI：
+#    nohup uvicorn main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+#
+# 6. 验证是否启动成功 (看有没有 running 提示)：
+#    cat backend.log
+# =========================================================================
+
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
