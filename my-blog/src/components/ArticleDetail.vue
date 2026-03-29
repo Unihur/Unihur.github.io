@@ -3,7 +3,7 @@ import { ref, onMounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { Calendar, Folder, PriceTag, Share, Edit, View } from '@element-plus/icons-vue'
+import { Calendar, Folder, PriceTag, Share, Edit, View, UserFilled, Delete, CaretTop, CaretBottom, ChatRound } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
@@ -265,7 +265,7 @@ const submitComment = async () => {
   if (!newComment.value.trim()) return ElMessage.warning('内容不能为空')
   
   // 如果当前登录了，提取自己的用户名，否则依然是“游客”
-  const currentUsername = localStorage.getItem('username') || '游客'
+  const currentUsername = ref(localStorage.getItem('username') || '')
   const token = localStorage.getItem('token')
 
   try {
@@ -283,6 +283,34 @@ const submitComment = async () => {
   } catch (e) {
     ElMessage.error('评论失败')
   }
+}
+
+// 管理员删除评论
+const handleDeleteComment = async (id) => {
+  try {
+    await ElMessageBox.confirm('确定要永久删除这条评论吗？', '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    await axios.delete(`http://116.62.218.51:8000/api/comments/${id}`, {
+      headers: { token: localStorage.getItem('token') }
+    })
+    
+    ElMessage.success('评论已删除')
+    // 重新拉取评论列表刷新界面
+    loadComments(route.params.slug)
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败，请检查网络或权限')
+    }
+  }
+}
+
+// 占位函数：点赞/点踩/回复（为了防止点击报错，后续可以再对接后端）
+const handleCommentAction = (action) => {
+  ElMessage.info('当前功能正在开发中，敬请期待~')
 }
 
 const navigateTo = (slug) => {
@@ -476,16 +504,44 @@ const navigateTo = (slug) => {
               <div class="comment-item" v-for="comment in comments" :key="comment.id">
                 <el-avatar :src="comment.avatar || ''" :icon="UserFilled" :size="40" />
                 <div class="comment-content-box">
+                  
+                  <!-- 头部：显示名字和管理员的删除按钮 -->
                   <div class="comment-header">
                     <span class="comment-author">{{ comment.author }}</span>
-                    <span class="comment-time">{{ comment.time }}</span>
+                    <!-- 如果是管理员 unihur，右上角显示红色垃圾桶 -->
+                    <el-icon 
+                      v-if="currentUsername === 'unihur'" 
+                      class="delete-comment-btn" 
+                      @click="handleDeleteComment(comment.id)"
+                    >
+                      <Delete />
+                    </el-icon>
                   </div>
+                  
+                  <!-- 正文内容 -->
                   <div class="comment-text">{{ comment.content }}</div>
+                  
+                  <!-- 底部：时间 与 操作按钮 -->
+                  <div class="comment-footer">
+                    <span class="comment-time">{{ comment.time }}</span>
+                    <div class="comment-actions">
+                      <span class="action-btn" @click="handleCommentAction('like')">
+                        <el-icon><CaretTop /></el-icon> 赞
+                      </span>
+                      <span class="action-btn" @click="handleCommentAction('dislike')">
+                        <el-icon><CaretBottom /></el-icon> 踩
+                      </span>
+                      <span class="action-btn" @click="handleCommentAction('reply')">
+                        <el-icon><ChatRound /></el-icon> 回复
+                      </span>
+                    </div>
+                  </div>
+                  
                 </div>
               </div>
             </div>
-          </div>
 
+          </div>
         </el-col>
       </el-row>
     </div>
@@ -752,15 +808,78 @@ html.dark .markdown-body :deep(pre) { background: #2d2d2d; }
 .comments-section { padding: 30px; margin-top: 20px; }
 .comment-btn-row { display: flex; justify-content: flex-end; }
 .comment-list { margin-top: 30px; }
-.comment-item { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 20px; }
-html.dark .comment-item { border-bottom-color: rgba(255,255,255,0.05); }
+/* 评论项的基础布局 */
+.comment-item { 
+  display: flex; 
+  gap: 15px; 
+  margin-bottom: 20px; 
+  padding-bottom: 15px; 
+  border-bottom: 1px solid rgba(0,0,0,0.05); 
+}
+html.dark .comment-item { 
+  border-bottom: 1px solid rgba(255,255,255,0.05); 
+}
 .comment-content-box { flex: 1; }
-.comment-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-.comment-author { font-weight: bold; color: #333; }
+.comment-content-box { flex: 1; }
+/* 头部：名字与垃圾桶的对齐 */
+.comment-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 5px; 
+}
+.comment-author { 
+  font-weight: bold; 
+  color: #409eff; 
+  font-size: 0.95rem; 
+}
+/* 红色垃圾桶样式 */
+.delete-comment-btn {
+  color: #f56c6c;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: transform 0.2s, color 0.2s;
+}
+.delete-comment-btn:hover {
+  transform: scale(1.2);
+  color: #ff4d4f;
+}
 html.dark .comment-author { color: #ddd; }
 .comment-time { font-size: 0.8rem; color: #999; }
-.comment-text { line-height: 1.5; color: #555; }
-html.dark .comment-text { color: #bbb; }
+/* 评论正文 */
+.comment-text { 
+  color: #444; 
+  font-size: 0.95rem; 
+  line-height: 1.6; 
+  margin-bottom: 8px; /* 给下方留出空间 */
+}
+html.dark .comment-text { color: #ccc; }
+/* 新增：底部的 时间 + 互动栏 */
+.comment-footer {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 0.8rem;
+  color: #999;
+}
+.comment-time {
+  /* 时间保持灰色即可 */
+}
+.comment-actions {
+  display: flex;
+  gap: 15px;
+}
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+.action-btn:hover {
+  color: #409EFF; /* 鼠标悬浮变蓝 */
+}
+html.dark .comment-footer { color: #666; }
 
 /* 自定义粉色编辑按钮 */
 .pink-edit-btn {
