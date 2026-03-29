@@ -14,16 +14,16 @@ import axios from 'axios'
 // 登录成功后的处理
 const handleLoginSubmit = async () => {
   try {
-    const res = await axios.post('/api/login', loginForm.value)
-    // 保存 Token 和用户信息
+    const res = await axios.post('http://116.62.218.51:8000/api/login', loginForm.value)
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('username', res.data.username)
     
-    // 【核心】应用绑定在该账号下的主题配置
+    // 给抽屉赋值
+    currentUsername.value = res.data.username
+    
     const userConfig = res.data.config
     themeStyle.value = userConfig.theme_style
     bannerMode.value = userConfig.banner_mode
-    // 触发样式更新函数...
     applyThemeStyle(themeStyle.value)
     
     isLoggedIn.value = true
@@ -96,6 +96,37 @@ const startTypewriter = () => {
 // 新增：主题样式状态管理 (default 或 liquid)
 const themeStyle = ref(localStorage.getItem('theme-style') || 'default')
 
+// 👇 补充缺失的 applyThemeStyle 函数 👇
+const applyThemeStyle = (style) => {
+  if (style === 'liquid') {
+    document.documentElement.classList.add('liquid-glass')
+  } else {
+    document.documentElement.classList.remove('liquid-glass')
+  }
+}
+
+// 👇 补充缺失的“个人中心抽屉”相关状态与逻辑 👇
+const showUserDrawer = ref(false)
+const currentUsername = ref(localStorage.getItem('username') || '')
+const newUsernameInput = ref('')
+
+// 修改用户名逻辑
+const updateUsername = async () => {
+  if (!newUsernameInput.value) return ElMessage.warning('新用户名不能为空')
+  try {
+    const res = await axios.post('http://116.62.218.51:8000/api/user/update', 
+      { new_username: newUsernameInput.value },
+      { headers: { token: localStorage.getItem('token') } }
+    )
+    currentUsername.value = newUsernameInput.value
+    localStorage.setItem('username', newUsernameInput.value)
+    newUsernameInput.value = ''
+    ElMessage.success('用户名修改成功！')
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || '修改失败')
+  }
+}
+
 // 每次你在前端切换了主题或者 Banner，都要触发同步方法
 const syncConfigToBackend = async (configData) => {
   if (!isLoggedIn.value) return // 游客只存在 localStorage
@@ -152,11 +183,15 @@ onMounted(async () => {
   }
 })
 
-const handleLogout = () => {
+// 退出登录逻辑
+const logout = () => {
+  localStorage.removeItem('token')
   localStorage.removeItem('admin_token')
+  localStorage.removeItem('username')
   isLoggedIn.value = false
+  showUserDrawer.value = false
+  ElMessage.success('已安全退出登录')
 }
-
 watch(() => siteConfig.signature, () => {
   startTypewriter()
 })
@@ -268,11 +303,13 @@ const loginForm = reactive({ username: '', password: '' })
 
 const handleLoginClick = () => {
   if (isLoggedIn.value) {
-    ElMessage.success('你已经是管理员了，这里以后会跳转到后台设置界面！')
+    // 如果已登录，不再弹提示，而是呼出个人中心抽屉
+    showUserDrawer.value = true
   } else {
     showLoginDialog.value = true
   }
 }
+
 const doLogin = async () => {
   try {
     const res = await axios.post('http://116.62.218.51:8000/api/login', loginForm)
