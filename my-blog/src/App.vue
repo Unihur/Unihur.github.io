@@ -131,11 +131,12 @@ const updateUsername = async () => {
 const syncConfigToBackend = async (configData) => {
   if (!isLoggedIn.value) return // 游客只存在 localStorage
   try {
-    await axios.post('/api/user/update', configData, {
+    // 👇 补全绝对路径 http://116.62.218.51:8000
+    await axios.post('http://116.62.218.51:8000/api/user/update', configData, {
       headers: { token: localStorage.getItem('token') }
     })
   } catch(e) {
-    console.error('配置同步失败')
+    console.error('配置同步失败', e)
   }
 }
 
@@ -302,10 +303,7 @@ const showLoginDialog = ref(false)
 const loginForm = reactive({ username: '', password: '' })
 
 const handleLoginClick = () => {
-  if (isLoggedIn.value) {
-    // 如果已登录，不再弹提示，而是呼出个人中心抽屉
-    showUserDrawer.value = true
-  } else {
+  if (!isLoggedIn.value) {
     showLoginDialog.value = true
   }
 }
@@ -450,16 +448,53 @@ provide('isLoggedIn', isLoggedIn)
 
           <!-- 新增：用户登录头像 -->
           <div class="divider"></div>
-          <el-tooltip :content="isLoggedIn ? '个人中心' : '点击登录'" placement="bottom">
-            <el-avatar 
-              :size="36" 
-              :src="isLoggedIn ? siteConfig.avatar : ''" 
-              :icon="isLoggedIn ? '' : UserFilled"
-              class="login-avatar"
-              @click="handleLoginClick"
-            />
-          </el-tooltip>
-        </div>
+          <el-dropdown :disabled="!isLoggedIn" trigger="hover" :hide-on-click="false" placement="bottom-end">
+          <!-- 头像本体 -->
+          <div class="avatar-wrapper" @click="handleLoginClick" style="display: flex; align-items: center; cursor: pointer; outline: none;">
+            <el-tooltip :content="isLoggedIn ? '' : '点击登录'" placement="bottom" :disabled="isLoggedIn">
+              <el-avatar 
+                :size="36" 
+                :src="isLoggedIn ? siteConfig.avatar : ''" 
+                :icon="isLoggedIn ? '' : UserFilled"
+                class="login-avatar"
+              />
+            </el-tooltip>
+          </div>
+          
+          <!-- 下拉面板内容 -->
+          <template #dropdown>
+            <el-dropdown-menu style="width: 260px; padding: 15px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+              
+              <!-- 顶部信息区 -->
+              <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 15px;">
+                <el-avatar :size="56" :src="siteConfig.avatar" style="margin-bottom: 10px; border: 2px solid #f4f4f5;" />
+                <h3 style="margin: 0; font-size: 1.1rem; color: #333;">{{ currentUsername }}</h3>
+              </div>
+              
+              <el-divider style="margin: 10px 0;" />
+              
+              <!-- 修改资料区 -->
+              <div style="margin: 10px 0;">
+                <div style="font-size: 0.8rem; color: #999; margin-bottom: 6px;">修改昵称</div>
+                <el-input v-model="newUsernameInput" placeholder="输入新名字" size="default">
+                  <template #append>
+                    <el-button @click="updateUsername" style="color: #409EFF;">保存</el-button>
+                  </template>
+                </el-input>
+              </div>
+
+              <el-divider style="margin: 10px 0;" />
+              
+              <!-- 退出登录按钮 -->
+              <el-button type="danger" plain style="width: 100%; border-radius: 8px;" @click="logout">
+                退出登录
+              </el-button>
+              
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+          </div>
+
       </nav>
     </div>
 
@@ -485,30 +520,6 @@ provide('isLoggedIn', isLoggedIn)
     <MouseTrail />
 
   </div>
-
-<!-- 登录后的抽屉 -->
-<el-drawer v-model="showUserDrawer" title="个人中心" size="300px">
-  <div class="user-info">
-    <el-avatar :size="60" src="/default-avatar.png" />
-    <h3>{{ currentUsername }}</h3>
-  </div>
-  
-  <el-divider />
-  
-  <el-form label-position="top">
-    <el-form-item label="修改用户名">
-      <el-input v-model="newUsernameInput" placeholder="输入新用户名">
-        <template #append>
-          <el-button @click="updateUsername">保存</el-button>
-        </template>
-      </el-input>
-    </el-form-item>
-  </el-form>
-
-  <div style="margin-top: 50px;">
-    <el-button type="danger" style="width: 100%" @click="logout">退出登录</el-button>
-  </div>
-</el-drawer>
 
 </template>
 
