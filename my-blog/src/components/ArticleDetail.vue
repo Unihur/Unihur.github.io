@@ -2,7 +2,7 @@
 import { ref, onMounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox} from 'element-plus'
 import { Calendar, Folder, PriceTag, Share, Edit, View, UserFilled, Delete, CaretTop, CaretBottom, ChatRound } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
@@ -285,7 +285,7 @@ const submitComment = async () => {
   }
 }
 
-// 管理员删除评论
+// 管理员：删除评论
 const handleDeleteComment = async (id) => {
   try {
     await ElMessageBox.confirm('确定要永久删除这条评论吗？', '删除确认', {
@@ -299,18 +299,23 @@ const handleDeleteComment = async (id) => {
     })
     
     ElMessage.success('评论已删除')
-    // 重新拉取评论列表刷新界面
-    loadComments(route.params.slug)
+    loadComments(route.params.slug) // 重新拉取评论刷新
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败，请检查网络或权限')
-    }
+    if (error !== 'cancel') ElMessage.error('删除失败，请检查网络或权限')
   }
 }
 
-// 占位函数：点赞/点踩/回复（为了防止点击报错，后续可以再对接后端）
-const handleCommentAction = (action) => {
-  ElMessage.info('当前功能正在开发中，敬请期待~')
+// 模拟评论点赞/点踩等功能 (不存入数据库，只做前端点亮效果)
+const handleCommentAction = (comment, action) => {
+  if (action === 'like') {
+    comment.isLiked = !comment.isLiked // 切换点赞状态
+    if (comment.isDisliked) comment.isDisliked = false // 踩了就不能赞
+  } else if (action === 'dislike') {
+    comment.isDisliked = !comment.isDisliked
+    if (comment.isLiked) comment.isLiked = false
+  } else if (action === 'reply') {
+    ElMessage.info('回复功能开发中...')
+  }
 }
 
 const navigateTo = (slug) => {
@@ -502,37 +507,45 @@ const navigateTo = (slug) => {
             
             <div class="comment-list">
               <div class="comment-item" v-for="comment in comments" :key="comment.id">
-                <el-avatar :src="comment.avatar || ''" :icon="UserFilled" :size="40" />
+                
+                <!-- 左侧：头像 -->
+                <el-avatar :src="comment.avatar || ''" :icon="UserFilled" :size="48" class="comment-avatar" />
+                
+                <!-- 右侧：内容区 -->
                 <div class="comment-content-box">
                   
-                  <!-- 头部：显示名字和管理员的删除按钮 -->
+                  <!-- 头部：昵称 和 管理员删除垃圾桶 -->
                   <div class="comment-header">
                     <span class="comment-author">{{ comment.author }}</span>
-                    <!-- 如果是管理员 unihur，右上角显示红色垃圾桶 -->
-                    <el-icon 
-                      v-if="currentUsername === 'unihur'" 
-                      class="delete-comment-btn" 
-                      @click="handleDeleteComment(comment.id)"
-                    >
-                      <Delete />
-                    </el-icon>
+                    
+                    <!-- 只有管理员才能看到这个红色的垃圾桶 -->
+                    <el-tooltip content="删除该评论" placement="top" v-if="currentUsername === 'unihur'">
+                      <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)">
+                        <Delete />
+                      </el-icon>
+                    </el-tooltip>
                   </div>
                   
                   <!-- 正文内容 -->
                   <div class="comment-text">{{ comment.content }}</div>
                   
-                  <!-- 底部：时间 与 操作按钮 -->
+                  <!-- 底部：时间 与 B站风格互动栏 -->
                   <div class="comment-footer">
                     <span class="comment-time">{{ comment.time }}</span>
+                    
                     <div class="comment-actions">
-                      <span class="action-btn" @click="handleCommentAction('like')">
-                        <el-icon><CaretTop /></el-icon> 赞
+                      <!-- 赞 -->
+                      <span class="action-btn" :class="{ 'active-like': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
+                        <el-icon size="16"><CaretTop /></el-icon>
+                        <span class="action-text">{{ comment.isLiked ? '1' : '赞' }}</span>
                       </span>
-                      <span class="action-btn" @click="handleCommentAction('dislike')">
-                        <el-icon><CaretBottom /></el-icon> 踩
+                      <!-- 踩 -->
+                      <span class="action-btn" :class="{ 'active-like': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
+                        <el-icon size="16"><CaretBottom /></el-icon>
                       </span>
-                      <span class="action-btn" @click="handleCommentAction('reply')">
-                        <el-icon><ChatRound /></el-icon> 回复
+                      <!-- 回复 -->
+                      <span class="action-btn reply-btn" @click="handleCommentAction(comment, 'reply')">
+                        <span class="action-text">回复</span>
                       </span>
                     </div>
                   </div>
@@ -804,82 +817,92 @@ html.dark .markdown-body :deep(pre) { background: #2d2d2d; }
 .nav-label { font-size: 0.85rem; color: #888; margin-bottom: 5px; }
 .nav-title { font-size: 1.1rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 评论区样式 */
+/* ================= 评论区风格样式 ================= */
+
 .comments-section { padding: 30px; margin-top: 20px; }
 .comment-btn-row { display: flex; justify-content: flex-end; }
 .comment-list { margin-top: 30px; }
-/* 评论项的基础布局 */
+
 .comment-item { 
   display: flex; 
-  gap: 15px; 
+  gap: 16px; 
   margin-bottom: 20px; 
-  padding-bottom: 15px; 
+  padding-bottom: 20px; 
   border-bottom: 1px solid rgba(0,0,0,0.05); 
 }
-html.dark .comment-item { 
-  border-bottom: 1px solid rgba(255,255,255,0.05); 
+html.dark .comment-item { border-bottom-color: rgba(255,255,255,0.05); }
+
+.comment-avatar { cursor: pointer; }
+
+.comment-content-box { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column;
 }
-.comment-content-box { flex: 1; }
-.comment-content-box { flex: 1; }
-/* 头部：名字与垃圾桶的对齐 */
+
+/* 头部：昵称和删除按钮 */
 .comment-header { 
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  margin-bottom: 5px; 
+  margin-bottom: 6px; 
 }
 .comment-author { 
-  font-weight: bold; 
-  color: #409eff; 
-  font-size: 0.95rem; 
+  font-weight: 500; 
+  font-size: 13px; 
+  color: #61666d; 
+  cursor: pointer;
 }
+html.dark .comment-author { color: #999; }
+.comment-author:hover { color: #00aeec; }
+
 /* 红色垃圾桶样式 */
 .delete-comment-btn {
   color: #f56c6c;
   cursor: pointer;
-  font-size: 1.1rem;
-  transition: transform 0.2s, color 0.2s;
+  font-size: 16px;
+  transition: transform 0.2s;
 }
-.delete-comment-btn:hover {
-  transform: scale(1.2);
-  color: #ff4d4f;
-}
-html.dark .comment-author { color: #ddd; }
-.comment-time { font-size: 0.8rem; color: #999; }
-/* 评论正文 */
+.delete-comment-btn:hover { transform: scale(1.2); }
+
+/* 正文 */
 .comment-text { 
-  color: #444; 
-  font-size: 0.95rem; 
+  font-size: 15px; 
   line-height: 1.6; 
-  margin-bottom: 8px; /* 给下方留出空间 */
+  color: #18191c; 
+  word-break: break-word;
+  margin-bottom: 10px;
 }
-html.dark .comment-text { color: #ccc; }
-/* 新增：底部的 时间 + 互动栏 */
+html.dark .comment-text { color: #e3e5e7; }
+
+/* 底部：时间与操作区 */
 .comment-footer {
   display: flex;
   align-items: center;
-  gap: 20px;
-  font-size: 0.8rem;
-  color: #999;
+  font-size: 13px;
+  color: #9499a0;
 }
-.comment-time {
-  /* 时间保持灰色即可 */
-}
+.comment-time { margin-right: 20px; }
+
 .comment-actions {
   display: flex;
-  gap: 15px;
+  align-items: center;
+  gap: 18px;
 }
 .action-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
   cursor: pointer;
-  transition: color 0.3s;
+  transition: color 0.2s;
+  color: #9499a0;
 }
-.action-btn:hover {
-  color: #409EFF; /* 鼠标悬浮变蓝 */
-}
-html.dark .comment-footer { color: #666; }
+.action-btn:hover { color: #00aeec; } /* B站蓝 */
+
+/* 激活状态的点赞/踩颜色 */
+.active-like { color: #00aeec !important; }
+
+.action-text { margin-left: 4px; }
+.reply-btn:hover { color: #00aeec; }
 
 /* 自定义粉色编辑按钮 */
 .pink-edit-btn {
