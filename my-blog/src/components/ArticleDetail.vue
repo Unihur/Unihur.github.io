@@ -3,7 +3,7 @@ import { ref, onMounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage, ElMessageBox} from 'element-plus'
-import { Calendar, Folder, PriceTag, Share, Edit, View, UserFilled, Delete, CaretTop, CaretBottom, ChatRound } from '@element-plus/icons-vue'
+import { Calendar, Folder, PriceTag, Share, Edit, View, UserFilled, Delete, ChatRound } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
@@ -170,6 +170,7 @@ const handleShare = async () => {
 
 // ================= 真实的评论功能 =================
 const comments = ref([])
+const currentUsername = ref(localStorage.getItem('username') || '')
 const newComment = ref('')
 const articleList = ref([])
 
@@ -264,14 +265,14 @@ onMounted(() => {
 const submitComment = async () => {
   if (!newComment.value.trim()) return ElMessage.warning('内容不能为空')
   
-  // ✅ 修复 1：这里不需要 ref，直接取字符串即可，或者如果要用 ref，下面传值时必须加 .value
-  const currentUsername = localStorage.getItem('username') || '游客'
+  // 直接读取我们全局定义的变量
+  const authorName = currentUsername.value || '游客'
   const token = localStorage.getItem('token')
 
   try {
     await axios.post('http://116.62.218.51:8000/api/comments', {
       article_slug: route.params.slug,
-      author: currentUsername, // ✅ 修复 2：现在它是一个纯字符串了
+      author: authorName,
       content: newComment.value
     }, {
       headers: { token: token || '' } 
@@ -306,12 +307,36 @@ const handleDeleteComment = async (id) => {
 
 // 模拟评论点赞/点踩等功能 (不存入数据库，只做前端点亮效果)
 const handleCommentAction = (comment, action) => {
+  // 如果当前评论还没有 likes / dislikes 属性，初始化一下
+  if (comment.likes === undefined) comment.likes = 0;
+  if (comment.dislikes === undefined) comment.dislikes = 0;
+
   if (action === 'like') {
-    comment.isLiked = !comment.isLiked // 切换点赞状态
-    if (comment.isDisliked) comment.isDisliked = false // 踩了就不能赞
+    if (comment.isLiked) {
+      comment.isLiked = false;
+      comment.likes--;
+    } else {
+      comment.isLiked = true;
+      comment.likes++;
+      // 如果本来踩了，取消踩
+      if (comment.isDisliked) {
+        comment.isDisliked = false;
+        comment.dislikes--;
+      }
+    }
   } else if (action === 'dislike') {
-    comment.isDisliked = !comment.isDisliked
-    if (comment.isLiked) comment.isLiked = false
+    if (comment.isDisliked) {
+      comment.isDisliked = false;
+      comment.dislikes--;
+    } else {
+      comment.isDisliked = true;
+      comment.dislikes++;
+      // 如果本来赞了，取消赞
+      if (comment.isLiked) {
+        comment.isLiked = false;
+        comment.likes--;
+      }
+    }
   } else if (action === 'reply') {
     ElMessage.info('回复功能开发中...')
   }
@@ -533,20 +558,28 @@ const navigateTo = (slug) => {
                     <span class="comment-time">{{ comment.time }}</span>
                     
                     <div class="comment-actions">
-                      <!-- 赞 -->
+                      <!-- 赞（大拇指） -->
                       <span class="action-btn" :class="{ 'active-like': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
-                        <el-icon size="16"><CaretTop /></el-icon>
-                        <span class="action-text">{{ comment.isLiked ? '1' : '赞' }}</span>
+                        <svg viewBox="0 0 1024 1024" width="16" height="16" :fill="comment.isLiked ? '#00aeec' : '#9499a0'">
+                          <path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path>
+                        </svg>
+                        <span class="action-text">{{ comment.likes || 0 }}</span>
                       </span>
-                      <!-- 踩 -->
-                      <span class="action-btn" :class="{ 'active-like': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
-                        <el-icon size="16"><CaretBottom /></el-icon>
+
+                      <!-- 踩（大拇指翻转180度） -->
+                      <span class="action-btn flip-icon" :class="{ 'active-like': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
+                        <svg viewBox="0 0 1024 1024" width="16" height="16" :fill="comment.isDisliked ? '#00aeec' : '#9499a0'">
+                          <path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path>
+                        </svg>
+                        <span class="action-text">{{ comment.dislikes || 0 }}</span>
                       </span>
+
                       <!-- 回复 -->
                       <span class="action-btn reply-btn" @click="handleCommentAction(comment, 'reply')">
                         <span class="action-text">回复</span>
                       </span>
                     </div>
+
                   </div>
                   
                 </div>
@@ -944,6 +977,37 @@ html.dark .comment-text { color: #e3e5e7; }
     padding: 10px 20px !important;
     font-size: 1rem !important;
   }
+}
+
+/* 修改翻转样式，让踩的大拇指往下指 */
+.flip-icon svg {
+  transform: rotate(180deg);
+}
+
+/* 图标整体变大一点，数字变大一点，对齐文本 */
+.action-btn {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: color 0.2s;
+  color: #9499a0;
+}
+.action-btn svg {
+  margin-top: 2px; /* 微调图标对齐 */
+  transition: fill 0.3s;
+}
+.action-btn:hover svg {
+  fill: #00aeec !important; /* 悬浮时 SVG 变蓝 */
+}
+.action-btn:hover .action-text {
+  color: #00aeec;
+}
+
+.action-text {
+  margin-left: 6px;
+  font-size: 14px; /* 比时间的 13px 稍微大一点点 */
+  font-weight: 500;
+  user-select: none;
 }
 
 </style>
