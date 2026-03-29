@@ -166,6 +166,7 @@ class CommentCreate(BaseModel):
     article_slug: str
     content: str
     author: str = "游客"
+    reply_to: Optional[str] = None
 
 @app.get("/api/settings")
 def get_settings(db: Session = Depends(get_db)):
@@ -405,13 +406,14 @@ def create_comment(comment: CommentCreate, token: Optional[str] = Header(None), 
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             author_id = payload.get("id")
         except:
-            pass # token无效就当游客
+            pass 
             
     new_comment = models.Comment(
         article_slug=comment.article_slug,
         content=comment.content,
         author=comment.author,
-        author_id=author_id # 绑定当前登录用户
+        author_id=author_id,
+        reply_to=comment.reply_to # 👈新增这行
     )
     db.add(new_comment)
     db.commit()
@@ -423,24 +425,37 @@ def get_comments(article_slug: str, db: Session = Depends(get_db)):
     res = []
     for c in comments:
         author_name = c.author
-        avatar = "" # 默认空，前端显示默认头像
-        
-        # 核心逻辑：如果此评论是注册用户发的
+        avatar = "" 
         if c.author_id:
             user = db.query(models.User).filter(models.User.id == c.author_id).first()
-            if user: # 如果该账号还存在，使用他的最新信息
+            if user: 
                 author_name = user.username
                 avatar = user.avatar
-            # 如果 user 不存在（被管理员删了），就会静默回退使用原本游客名字 c.author
                 
         res.append({
             "id": c.id, 
             "author": author_name, 
             "avatar": avatar,
             "content": c.content, 
+            "likes": c.likes,       # 👈新增返回点赞数
+            "dislikes": c.dislikes, # 👈新增返回踩数
+            "reply_to": c.reply_to, # 👈新增返回回复目标
             "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
         })
     return res
+
+# 👇 新增：评论点赞/点踩接口
+@app.post("/api/comments/{comment_id}/{action}")
+def action_comment(comment_id: int, action: str, db: Session = Depends(get_db)):
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    if action == "like":
+        comment.likes += 1
+    elif action == "dislike":
+        comment.dislikes += 1
+    db.commit()
+    return {"status": "success", "likes": comment.likes, "dislikes": comment.dislikes}
 
 # ============ 评论管理（新增删除功能）============
 @app.delete("/api/comments/{comment_id}")
