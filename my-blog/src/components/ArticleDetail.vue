@@ -177,10 +177,10 @@ const articleList = ref([])
 const loadComments = async (slug) => {
   try {
     const res = await axios.get(`http://116.62.218.51:8000/api/comments/${slug}`)
-    // 给所有后端返回的评论加上一个随机的游客头像
     comments.value = res.data.map(comment => ({
       ...comment,
-      avatar: '/ciel.png' + comment.author + comment.id
+      // 优先使用后端的头像，如果没有则使用随机游客头像
+      avatar: comment.avatar || ('/ciel.png' + comment.author + comment.id)
     }))
   } catch (error) {
     console.error('获取评论失败:', error)
@@ -279,7 +279,7 @@ const submitComment = async () => {
     })
     ElMessage.success('评论成功')
     newComment.value = ''
-    fetchComments()
+    loadComments(route.params.slug)
   } catch (e) {
     ElMessage.error('评论失败')
   }

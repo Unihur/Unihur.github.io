@@ -467,7 +467,7 @@ provide('isLoggedIn', isLoggedIn)
             <el-tooltip :content="isLoggedIn ? '' : '点击登录'" placement="bottom" :disabled="isLoggedIn">
               <el-avatar 
                 :size="36" 
-                :src="isLoggedIn ? siteConfig.avatar : ''" 
+                :src="isLoggedIn ? (currentUserAvatar || siteConfig.avatar) : ''" 
                 :icon="isLoggedIn ? '' : UserFilled"
                 class="login-avatar"
               />
