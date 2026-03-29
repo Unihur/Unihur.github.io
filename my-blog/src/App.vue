@@ -11,26 +11,86 @@ import { useRouter } from 'vue-router'
 
 import axios from 'axios'
 
-// 登录成功后的处理
+// ================= 登录与用户系统逻辑 =================
+const isLoggedIn = ref(localStorage.getItem('token') ? true : false)
+const showLoginDialog = ref(false)
+const loginForm = reactive({ username: '', password: '' })
+const currentUsername = ref(localStorage.getItem('username') || '')
+const newUsernameInput = ref('')
+
+// 点击头像：如果没登录就弹窗（登录后触发下拉框所以不用管）
+const handleLoginClick = () => {
+  if (!isLoggedIn.value) {
+    showLoginDialog.value = true
+  }
+}
+
+// 核心：提交登录 / 自动注册 (修复了 422 报错，确保传的是正确格式)
 const handleLoginSubmit = async () => {
   try {
-    const res = await axios.post('http://116.62.218.51:8000/api/login', loginForm.value)
+    const res = await axios.post('http://116.62.218.51:8000/api/login', {
+      username: loginForm.username,
+      password: loginForm.password
+    })
+    
+    // 保存令牌
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('username', res.data.username)
-    
-    // 给抽屉赋值
     currentUsername.value = res.data.username
-    
-    const userConfig = res.data.config
-    themeStyle.value = userConfig.theme_style
-    bannerMode.value = userConfig.banner_mode
-    applyThemeStyle(themeStyle.value)
-    
     isLoggedIn.value = true
     showLoginDialog.value = false
-    ElMessage.success('登录成功')
+    
+    // 应用绑定的主题配置
+    const userConfig = res.data.config
+    if (userConfig.theme_style) {
+      themeStyle.value = userConfig.theme_style
+      applyThemeStyle(themeStyle.value)
+    }
+    if (userConfig.banner_mode) {
+      bannerMode.value = userConfig.banner_mode
+    }
+    
+    ElMessage.success('登录成功！')
   } catch (err) {
-    ElMessage.error(err.response?.data?.detail || '登录失败')
+    ElMessage.error(err.response?.data?.detail || '账号或密码错误')
+  }
+}
+
+// 退出登录
+const logout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  isLoggedIn.value = false
+  currentUsername.value = ''
+  ElMessage.success('已安全退出登录')
+}
+
+// 修改用户名
+const updateUsername = async () => {
+  if (!newUsernameInput.value) return ElMessage.warning('新用户名不能为空')
+  try {
+    await axios.post('http://116.62.218.51:8000/api/user/update', 
+      { new_username: newUsernameInput.value },
+      { headers: { token: localStorage.getItem('token') } }
+    )
+    currentUsername.value = newUsernameInput.value
+    localStorage.setItem('username', newUsernameInput.value)
+    newUsernameInput.value = ''
+    ElMessage.success('用户名修改成功！')
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || '修改失败')
+  }
+}
+
+// ================= 把设置同步到数据库的函数 (修复了 405 报错) =================
+const syncConfigToBackend = async (configData) => {
+  if (!isLoggedIn.value) return 
+  try {
+    await axios.post('http://116.62.218.51:8000/api/user/update', configData, {
+      headers: { token: localStorage.getItem('token') }
+    })
+  } catch(e) {
+    console.error('配置同步失败', e)
   }
 }
 
@@ -105,41 +165,6 @@ const applyThemeStyle = (style) => {
   }
 }
 
-// 👇 补充缺失的“个人中心抽屉”相关状态与逻辑 👇
-const showUserDrawer = ref(false)
-const currentUsername = ref(localStorage.getItem('username') || '')
-const newUsernameInput = ref('')
-
-// 修改用户名逻辑
-const updateUsername = async () => {
-  if (!newUsernameInput.value) return ElMessage.warning('新用户名不能为空')
-  try {
-    const res = await axios.post('http://116.62.218.51:8000/api/user/update', 
-      { new_username: newUsernameInput.value },
-      { headers: { token: localStorage.getItem('token') } }
-    )
-    currentUsername.value = newUsernameInput.value
-    localStorage.setItem('username', newUsernameInput.value)
-    newUsernameInput.value = ''
-    ElMessage.success('用户名修改成功！')
-  } catch (err) {
-    ElMessage.error(err.response?.data?.detail || '修改失败')
-  }
-}
-
-// 每次你在前端切换了主题或者 Banner，都要触发同步方法
-const syncConfigToBackend = async (configData) => {
-  if (!isLoggedIn.value) return // 游客只存在 localStorage
-  try {
-    // 👇 补全绝对路径 http://116.62.218.51:8000
-    await axios.post('http://116.62.218.51:8000/api/user/update', configData, {
-      headers: { token: localStorage.getItem('token') }
-    })
-  } catch(e) {
-    console.error('配置同步失败', e)
-  }
-}
-
 // 切换主题样式的方法
 const changeThemeStyle = (command) => {
   themeStyle.value = command
@@ -182,19 +207,6 @@ onMounted(async () => {
   } catch (error) {
     console.error("加载设置失败，使用默认设置", error)
   }
-})
-
-// 退出登录逻辑
-const logout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('admin_token')
-  localStorage.removeItem('username')
-  isLoggedIn.value = false
-  showUserDrawer.value = false
-  ElMessage.success('已安全退出登录')
-}
-watch(() => siteConfig.signature, () => {
-  startTypewriter()
 })
 
 // ================= 深度监听配置，让网页实时变化 =================
@@ -296,30 +308,6 @@ const handleWriteClick = () => {
     return
   }
   router.push('/write')
-}
-
-const isLoggedIn = ref(false)
-const showLoginDialog = ref(false)
-const loginForm = reactive({ username: '', password: '' })
-
-const handleLoginClick = () => {
-  if (!isLoggedIn.value) {
-    showLoginDialog.value = true
-  }
-}
-
-const doLogin = async () => {
-  try {
-    const res = await axios.post('http://116.62.218.51:8000/api/login', loginForm)
-    if (res.data.status === 'success') {
-      localStorage.setItem('admin_token', res.data.token) // 把门禁卡存进浏览器
-      isLoggedIn.value = true
-      showLoginDialog.value = false
-      ElMessage.success('管理员登录成功！')
-    }
-  } catch (error) {
-    ElMessage.error('账号或密码错误')
-  }
 }
 
 // ================= 把设置保存到数据库的函数 =================
