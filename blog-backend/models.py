@@ -47,3 +47,15 @@ class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    password = Column(String) # 实际生产中建议存哈希值(如 bcrypt)
+    
+    # 账号绑定的主题偏好设置
+    theme_style = Column(String, default="default") # default 或 liquid
+    banner_mode = Column(String, default="banner")
+    is_dark = Column(Boolean, default=False)

@@ -11,6 +11,29 @@ import { useRouter } from 'vue-router'
 
 import axios from 'axios'
 
+// 登录成功后的处理
+const handleLoginSubmit = async () => {
+  try {
+    const res = await axios.post('/api/login', loginForm.value)
+    // 保存 Token 和用户信息
+    localStorage.setItem('token', res.data.token)
+    localStorage.setItem('username', res.data.username)
+    
+    // 【核心】应用绑定在该账号下的主题配置
+    const userConfig = res.data.config
+    themeStyle.value = userConfig.theme_style
+    bannerMode.value = userConfig.banner_mode
+    // 触发样式更新函数...
+    applyThemeStyle(themeStyle.value)
+    
+    isLoggedIn.value = true
+    showLoginDialog.value = false
+    ElMessage.success('登录成功')
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || '登录失败')
+  }
+}
+
 // ================= 全局状态：网站配置 =================
 const siteConfig = reactive({
   name: 'UniHur',
@@ -70,7 +93,33 @@ const startTypewriter = () => {
   loop()
 }
 
+// 新增：主题样式状态管理 (default 或 liquid)
+const themeStyle = ref(localStorage.getItem('theme-style') || 'default')
+
+// 每次你在前端切换了主题或者 Banner，都要触发同步方法
+const syncConfigToBackend = async (configData) => {
+  if (!isLoggedIn.value) return // 游客只存在 localStorage
+  try {
+    await axios.post('/api/user/update', configData, {
+      headers: { token: localStorage.getItem('token') }
+    })
+  } catch(e) {
+    console.error('配置同步失败')
+  }
+}
+
+// 切换主题样式的方法
+const changeThemeStyle = (command) => {
+  themeStyle.value = command
+  applyThemeStyle(command)
+  syncConfigToBackend({ theme_style: command }) // 同步到服务器数据库
+}
+
 onMounted(async () => {
+
+  if (themeStyle.value === 'liquid') {
+    document.documentElement.classList.add('liquid-glass')
+  }
 
   if (localStorage.getItem('admin_token')) {
     isLoggedIn.value = true
@@ -332,7 +381,18 @@ provide('isLoggedIn', isLoggedIn)
             <el-icon class="icon-btn" @click="openSetting"><Setting /></el-icon>
           </el-tooltip>
 
-          <el-tooltip content="主题颜色" placement="bottom"><el-icon class="icon-btn"><Brush /></el-icon></el-tooltip>
+          <el-dropdown @command="changeThemeStyle" trigger="click">
+            <span class="el-dropdown-link">
+              <el-tooltip content="主题颜色" placement="bottom"><el-icon class="icon-btn"><Brush /></el-icon></el-tooltip>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="default">毛玻璃</el-dropdown-item>
+                <el-dropdown-item command="liquid">液态玻璃</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          
           <el-dropdown @command="changeBannerMode" trigger="click">
             <span class="el-dropdown-link">
               <el-tooltip content="Banner设置" placement="bottom"><el-icon class="icon-btn"><Picture /></el-icon></el-tooltip>
@@ -346,6 +406,7 @@ provide('isLoggedIn', isLoggedIn)
               </el-dropdown-menu>
             </template>
           </el-dropdown>
+
           <el-tooltip :content="isDark ? '日间模式' : '夜间模式'" placement="bottom">
             <el-icon class="icon-btn" @click="toggleDarkMode"><component :is="isDark ? Sunny : Moon" /></el-icon>
           </el-tooltip>
@@ -368,14 +429,13 @@ provide('isLoggedIn', isLoggedIn)
     <!-- 👇 魔法标签：路由匹配到的组件会显示在这里！ -->
     <router-view />
 
-    <!-- 登录弹窗对话框 (临时用 el-dialog 模拟) -->
-    <el-dialog v-model="showLoginDialog" title="登录 / 管理员入口" width="400px" center>
-      <el-input v-model="loginForm.username" placeholder="账号" style="margin-bottom: 15px;" />
-      <el-input v-model="loginForm.password" placeholder="密码" type="password" show-password />
+    <!-- App.vue 模板中 -->
+    <el-dialog v-model="showLoginDialog" title="登录 / 自动注册" width="400px">
+      <el-input v-model="loginForm.username" placeholder="请输入账号" class="mb-3" />
+      <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password />
       <template #footer>
-        <el-button round @click="showLoginDialog = false">取 消</el-button>
-        <!-- 加上自定义的粉色 class -->
-        <el-button type="primary" round class="pink-login-btn" @click="doLogin">登 录</el-button>
+        <el-button @click="showLoginDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleLoginSubmit">确定</el-button>
       </template>
     </el-dialog>
 
@@ -388,6 +448,31 @@ provide('isLoggedIn', isLoggedIn)
     <MouseTrail />
 
   </div>
+
+<!-- 登录后的抽屉 -->
+<el-drawer v-model="showUserDrawer" title="个人中心" size="300px">
+  <div class="user-info">
+    <el-avatar :size="60" src="/default-avatar.png" />
+    <h3>{{ currentUsername }}</h3>
+  </div>
+  
+  <el-divider />
+  
+  <el-form label-position="top">
+    <el-form-item label="修改用户名">
+      <el-input v-model="newUsernameInput" placeholder="输入新用户名">
+        <template #append>
+          <el-button @click="updateUsername">保存</el-button>
+        </template>
+      </el-input>
+    </el-form-item>
+  </el-form>
+
+  <div style="margin-top: 50px;">
+    <el-button type="danger" style="width: 100%" @click="logout">退出登录</el-button>
+  </div>
+</el-drawer>
+
 </template>
 
 <style scoped>
@@ -405,6 +490,7 @@ provide('isLoggedIn', isLoggedIn)
   padding: 0 20px; 
   box-sizing: border-box; 
 }
+
 .navbar { 
   width: 100%; 
   max-width: 1160px; 
@@ -428,6 +514,7 @@ html.dark .navbar {
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
+
 .nav-links { display: flex; gap: 20px; }
 .nav-links span { font-weight: bold; cursor: pointer; transition: color 0.3s; }
 .nav-links span:hover { color: #409EFF; }

@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from models import User
 
 # 引入我们刚才写的数据库模块
 from database import engine, Base, get_db
@@ -84,13 +85,57 @@ SECRET_KEY = "unihur_super_admin_key" # 随便写一串复杂的英文字符
 
 # =========== 新增：登录接口 ===========
 @app.post("/api/login")
-def login(data: LoginData):
-    if data.username == ADMIN_USER and data.password == ADMIN_PASS:
-        # 签发令牌，这就像给前端发了一张“门禁卡”
-        token = jwt.encode({"user": data.username}, SECRET_KEY, algorithm="HS256")
-        return {"status": "success", "token": token}
+def login(data: LoginData, db: Session = Depends(get_db)):
+    if not data.username or not data.password:
+        raise HTTPException(status_code=400, detail="账号和密码不能为空")
+        
+    user = db.query(User).filter(User.username == data.username).first()
+    
+    # 【核心逻辑】如果没有该账号，直接创建（即自动注册）
+    if not user:
+        new_user = User(username=data.username, password=data.password)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        user = new_user
     else:
-        raise HTTPException(status_code=401, detail="账号或密码错误")
+        # 如果有该账号，验证密码
+        if user.password != data.password:
+            raise HTTPException(status_code=401, detail="密码错误")
+
+    # 签发 Token 并返回用户绑定的配置
+    token = jwt.encode({"username": user.username, "id": user.id}, SECRET_KEY, algorithm="HS256")
+    return {
+        "token": token, 
+        "username": user.username,
+        "config": {
+            "theme_style": user.theme_style,
+            "banner_mode": user.banner_mode,
+            "is_dark": user.is_dark
+        }
+    }
+
+# 更新用户设置接口
+class UpdateConfigData(BaseModel):
+    theme_style: Optional[str] = None
+    banner_mode: Optional[str] = None
+    new_username: Optional[str] = None
+
+@app.post("/api/user/update")
+def update_user_info(data: UpdateConfigData, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    user = db.query(User).filter(User.username == payload["username"]).first()
+    
+    if data.theme_style: user.theme_style = data.theme_style
+    if data.banner_mode: user.banner_mode = data.banner_mode
+    if data.new_username: 
+        # 修改用户名需检查是否冲突
+        if db.query(User).filter(User.username == data.new_username).first():
+            raise HTTPException(status_code=400, detail="用户名已存在")
+        user.username = data.new_username
+        
+    db.commit()
+    return {"message": "更新成功", "new_username": user.username}
 
 # =========== 新增：检查令牌的依赖函数 ===========
 def verify_token(authorization: str = Header(None)):
@@ -421,3 +466,4 @@ def delete_category(name: str, db: Session = Depends(get_db), _token: str = Depe
         db.query(models.Article).filter(models.Article.category == name).update({"category": None})
         db.commit()
     return {"status": "success"}
+

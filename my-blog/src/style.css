@@ -26,14 +26,13 @@ html.dark body {
   color: #E5EAF3;
 }
 
-/* 优化毛玻璃质感，让它在纯色背景上更通透 */
 .glass-box {
   background: rgba(255, 255, 255, 0.6); 
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 16px; /* 稍微加大圆角 */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05); /* 阴影调柔和 */
+  border-radius: 16px; 
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05); 
   padding: 20px;
   margin-bottom: 20px;
   transition: all 0.3s;
@@ -43,6 +42,60 @@ html.dark .glass-box {
   background: rgba(30, 30, 30, 0.6); 
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* -------------------------------------
+   液态玻璃样式 (通过 .liquid-glass 触发)
+   ------------------------------------- */
+html.liquid-glass .glass-box {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px double rgba(51, 51, 51, 0.08);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(0, 0, 0, 0.8),
+    0 4px 8px rgba(0, 0, 0, 0.2);
+  filter: brightness(0.95);
+}
+
+html.liquid-glass .glass-box::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  border-radius: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.9);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+html.liquid-glass .glass-box::after {
+  content: '';
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  border-radius: inherit;
+  filter: blur(3px);
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.8) 0%, transparent 20%, transparent 80%, rgba(255, 255, 255, 0.8) 100%);
+  pointer-events: none;
+}
+
+/* 液态玻璃的夜间模式 */
+html.dark.liquid-glass .glass-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px double rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset 0 0 2px rgba(0, 0, 0, 0.9),
+    0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 /* 滚动条美化 */
