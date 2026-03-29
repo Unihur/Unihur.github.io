@@ -262,27 +262,26 @@ onMounted(() => {
 })
 
 const submitComment = async () => {
-  if (!newComment.value.trim()) {
-    ElMessage.warning('评论不能为空！')
-    return
-  }
+  if (!newComment.value.trim()) return ElMessage.warning('内容不能为空')
   
+  // 如果当前登录了，提取自己的用户名，否则依然是“游客”
+  const currentUsername = localStorage.getItem('username') || '游客'
+  const token = localStorage.getItem('token')
+
   try {
-    // 告诉后端我们要发评论啦
     await axios.post('http://116.62.218.51:8000/api/comments', {
       article_slug: route.params.slug,
-      content: newComment.value,
-      author: '游客' // 以游客身份
+      author: currentUsername,
+      content: newComment.value
+    }, {
+      // 👇这里把 token 传过去，后端靠它识别是谁发出的评论
+      headers: { token: token || '' } 
     })
-    
-    ElMessage.success('评论发表成功！')
-    newComment.value = '' // 清空输入框
-    
-    // 重新从数据库拉取最新评论列表，让页面刷新出刚才发的评论
-    loadComments(route.params.slug) 
-  } catch (error) {
-    console.error('评论失败:', error)
-    ElMessage.error('评论失败！')
+    ElMessage.success('评论成功')
+    newComment.value = ''
+    fetchComments()
+  } catch (e) {
+    ElMessage.error('评论失败')
   }
 }
 
@@ -475,7 +474,7 @@ const navigateTo = (slug) => {
             
             <div class="comment-list">
               <div class="comment-item" v-for="comment in comments" :key="comment.id">
-                <el-avatar :src="comment.avatar" :size="40" />
+                <el-avatar :src="comment.avatar || ''" :icon="UserFilled" :size="40" />
                 <div class="comment-content-box">
                   <div class="comment-header">
                     <span class="comment-author">{{ comment.author }}</span>

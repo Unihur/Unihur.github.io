@@ -23,8 +23,11 @@
 #    cat backend.log
 # =========================================================================
 
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+import shutil
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -36,10 +39,13 @@ from database import engine, Base, get_db
 import models
 import jwt
 
+# 确保有文件夹存头像
+os.makedirs("uploads/avatars", exist_ok=True)
+
 # 1. 自动创建数据库表 (如果在硬盘里没找到 blog.db，会自动建一个)
 models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="UniHur Blog API")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # 配置 CORS
 app.add_middleware(
@@ -108,6 +114,7 @@ def login(data: LoginData, db: Session = Depends(get_db)):
     return {
         "token": token, 
         "username": user.username,
+        "avatar": user.avatar,
         "config": {
             "theme_style": user.theme_style,
             "banner_mode": user.banner_mode,
@@ -391,21 +398,49 @@ def share_article(slug: str, db: Session = Depends(get_db)):
     return {"status": "success", "shares": article.shares}
 
 @app.post("/api/comments")
-def create_comment(comment: CommentCreate, db: Session = Depends(get_db)):
+def create_comment(comment: CommentCreate, token: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    author_id = None
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            author_id = payload.get("id")
+        except:
+            pass # token无效就当游客
+            
     new_comment = models.Comment(
         article_slug=comment.article_slug,
         content=comment.content,
-        author=comment.author
+        author=comment.author,
+        author_id=author_id # 绑定当前登录用户
     )
     db.add(new_comment)
     db.commit()
-    db.refresh(new_comment)
     return {"status": "success"}
 
 @app.get("/api/comments/{article_slug}")
 def get_comments(article_slug: str, db: Session = Depends(get_db)):
     comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).order_by(models.Comment.created_at.desc()).all()
-    return [{"id": c.id, "author": c.author, "content": c.content, "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")} for c in comments]
+    res = []
+    for c in comments:
+        author_name = c.author
+        avatar = "" # 默认空，前端显示默认头像
+        
+        # 核心逻辑：如果此评论是注册用户发的
+        if c.author_id:
+            user = db.query(models.User).filter(models.User.id == c.author_id).first()
+            if user: # 如果该账号还存在，使用他的最新信息
+                author_name = user.username
+                avatar = user.avatar
+            # 如果 user 不存在（被管理员删了），就会静默回退使用原本游客名字 c.author
+                
+        res.append({
+            "id": c.id, 
+            "author": author_name, 
+            "avatar": avatar,
+            "content": c.content, 
+            "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return res
 
 # 【新增】删除已有文章
 @app.delete("/api/articles/{slug}", response_model=dict)
@@ -467,3 +502,40 @@ def delete_category(name: str, db: Session = Depends(get_db), _token: str = Depe
         db.commit()
     return {"status": "success"}
 
+# ============ 3. 新增上传头像接口 ============
+@app.post("/api/user/avatar")
+def upload_avatar(file: UploadFile = File(...), token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    user = db.query(models.User).filter(models.User.username == payload["username"]).first()
+    
+    file_ext = file.filename.split('.')[-1]
+    file_name = f"{user.id}_{int(datetime.now().timestamp())}.{file_ext}"
+    file_path = f"uploads/avatars/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    user.avatar = f"http://116.62.218.51:8000/{file_path}"
+    db.commit()
+    return {"status": "success", "avatar": user.avatar}
+
+# ============ 4. 新增访客(用户)管理接口 ============
+@app.get("/api/admin/visitors")
+def get_visitors(token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload["username"] != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+    # 查出除管理员外的所有用户
+    users = db.query(models.User).filter(models.User.username != "unihur").all()
+    return [{"id": u.id, "username": u.username, "avatar": u.avatar} for u in users]
+
+@app.delete("/api/admin/visitors/{user_id}")
+def delete_visitor(user_id: int, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload["username"] != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        db.delete(user)
+        db.commit()
+    return {"status": "success"}

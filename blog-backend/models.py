@@ -42,6 +42,7 @@ class Comment(Base):
     author = Column(String(50), default="游客")
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    author_id = Column(Integer, nullable=True)
 
 class Category(Base):
     __tablename__ = "categories"
@@ -54,6 +55,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     password = Column(String) # 实际生产中建议存哈希值(如 bcrypt)
+    avatar = Column(String, default="")
     
     # 账号绑定的主题偏好设置
     theme_style = Column(String, default="default") # default 或 liquid

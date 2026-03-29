@@ -16,6 +16,7 @@ const isLoggedIn = ref(localStorage.getItem('token') ? true : false)
 const showLoginDialog = ref(false)
 const loginForm = reactive({ username: '', password: '' })
 const currentUsername = ref(localStorage.getItem('username') || '')
+const currentUserAvatar = ref(localStorage.getItem('avatar') || '')
 const newUsernameInput = ref('')
 
 // 点击头像：如果没登录就弹窗（登录后触发下拉框所以不用管）
@@ -36,7 +37,9 @@ const handleLoginSubmit = async () => {
     // 保存令牌
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('username', res.data.username)
+    localStorage.setItem('avatar', res.data.avatar || '')
     currentUsername.value = res.data.username
+    currentUserAvatar.value = res.data.avatar || ''
     isLoggedIn.value = true
     showLoginDialog.value = false
     
@@ -60,9 +63,30 @@ const handleLoginSubmit = async () => {
 const logout = () => {
   localStorage.removeItem('token')
   localStorage.removeItem('username')
+  localStorage.removeItem('avatar')
   isLoggedIn.value = false
   currentUsername.value = ''
+  currentUserAvatar.value = ''
   ElMessage.success('已安全退出登录')
+}
+
+// 上传新头像的方法
+const handleAvatarUpload = async (options) => {
+  const formData = new FormData()
+  formData.append('file', options.file)
+  try {
+    const res = await axios.post('http://116.62.218.51:8000/api/user/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'token': localStorage.getItem('token')
+      }
+    })
+    currentUserAvatar.value = res.data.avatar
+    localStorage.setItem('avatar', res.data.avatar)
+    ElMessage.success('头像修改成功！')
+  } catch(e) {
+    ElMessage.error('上传失败')
+  }
 }
 
 // 修改用户名
@@ -397,6 +421,7 @@ provide('isLoggedIn', isLoggedIn)
           <span><el-icon><ChatDotSquare /></el-icon>留言</span>
           <span><el-icon><Guide /></el-icon>导航</span>
           <span><el-icon><InfoFilled /></el-icon>关于</span>
+          <span v-if="currentUsername === 'unihur'" @click="router.push('/visitors')" style="color: #f56c6c;"><el-icon><User /></el-icon>访客管理</span>
         </div>
         
         <div class="nav-icons">
@@ -455,9 +480,23 @@ provide('isLoggedIn', isLoggedIn)
               
               <!-- 顶部信息区 -->
               <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 15px;">
-                <el-avatar :size="56" :src="siteConfig.avatar" style="margin-bottom: 10px; border: 2px solid #f4f4f5;" />
-                <h3 style="margin: 0; font-size: 1.1rem; color: #333;">{{ currentUsername }}</h3>
-              </div>
+              <!-- 使用 el-upload 覆盖头像 -->
+              <el-upload
+                action=""
+                :http-request="handleAvatarUpload"
+                :show-file-list="false"
+                accept="image/png, image/jpeg, image/gif"
+              >
+                <el-tooltip content="点击上传新头像" placement="right">
+                  <el-avatar 
+                    :size="56" 
+                    :src="currentUserAvatar || UserFilled" 
+                    style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer;" 
+                  />
+                </el-tooltip>
+              </el-upload>
+              <h3 style="margin: 0; font-size: 1.1rem; color: #333;">{{ currentUsername }}</h3>
+            </div>
               
               <el-divider style="margin: 10px 0;" />
               
