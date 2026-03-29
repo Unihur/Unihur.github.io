@@ -264,17 +264,16 @@ onMounted(() => {
 const submitComment = async () => {
   if (!newComment.value.trim()) return ElMessage.warning('内容不能为空')
   
-  // 如果当前登录了，提取自己的用户名，否则依然是“游客”
-  const currentUsername = ref(localStorage.getItem('username') || '')
+  // ✅ 修复 1：这里不需要 ref，直接取字符串即可，或者如果要用 ref，下面传值时必须加 .value
+  const currentUsername = localStorage.getItem('username') || '游客'
   const token = localStorage.getItem('token')
 
   try {
     await axios.post('http://116.62.218.51:8000/api/comments', {
       article_slug: route.params.slug,
-      author: currentUsername,
+      author: currentUsername, // ✅ 修复 2：现在它是一个纯字符串了
       content: newComment.value
     }, {
-      // 👇这里把 token 传过去，后端靠它识别是谁发出的评论
       headers: { token: token || '' } 
     })
     ElMessage.success('评论成功')
