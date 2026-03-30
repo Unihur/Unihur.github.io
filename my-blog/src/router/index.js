@@ -3,6 +3,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import Home from '../components/Home.vue'
 import Write from '../components/Write.vue'
 import ArticleDetail from '../components/ArticleDetail.vue'
+import Visitors from '../components/Visitors.vue' 
 
 const routes = [
   {
@@ -20,6 +21,11 @@ const routes = [
     path: '/post/:slug',
     name: 'ArticleDetail',
     component: ArticleDetail
+  },
+  { 
+    path: '/visitors', 
+    name: 'Visitors', 
+    component: Visitors 
   }
 ]
 

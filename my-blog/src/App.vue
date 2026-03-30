@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch, provide } from 'vue' 
-import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled,UserFilled } from '@element-plus/icons-vue'
+import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled,UserFilled, User  } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import MouseTrail from './components/MouseTrail.vue'
@@ -490,7 +490,8 @@ provide('isLoggedIn', isLoggedIn)
                 <el-tooltip content="点击上传新头像" placement="right">
                   <el-avatar 
                     :size="56" 
-                    :src="currentUserAvatar || UserFilled" 
+                    :src="currentUserAvatar || ''" 
+                    :icon="currentUserAvatar ? '' : UserFilled"
                     style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer;" 
                   />
                 </el-tooltip>
