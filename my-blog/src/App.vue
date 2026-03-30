@@ -34,7 +34,7 @@ const handleLoginSubmit = async () => {
       password: loginForm.password
     })
     
-    // 👇 新增：处理记住密码
+    // 1. 处理记住密码逻辑
     if (loginForm.remember) {
       localStorage.setItem('saved_username', loginForm.username)
       localStorage.setItem('saved_password', loginForm.password)
@@ -43,14 +43,43 @@ const handleLoginSubmit = async () => {
       localStorage.removeItem('saved_password')
     }
 
-    // ... 原有的保存token和主题配置代码保留 ...
+    // 2. 核心：保存 Token 到本地，更新界面的登录状态变量
+    localStorage.setItem('token', res.data.token)
+    localStorage.setItem('username', res.data.username)
+    localStorage.setItem('avatar', res.data.avatar || '')
+    currentUsername.value = res.data.username
+    currentUserAvatar.value = res.data.avatar || ''
+    
+    // 3. 改变登录状态，并关闭弹窗
+    isLoggedIn.value = true
+    showLoginDialog.value = false
+    
+    // 4. 应用该用户绑定的主题和横幅配置
+    const userConfig = res.data.config || {}
+    if (userConfig.theme_style && typeof applyThemeStyle === 'function') {
+      themeStyle.value = userConfig.theme_style
+      applyThemeStyle(themeStyle.value)
+    }
+    if (userConfig.banner_mode) {
+      bannerMode.value = userConfig.banner_mode
+    }
+    
     ElMessage.success('登录成功！')
+
   } catch (err) {
-    // 捕获后端的 403 审核提示 或 401 密码错误
-    ElMessage.error(err.response?.data?.detail || '账号或密码错误')
+    const status = err.response?.status
+    const errorMsg = err.response?.data?.detail || '账号或密码错误'
+
+    if (status === 403) {
+      // 问题1修复：如果是 403 (即需要等待审核)，用黄色警告提示，并自动关闭弹窗
+      ElMessage.warning(errorMsg)
+      showLoginDialog.value = false
+    } else {
+      // 密码错误等其他情况，用红色错误提示，保留弹窗让用户重新输入
+      ElMessage.error(errorMsg)
+    }
   }
 }
-
 // 退出登录
 const logout = () => {
   localStorage.removeItem('token')
@@ -544,7 +573,7 @@ provide('isLoggedIn', isLoggedIn)
     <router-view />
 
     <!-- App.vue 模板中 -->
-    <el-dialog v-model="showLoginDialog" title="后台管理登录" width="350px">
+    <el-dialog v-model="showLoginDialog" title="登录账号" width="350px">
       <!-- 补充 v-model="loginForm.username" 等原有代码 -->
       <el-input v-model="loginForm.username" placeholder="请输入账号" style="margin-bottom: 15px;" />
       <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password style="margin-bottom: 15px;"/>
