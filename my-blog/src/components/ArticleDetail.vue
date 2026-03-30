@@ -3,7 +3,7 @@ import { ref, onMounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage, ElMessageBox} from 'element-plus'
-import { Calendar, Folder, PriceTag, Share, Edit, View, UserFilled, Delete, ChatRound } from '@element-plus/icons-vue'
+import { Calendar, Folder, PriceTag, Share, Edit, View, UserFilled, Delete, ChatRound, CaretTop, CaretBottom, PictureRounded } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
@@ -173,33 +173,69 @@ const comments = ref([])
 const currentUsername = ref(localStorage.getItem('username') || '')
 const newComment = ref('')
 const articleList = ref([])
-const activeReplyId = ref(null)
-const replyContent = ref('') 
+const rawComments = ref([]) // 后端原始数据
+const rootComments = ref([]) // 经过组装的树形数据
 
 // 常见表情包库
-const emojis = ['😀','😂','🤣','😍','😒','😘','😁','😉','😎','😊','🤔','🙄','🤨','😑','🤐','😪','😫','🥱','😴','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇','🥳','🥺','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','👻','👽','🤖','💩','😺','😸','😹','😻','😼','😽','🙀','😿','😾']
-const showEmojiPicker = ref(false)
-const showReplyEmojiPicker = ref(false)
+const emojis = ['😀','😂','🤣','😍','😒','😘','😁','😉','😎','😊','🤔','🙄','🤨','😑','🤐','😪','😫','🥱','😴','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇','🥳','🥺','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','👻','👽','🤖','💩','😺','😸','😹','😻','😼','😽','🙀','😿','😾','🙏','👍','🔥','❤️','✨','🎉','🤔','😅','👀']
+// 排序与回复状态
+const sortBy = ref('time') // 'time' 或 'hot'
+const activeReplyId = ref(null) // 记录当前正在回复哪条评论
+const replyContent = ref('') // 回复框内容
+const showEmojiPicker = ref(false) // 是否显示主评论表情包
+const showReplyEmojiPicker = ref(false) // 是否显示回复框表情包
 
 // 每当浏览器 token 变化（可能跨标签页登录）时同步
 window.addEventListener('storage', () => {
   currentUsername.value = localStorage.getItem('username') || ''
 })
 
-// 新增：从后端读取当前文章的评论
+// 读取评论并组装成 B站两级树形结构
 const loadComments = async (slug) => {
   try {
     const res = await axios.get(`http://116.62.218.51:8000/api/comments/${slug}`)
-    comments.value = res.data.map(comment => ({
-      ...comment,
-      avatar: comment.avatar || ('/ciel.png' + comment.author + comment.id),
-      // 前端本地状态
-      isLiked: false,
-      isDisliked: false
-    }))
+    const flatList = res.data
+    const map = {}
+    const roots = []
+
+    // 1. 初始化并建立映射
+    flatList.forEach(c => {
+      c.children = []
+      c.isLiked = false
+      c.isDisliked = false
+      c.avatar = c.avatar || ('/ciel.png' + c.author + c.id)
+      map[c.id] = c
+    })
+
+    // 2. 组装父子关系
+    flatList.forEach(c => {
+      if (c.parent_id) {
+        // 寻找它的根节点
+        let rootId = c.parent_id
+        while (map[rootId] && map[rootId].parent_id) {
+          rootId = map[rootId].parent_id
+        }
+        // 记录被回复人的名字
+        c.replyToAuthor = map[c.parent_id] ? map[c.parent_id].author : '未知'
+        
+        if (map[rootId]) map[rootId].children.push(c)
+      } else {
+        roots.push(c)
+      }
+    })
+
+    rootComments.value = roots
+    sortCommentsTree() // 执行初始排序
   } catch (error) {
     console.error('获取评论失败:', error)
   }
+}
+
+// 展开回复框
+const showReplyBox = (commentId) => {
+  activeReplyId.value = activeReplyId.value === commentId ? null : commentId
+  replyContent.value = ''
+  showReplyEmojiPicker.value = false
 }
 
 // 获取文章数据
@@ -276,18 +312,27 @@ onMounted(() => {
   loadComments(route.params.slug) // 👉 新增：第一次进页面时，拉取评论
 })
 
-const submitComment = async () => {
-  if (!newComment.value.trim()) return ElMessage.warning('内容不能为空')
-  const username = localStorage.getItem('username') || '游客'
+// 发送评论 (整合主评论与回复)
+const submitComment = async (parentId = null) => {
+  const content = parentId ? replyContent.value : newComment.value
+  if (!content.trim()) return ElMessage.warning('内容不能为空')
+  
+  const authorName = currentUsername.value || '游客'
   try {
     await axios.post('http://116.62.218.51:8000/api/comments', {
       article_slug: route.params.slug,
-      author: username,
-      content: newComment.value
+      author: authorName,
+      content: content,
+      parent_id: parentId
     }, { headers: { token: localStorage.getItem('token') || '' } })
-    ElMessage.success('评论成功')
-    newComment.value = ''
-    showEmojiPicker.value = false
+    
+    ElMessage.success('发布成功')
+    if (parentId) {
+      replyContent.value = ''
+      activeReplyId.value = null
+    } else {
+      newComment.value = ''
+    }
     loadComments(route.params.slug)
   } catch (e) {
     ElMessage.error('评论失败')
@@ -315,7 +360,6 @@ const submitReply = async (targetComment) => {
   }
 }
 
-
 // 删除评论
 const handleDeleteComment = async (id) => {
   try {
@@ -330,33 +374,38 @@ const handleDeleteComment = async (id) => {
   }
 }
 
-// 点赞/踩 真实存入数据库
+// 修复的互斥点赞与点踩逻辑 (并同步到数据库)
 const handleCommentAction = async (comment, action) => {
-  if (action === 'reply') {
-    // 展开或收起回复框
-    activeReplyId.value = activeReplyId.value === comment.id ? null : comment.id
-    replyContent.value = ''
-    return
-  }
+  let likeInc = 0
+  let dislikeInc = 0
 
-  // 防止重复狂点
-  if (action === 'like' && comment.isLiked) return
-  if (action === 'dislike' && comment.isDisliked) return
-
-  try {
-    const res = await axios.post(`http://116.62.218.51:8000/api/comments/${comment.id}/${action}`)
-    if (action === 'like') {
-      comment.isLiked = true
-      comment.isDisliked = false
-      comment.likes = res.data.likes
-    } else {
-      comment.isDisliked = true
-      comment.isLiked = false
-      comment.dislikes = res.data.dislikes
+  if (action === 'like') {
+    if (comment.isLiked) { // 取消赞
+      comment.isLiked = false; comment.likes--; likeInc = -1;
+    } else { // 点赞
+      comment.isLiked = true; comment.likes++; likeInc = 1;
+      if (comment.isDisliked) { // 互斥：取消踩
+        comment.isDisliked = false; comment.dislikes--; dislikeInc = -1;
+      }
     }
-  } catch(e) {
-    ElMessage.error('操作失败')
+  } else if (action === 'dislike') {
+    if (comment.isDisliked) { // 取消踩
+      comment.isDisliked = false; comment.dislikes--; dislikeInc = -1;
+    } else { // 点踩
+      comment.isDisliked = true; comment.dislikes++; dislikeInc = 1;
+      if (comment.isLiked) { // 互斥：取消赞
+        comment.isLiked = false; comment.likes--; likeInc = -1;
+      }
+    }
   }
+
+  // 异步发送给后端持久化
+  try {
+    await axios.post(`http://116.62.218.51:8000/api/comments/${comment.id}/action`, {
+      like_inc: likeInc,
+      dislike_inc: dislikeInc
+    })
+  } catch(e) {}
 }
 
 // 插入表情
@@ -369,6 +418,26 @@ const insertEmoji = (emoji, isReply = false) => {
     showEmojiPicker.value = false
   }
 }
+
+// 切换排序方式
+const changeSort = (mode) => {
+  sortBy.value = mode
+  sortCommentsTree()
+}
+
+// 对评论树进行排序
+const sortCommentsTree = () => {
+  if (sortBy.value === 'hot') {
+    rootComments.value.sort((a, b) => b.likes - a.likes)
+  } else {
+    rootComments.value.sort((a, b) => new Date(b.time) - new Date(a.time))
+  }
+  // 子评论固定按时间正序（旧的在上面）
+  rootComments.value.forEach(root => {
+    root.children.sort((a, b) => new Date(a.time) - new Date(b.time))
+  })
+}
+
 const navigateTo = (slug) => {
   router.push(`/post/${slug}`)
 }
@@ -548,82 +617,113 @@ const navigateTo = (slug) => {
 
           <!-- 下方：评论区 -->
           <div class="glass-box comments-section">
-            <h3 class="comments-title">💬 评论区</h3>
-            
-            <!-- 主评论输入框 -->
-            <div class="comment-input-area">
+            <div class="comments-header-row">
+              <h3>💬 评论区</h3>
+              <div class="sort-tabs">
+                <span :class="{active: sortBy === 'hot'}" @click="changeSort('hot')">最热</span>
+                <span class="divider">|</span>
+                <span :class="{active: sortBy === 'time'}" @click="changeSort('time')">最新</span>
+              </div>
+            </div>
+
+            <!-- 主输入区 -->
+            <div class="comment-input">
               <el-input v-model="newComment" type="textarea" :rows="3" placeholder="写下你的评论..." />
-              <div class="comment-toolbar">
-                <!-- 最左侧表情按钮 -->
+              <div class="comment-input-footer">
+                <!-- 左侧表情按钮 -->
                 <div class="emoji-wrapper">
-                  <el-popover placement="bottom-start" :width="300" trigger="click" :visible="showEmojiPicker">
-                    <template #reference>
-                      <span class="emoji-btn" @click="showEmojiPicker = !showEmojiPicker">😀 表情</span>
-                    </template>
-                    <div class="emoji-grid">
-                      <span v-for="e in emojis" :key="e" class="emoji-item" @click="insertEmoji(e, false)">{{ e }}</span>
-                    </div>
-                  </el-popover>
+                  <el-icon class="emoji-btn" @click="showEmojiPicker = !showEmojiPicker"><PictureRounded /></el-icon>
+                  <div class="emoji-picker glass-box" v-if="showEmojiPicker">
+                    <span v-for="e in emojis" :key="e" @click="insertEmoji(e, false)">{{ e }}</span>
+                  </div>
                 </div>
-                <el-button type="primary" @click="submitComment">发表评论</el-button>
+                <el-button type="primary" @click="submitComment(null)">发表评论</el-button>
               </div>
             </div>
             
             <div class="comment-list">
-              <div class="comment-item" v-for="comment in comments" :key="comment.id">
-                
+              <!-- 遍历根评论 -->
+              <div class="comment-item" v-for="comment in rootComments" :key="comment.id">
                 <el-avatar :src="comment.avatar || ''" :icon="UserFilled" :size="48" class="comment-avatar" />
                 
                 <div class="comment-content-box">
-                  <!-- 头部：昵称 和 垃圾桶 -->
                   <div class="comment-header">
                     <span class="comment-author">{{ comment.author }}</span>
-                    <!-- 垃圾桶，确保当前 localStorage 存的是 unihur -->
-                    <el-icon v-if="currentUsername === 'unihur'" class="delete-comment-btn" @click="handleDeleteComment(comment.id)">
-                      <Delete />
-                    </el-icon>
+                    <el-tooltip content="删除该评论" placement="top" v-if="currentUsername === 'unihur'">
+                      <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)"><Delete /></el-icon>
+                    </el-tooltip>
                   </div>
                   
-                  <!-- 正文内容 (如果有 reply_to，显示为回复某人) -->
-                  <div class="comment-text">
-                    <span v-if="comment.reply_to" class="reply-target">回复 @{{ comment.reply_to }}：</span>
-                    {{ comment.content }}
-                  </div>
+                  <div class="comment-text">{{ comment.content }}</div>
                   
-                  <!-- 底部：时间 与 B站风格互动栏 (变大，间距变小) -->
                   <div class="comment-footer">
                     <span class="comment-time">{{ comment.time }}</span>
-                    
                     <div class="comment-actions">
-                      <span class="action-btn" :class="{ 'active-blue': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
-                        <span class="thumb-icon">👍</span> 
-                        <span class="action-num">{{ comment.likes || '' }}</span>
+                      <span class="action-btn" :class="{ 'active-like': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
+                        <el-icon size="18"><CaretTop /></el-icon> <span class="num">{{ comment.likes || 0 }}</span>
                       </span>
-                      <span class="action-btn" :class="{ 'active-blue': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
-                        <span class="thumb-icon">👎</span>
-                        <span class="action-num">{{ comment.dislikes || '' }}</span>
+                      <span class="action-btn" :class="{ 'active-like': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
+                        <el-icon size="18"><CaretBottom /></el-icon> <span class="num">{{ comment.dislikes || 0 }}</span>
                       </span>
-                      <span class="action-btn reply-btn" @click="handleCommentAction(comment, 'reply')">回复</span>
+                      <span class="action-btn reply-btn" @click="showReplyBox(comment.id)">回复</span>
                     </div>
                   </div>
-                  
-                  <!-- 点击回复后展开的子输入框 -->
-                  <div class="reply-input-box" v-if="activeReplyId === comment.id">
-                    <el-input v-model="replyContent" type="textarea" :rows="2" :placeholder="`回复 @${comment.author}：`" />
-                    <div class="comment-toolbar">
+
+                  <!-- 回复输入框 -->
+                  <div class="reply-input-area" v-if="activeReplyId === comment.id">
+                    <el-input v-model="replyContent" type="textarea" :rows="2" :placeholder="'回复 @' + comment.author + '：'" />
+                    <div class="comment-input-footer">
                       <div class="emoji-wrapper">
-                        <el-popover placement="bottom-start" :width="300" trigger="click" :visible="showReplyEmojiPicker">
-                          <template #reference>
-                            <span class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker">😀 表情</span>
-                          </template>
-                          <div class="emoji-grid">
-                            <span v-for="e in emojis" :key="e" class="emoji-item" @click="insertEmoji(e, true)">{{ e }}</span>
-                          </div>
-                        </el-popover>
+                        <el-icon class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker"><PictureRounded /></el-icon>
+                        <div class="emoji-picker glass-box" v-if="showReplyEmojiPicker">
+                          <span v-for="e in emojis" :key="e" @click="insertEmoji(e, true)">{{ e }}</span>
+                        </div>
                       </div>
-                      <div>
-                        <el-button size="small" @click="activeReplyId = null">取消</el-button>
-                        <el-button type="primary" size="small" @click="submitReply(comment)">发布</el-button>
+                      <el-button type="primary" size="small" @click="submitComment(comment.id)">发送</el-button>
+                    </div>
+                  </div>
+
+                  <!-- 子评论(回复)列表，缩进显示 -->
+                  <div class="sub-comments-list" v-if="comment.children && comment.children.length > 0">
+                    <div class="sub-comment-item" v-for="child in comment.children" :key="child.id">
+                      <el-avatar :src="child.avatar || ''" :icon="UserFilled" :size="32" class="comment-avatar" />
+                      <div class="sub-content-box">
+                        <div class="comment-header">
+                          <span class="comment-author">{{ child.author }}</span>
+                          <el-icon v-if="currentUsername === 'unihur'" class="delete-comment-btn" @click="handleDeleteComment(child.id)"><Delete /></el-icon>
+                        </div>
+                        <div class="comment-text">
+                          <span class="reply-target" v-if="child.replyToAuthor && child.replyToAuthor !== comment.author">回复 @{{ child.replyToAuthor }}：</span>
+                          {{ child.content }}
+                        </div>
+                        <div class="comment-footer">
+                          <span class="comment-time">{{ child.time }}</span>
+                          <div class="comment-actions">
+                            <span class="action-btn" :class="{ 'active-like': child.isLiked }" @click="handleCommentAction(child, 'like')">
+                              <el-icon size="16"><CaretTop /></el-icon> <span class="num">{{ child.likes || 0 }}</span>
+                            </span>
+                            <span class="action-btn" :class="{ 'active-like': child.isDisliked }" @click="handleCommentAction(child, 'dislike')">
+                              <el-icon size="16"><CaretBottom /></el-icon>
+                            </span>
+                            <span class="action-btn reply-btn" @click="showReplyBox(child.id)">回复</span>
+                          </div>
+                        </div>
+
+                        <!-- 针对子评论的回复框 -->
+                        <div class="reply-input-area" v-if="activeReplyId === child.id">
+                          <el-input v-model="replyContent" type="textarea" :rows="2" :placeholder="'回复 @' + child.author + '：'" />
+                          <div class="comment-input-footer">
+                            <div class="emoji-wrapper">
+                              <el-icon class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker"><PictureRounded /></el-icon>
+                              <div class="emoji-picker glass-box" v-if="showReplyEmojiPicker">
+                                <span v-for="e in emojis" :key="e" @click="insertEmoji(e, true)">{{ e }}</span>
+                              </div>
+                            </div>
+                            <!-- 核心：虽然是回复子评论，但记录的父ID依然传这层评论的ID -->
+                            <el-button type="primary" size="small" @click="submitComment(child.id)">发送</el-button>
+                          </div>
+                        </div>
+
                       </div>
                     </div>
                   </div>
@@ -897,6 +997,26 @@ html.dark .markdown-body :deep(pre) { background: #2d2d2d; }
 
 /* ================= 评论区风格样式 ================= */
 
+.comments-header-row {
+  display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 10px; margin-bottom: 20px;
+}
+html.dark .comments-header-row { border-bottom-color: rgba(255,255,255,0.1); }
+.sort-tabs span { cursor: pointer; color: #999; font-size: 14px; transition: color 0.3s; }
+.sort-tabs span:hover, .sort-tabs span.active { color: #409eff; font-weight: bold; }
+.sort-tabs .divider { margin: 0 10px; color: #ccc; cursor: default; }
+
+.comment-input-footer {
+  display: flex; justify-content: space-between; align-items: center; margin-top: 10px; position: relative;
+}
+.emoji-wrapper { position: relative; }
+.emoji-btn { font-size: 24px; color: #999; cursor: pointer; transition: color 0.3s; }
+.emoji-btn:hover { color: #f56c6c; }
+.emoji-picker {
+  position: absolute; top: 35px; left: 0; width: 220px; display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; z-index: 100; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.emoji-picker span { font-size: 20px; cursor: pointer; transition: transform 0.2s; }
+.emoji-picker span:hover { transform: scale(1.3); }
+
 .comments-title { margin-bottom: 20px; font-size: 1.2rem; }
 
 .comment-input-area { margin-bottom: 30px; }
@@ -937,36 +1057,44 @@ html.dark .emoji-btn { color: #aaa; }
 .comment-btn-row { display: flex; justify-content: flex-end; }
 .comment-list { margin-top: 30px; }
 
-.comment-item { display: flex; gap: 16px; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+/* 主评论 */
+.comment-item { display: flex; gap: 16px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
 html.dark .comment-item { border-bottom-color: rgba(255,255,255,0.05); }
+
+/* 子评论 (嵌套回复缩进) */
+.sub-comments-list {
+  background: rgba(0,0,0,0.02); border-radius: 8px; padding: 15px; margin-top: 10px;
+}
+html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
+.sub-comment-item { display: flex; gap: 12px; margin-bottom: 15px; }
+.sub-comment-item:last-child { margin-bottom: 0; }
+.sub-content-box { flex: 1; display: flex; flex-direction: column; }
+.reply-target { color: #409eff; font-weight: 500; margin-right: 5px; }
 
 .comment-avatar { cursor: pointer; flex-shrink: 0; }
 .comment-content-box { flex: 1; display: flex; flex-direction: column; }
 
+/* 头部昵称和删除 */
 .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.comment-author { font-weight: 500; font-size: 14px; color: #fb7299; /* B站粉 */ cursor: pointer; }
-
-.delete-comment-btn { color: #f56c6c; cursor: pointer; font-size: 18px; transition: transform 0.2s; }
+.comment-author { font-weight: 500; font-size: 13px; color: #61666d; }
+html.dark .comment-author { color: #999; }
+.delete-comment-btn { color: #f56c6c; cursor: pointer; font-size: 16px; transition: transform 0.2s; }
 .delete-comment-btn:hover { transform: scale(1.2); }
 
-/* 正文与盖楼蓝字 */
-.comment-text { font-size: 15px; line-height: 1.6; color: #222; word-break: break-word; margin-bottom: 12px; }
-html.dark .comment-text { color: #eee; }
-.reply-target { color: #00aeec; font-weight: 500; margin-right: 5px; cursor: pointer; }
+/* 正文与时间 */
+.comment-text { font-size: 15px; line-height: 1.6; color: #18191c; margin-bottom: 10px; }
+html.dark .comment-text { color: #e3e5e7; }
+.comment-footer { display: flex; align-items: center; font-size: 13px; color: #9499a0; }
+.comment-time { margin-right: 20px; }
 
-/* 底部：时间与交互栏紧凑化 */
-.comment-footer { display: flex; align-items: center; font-size: 13px; color: #999; }
-.comment-time { margin-right: 15px; } /* 时间文本为 13px */
+/* ======== 修改间距：18px 缩小为 10px ======== */
+.comment-actions { display: flex; align-items: center; gap: 10px; }
 
-.comment-actions { display: flex; align-items: center; gap: 12px; /* 间距调小 */ }
-.action-btn {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  transition: color 0.2s;
-  color: #999;
-}
+/* 恢复 Caret 箭头图标并美化大小 */
+.action-btn { display: flex; align-items: center; cursor: pointer; transition: color 0.2s; color: #9499a0; }
 .action-btn:hover { color: #00aeec; }
+.action-btn .num { margin-left: 2px; font-size: 14px; font-weight: 500; }
+.active-like { color: #00aeec !important; }
 
 /* 大拇指图标稍微比时间字体大一点 (15px) */
 .thumb-icon { font-size: 15px; margin-right: 3px; }
@@ -974,6 +1102,9 @@ html.dark .comment-text { color: #eee; }
 .active-blue { color: #00aeec !important; }
 
 /* 回复输入框容器 */
+
+.reply-input-area { margin-top: 15px; padding-left: 0; }
+
 .reply-input-box {
   margin-top: 15px;
   background: rgba(0,0,0,0.02);

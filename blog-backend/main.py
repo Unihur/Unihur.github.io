@@ -167,6 +167,7 @@ class CommentCreate(BaseModel):
     content: str
     author: str = "游客"
     reply_to: Optional[str] = None
+    parent_id: Optional[int] = None
 
 @app.get("/api/settings")
 def get_settings(db: Session = Depends(get_db)):
@@ -405,15 +406,14 @@ def create_comment(comment: CommentCreate, token: Optional[str] = Header(None), 
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             author_id = payload.get("id")
-        except:
-            pass 
+        except: pass 
             
     new_comment = models.Comment(
         article_slug=comment.article_slug,
         content=comment.content,
         author=comment.author,
         author_id=author_id,
-        reply_to=comment.reply_to # 👈新增这行
+        parent_id=comment.parent_id # 新增存入父ID
     )
     db.add(new_comment)
     db.commit()
@@ -421,41 +421,38 @@ def create_comment(comment: CommentCreate, token: Optional[str] = Header(None), 
 
 @app.get("/api/comments/{article_slug}")
 def get_comments(article_slug: str, db: Session = Depends(get_db)):
-    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).order_by(models.Comment.created_at.desc()).all()
+    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).all()
     res = []
     for c in comments:
         author_name = c.author
-        avatar = "" 
+        avatar = ""
         if c.author_id:
             user = db.query(models.User).filter(models.User.id == c.author_id).first()
-            if user: 
+            if user:
                 author_name = user.username
                 avatar = user.avatar
                 
         res.append({
             "id": c.id, 
+            "parent_id": c.parent_id, # 新增
+            "likes": c.likes or 0,    # 新增
+            "dislikes": c.dislikes or 0, # 新增
             "author": author_name, 
             "avatar": avatar,
             "content": c.content, 
-            "likes": c.likes,       # 👈新增返回点赞数
-            "dislikes": c.dislikes, # 👈新增返回踩数
-            "reply_to": c.reply_to, # 👈新增返回回复目标
             "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
         })
     return res
 
 # 👇 新增：评论点赞/点踩接口
-@app.post("/api/comments/{comment_id}/{action}")
-def action_comment(comment_id: int, action: str, db: Session = Depends(get_db)):
-    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="评论不存在")
-    if action == "like":
-        comment.likes += 1
-    elif action == "dislike":
-        comment.dislikes += 1
-    db.commit()
-    return {"status": "success", "likes": comment.likes, "dislikes": comment.dislikes}
+@app.post("/api/comments/{comment_id}/action")
+def action_comment(comment_id: int, action_data: CommentAction, db: Session = Depends(get_db)):
+    c = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if c:
+        c.likes = (c.likes or 0) + action_data.like_inc
+        c.dislikes = (c.dislikes or 0) + action_data.dislike_inc
+        db.commit()
+    return {"status": "success"}
 
 # ============ 评论管理（新增删除功能）============
 @app.delete("/api/comments/{comment_id}")
@@ -476,6 +473,9 @@ def delete_comment(comment_id: int, token: str = Header(...), db: Session = Depe
         return {"status": "success", "message": "评论已删除"}
     else:
         raise HTTPException(status_code=404, detail="评论不存在")
+class CommentAction(BaseModel):
+    like_inc: int = 0
+    dislike_inc: int = 0
 
 # 【新增】删除已有文章
 @app.delete("/api/articles/{slug}", response_model=dict)

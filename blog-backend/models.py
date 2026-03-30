@@ -46,6 +46,7 @@ class Comment(Base):
     likes = Column(Integer, default=0)
     dislikes = Column(Integer, default=0)
     reply_to = Column(String(50), nullable=True)
+    parent_id = Column(Integer, nullable=True)
 
 class Category(Base):
     __tablename__ = "categories"
