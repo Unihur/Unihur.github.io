@@ -684,3 +684,18 @@ def increment_visitor_count(db: Session = Depends(get_db)):
     stat.visitor_count += 1
     db.commit()
     return {"visitor_count": stat.visitor_count}
+
+# ============ 新增：校验账号存活状态 ============
+@app.get("/api/user/me")
+def check_user_status(token: str = Header(...), db: Session = Depends(get_db)):
+    try:
+        # 解码 Token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        # 去数据库里查一下，这个 ID 的用户还存不存在
+        user = db.query(models.User).filter(models.User.id == payload.get("id")).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="账号已被注销")
+        return {"status": "ok"}
+    except:
+        # Token过期或账号不存在都会抛出 401 错误
+        raise HTTPException(status_code=401, detail="登录失效")

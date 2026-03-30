@@ -211,6 +211,20 @@ onMounted(async () => {
     loadLive2D()
   }
 
+  if (isLoggedIn.value) {
+    try {
+      await axios.get('http://116.62.218.51:8000/api/user/me', {
+        headers: { token: localStorage.getItem('token') }
+      })
+    } catch (error) {
+      // 如果后端返回 401 (也就是我们刚才抛出的账号被注销)
+      if (error.response && error.response.status === 401) {
+        ElMessage.warning('您的账号已被管理员删除，已回退为游客状态')
+        logout() // 调用你写好的 logout 函数，清理掉本地的幽灵数据
+      }
+    }
+  }
+
   // ========== 新增：页面加载时从数据库读取设置 ==========
   try {
     const res = await fetch('http://116.62.218.51:8000/api/settings')

@@ -1,5 +1,5 @@
 <template>
-  <div class="main-content-wrapper" :style="{ paddingTop: contentPaddingTop || '100px' }">
+  <div class="main-content-wrapper" style="padding-top: 100px; min-height: 100vh;">
     <div class="glass-box">
       <h2>访客账号管理</h2>
       <el-table :data="visitors" style="width: 100%" v-loading="loading">
