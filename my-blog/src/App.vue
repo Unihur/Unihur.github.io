@@ -231,20 +231,23 @@ const themeColor = ref(localStorage.getItem('theme-color') || 'white')
 const applyThemeConfig = () => {
   const root = document.documentElement
   
-  // 1. 处理材质
+  // 1. 处理材质 (先清理所有可能存在的材质类，再加新的)
   root.classList.remove('liquid-glass', 'liquid-glass-clear')
   
-  // 然后根据当前选择添加对应的类名
   if (glassType.value === 'liquid_classic') {
+    // 经典带模糊高光的液态玻璃
     root.classList.add('liquid-glass')
   } else if (glassType.value === 'liquid_clear') {
+    // 新的高透清爽型液态玻璃
     root.classList.add('liquid-glass-clear')
-  }
+  } 
+  // 如果是 default 则什么都不加，默认走毛玻璃逻辑
 
   // 2. 清除所有旧颜色类名，并加上新颜色类名
   root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green', 'theme-color-purple', 'theme-color-orange')
   root.classList.add(`theme-color-${themeColor.value}`)
 }
+
 
 // 统一处理下拉菜单指令
 const handleThemeCommand = (command) => {
@@ -558,9 +561,9 @@ provide('isLoggedIn', isLoggedIn)
                   <span>流光液态玻璃</span>
                   <el-icon v-if="glassType === 'liquid'" color="#67C23A"><Check /></el-icon>
                 </el-dropdown-item>
-                <el-dropdown-item command="glass_clear_liquid" style="display: flex; justify-content: space-between; align-items: center;">
+                <el-dropdown-item command="glass_liquid_clear" style="display: flex; justify-content: space-between; align-items: center;">
                   <span>清透水晶</span>
-                  <el-icon v-if="glassType === 'clear_liquid'" color="#67C23A"><Check /></el-icon>
+                  <el-icon v-if="glassType === 'liquid_clear'" color="#67C23A"><Check /></el-icon>
                 </el-dropdown-item>
 
                 <!-- 分割线 -->
