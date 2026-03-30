@@ -193,15 +193,19 @@ window.addEventListener('storage', () => {
 // 读取评论并组装成 B站两级树形结构
 const loadComments = async (slug) => {
   try {
-    const res = await axios.get(`http://116.62.218.51:8000/api/comments/${slug}`)
+    // 携带 token 以便后端判定当前账号点赞状态
+    const res = await axios.get(`http://116.62.218.51:8000/api/comments/${slug}`, {
+      headers: { token: localStorage.getItem('token') || '' }
+    })
     const flatList = res.data
     const map = {}
     const roots = []
 
     flatList.forEach(c => {
       c.children = []
-      c.isLiked = false
-      c.isDisliked = false
+      // 根据后端的 userAction 初始化前端状态
+      c.isLiked = c.userAction === 'like'
+      c.isDisliked = c.userAction === 'dislike'
       c.avatar = c.avatar || ('/ciel.png' + c.author + c.id)
       map[c.id] = c
     })
@@ -219,11 +223,11 @@ const loadComments = async (slug) => {
       }
     })
 
-    // 初始化折叠与分页状态
+    // 依然保留折叠与分页初始化
     roots.forEach(root => {
-      root.isExpanded = false    // 默认折叠
-      root.currentPage = 1       // 默认第一页
-      root.pageSize = 5          // 每页显示5条
+      root.isExpanded = false
+      root.currentPage = 1
+      root.pageSize = 5
     })
 
     rootComments.value = roots
@@ -437,35 +441,26 @@ const handlePinComment = async (id) => {
 
 // 互斥点赞与点踩逻辑
 const handleCommentAction = async (comment, action) => {
-  let likeInc = 0
-  let dislikeInc = 0
-
-  if (action === 'like') {
-    if (comment.isLiked) {
-      comment.isLiked = false; comment.likes--; likeInc = -1;
-    } else {
-      comment.isLiked = true; comment.likes++; likeInc = 1;
-      if (comment.isDisliked) {
-        comment.isDisliked = false; comment.dislikes--; dislikeInc = -1;
-      }
-    }
-  } else if (action === 'dislike') {
-    if (comment.isDisliked) {
-      comment.isDisliked = false; comment.dislikes--; dislikeInc = -1;
-    } else {
-      comment.isDisliked = true; comment.dislikes++; dislikeInc = 1;
-      if (comment.isLiked) {
-        comment.isLiked = false; comment.likes--; likeInc = -1;
-      }
-    }
+  if (!currentUsername.value) {
+    return ElMessage.warning('请先登录再操作')
   }
 
   try {
-    await axios.post(`http://116.62.218.51:8000/api/comments/${comment.id}/action`, {
-      like_inc: likeInc,
-      dislike_inc: dislikeInc
+    // 请求后端处理状态反转
+    const res = await axios.post(`http://116.62.218.51:8000/api/comments/${comment.id}/action`, {
+      action: action
+    }, {
+      headers: { token: localStorage.getItem('token') }
     })
-  } catch(e) {}
+    
+    // 更新为后端计算好的真实数据
+    comment.likes = res.data.likes
+    comment.dislikes = res.data.dislikes
+    comment.isLiked = res.data.userAction === 'like'
+    comment.isDisliked = res.data.userAction === 'dislike'
+  } catch(e) {
+    ElMessage.error(e.response?.data?.detail || '操作失败')
+  }
 }
 
 // 插入表情
@@ -836,20 +831,20 @@ const navigateTo = (slug) => {
                       </div>
 
                       <!-- 展开后的底部分页与收起按钮 -->
-                      <div class="pagination-row" v-if="comment.children.length > pageSize">
-                        <span class="page-info">共 {{ Math.ceil(comment.children.length / pageSize) }} 页</span>
-                        <el-pagination
-                          small
-                          layout="prev, pager, next"
-                          :total="comment.children.length"
-                          :page-size="pageSize"
-                          v-model:current-page="comment.currentPage"
-                          style="display: inline-block; margin: 0 10px;"
-                        />
-                        <span class="fold-btn" @click="comment.isExpanded = false">收起</span>
-                      </div>
-                      <div class="pagination-row" v-else>
-                        <span class="fold-btn" @click="comment.isExpanded = false" style="margin-left:0;">收起</span>
+                      <div class="pagination-row" v-if="comment.children.length > comment.pageSize">
+                        <span class="page-info">共 {{ Math.ceil(comment.children.length / comment.pageSize) }} 页</span>
+                        <span class="page-btn" :class="{disabled: comment.currentPage === 1}" @click="changePage(comment, -1)">上一页</span>
+                        
+                        <span class="page-num" 
+                              v-for="p in Math.ceil(comment.children.length / comment.pageSize)" :key="p"
+                              :class="{active: comment.currentPage === p}"
+                              @click="goToPage(comment, p)">
+                          {{ p }}
+                        </span>
+
+                        <span class="page-btn" :class="{disabled: comment.currentPage === Math.ceil(comment.children.length / comment.pageSize)}" @click="changePage(comment, 1)">下一页</span>
+                        <!-- 确保这里收起按钮的类名绑定蓝色的CSS -->
+                        <span class="collapse-btn" @click="toggleReplies(comment)">收起</span>
                       </div>
 
                     </div>
@@ -1236,10 +1231,30 @@ html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 }
 .toggle-reply-btn:hover { text-decoration: underline; }
 
-/* 分页器样式 */
-.pagination-row {
-  display: flex; align-items: center; justify-content: flex-start; margin-top: 12px; font-size: 12px; color: #666;
+/* 修改置顶徽章的颜色（由原本的红色改为 B站同款低调橙或者主题蓝） */
+.pin-badge {
+  font-size: 12px;
+  color: #ff7f24; /* 橙色 */
+  border: 1px solid #ff7f24;
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: 8px;
+  user-select: none;
 }
+
+/* 分页器样式 */
+/* 分页器相关，重点恢复蓝色收起按钮 */
+.pagination-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed rgba(0,0,0,0.05);
+  font-size: 13px;
+  color: #9499a0;
+}
+html.dark .pagination-row { border-top-color: rgba(255,255,255,0.05); }
 .page-info { margin-right: 5px; }
 .fold-btn { margin-left: 10px; color: #9499a0; cursor: pointer; font-size: 12px; }
 .fold-btn:hover { color: #00aeec; }
@@ -1251,9 +1266,13 @@ html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 .page-num:hover { color: #00aeec; }
 .page-num.active { color: #fff; background: #00aeec; }
 
+/* 必须存在这个类，控制收起按钮居右且为蓝色 */
 .collapse-btn {
-  margin-left: auto; /* 收起按钮推到最右侧 */
+  margin-left: auto;
   color: #00aeec;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
 }
 .collapse-btn:hover { text-decoration: underline; }
 
@@ -1282,7 +1301,7 @@ html.dark .comment-text { color: #e3e5e7; }
 .comment-footer { display: flex; align-items: center; font-size: 12px; color: #9499a0; }
 .comment-time { margin-right: 15px; }
 
-/* ======== 修改间距：18px 缩小为 10px ======== */
+/* ======== 修改间距：18px 缩小为 1px ======== */
 .comment-actions { 
   display: flex; 
   align-items: center; 
@@ -1396,5 +1415,7 @@ html.dark .reply-input-box { background: rgba(255,255,255,0.05); }
   font-weight: 500;
   user-select: none;
 }
+
+
 
 </style>

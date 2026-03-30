@@ -33,6 +33,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from models import User
+from sqlalchemy import or_
 
 # 引入我们刚才写的数据库模块
 from database import engine, Base, get_db
@@ -424,9 +425,24 @@ def create_comment(comment: CommentCreate, token: Optional[str] = Header(None), 
     return {"status": "success"}
 
 @app.get("/api/comments/{article_slug}")
-def get_comments(article_slug: str, db: Session = Depends(get_db)):
-    # 按照先置顶，再按时间倒序的规则从数据库取出
-    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).order_by(models.Comment.is_pinned.desc(), models.Comment.created_at.desc()).all()
+def get_comments(article_slug: str, token: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    # 尝试解析当前请求的用户名，用来判断他是否点赞过
+    current_username = None
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            current_username = payload.get("username")
+        except: pass
+
+    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).all()
+    
+    # 查出当前用户所有的点赞记录
+    user_likes = {}
+    if current_username:
+        likes_records = db.query(models.CommentLike).filter(models.CommentLike.username == current_username).all()
+        for r in likes_records:
+            user_likes[r.comment_id] = r.action # "like" or "dislike"
+
     res = []
     for c in comments:
         author_name = c.author
@@ -440,25 +456,70 @@ def get_comments(article_slug: str, db: Session = Depends(get_db)):
         res.append({
             "id": c.id, 
             "parent_id": c.parent_id,
-            "likes": c.likes or 0,    
+            "likes": c.likes or 0,
             "dislikes": c.dislikes or 0,
-            "is_pinned": c.is_pinned or False, 
+            "is_pinned": getattr(c, 'is_pinned', False), # 防止旧库没有这列报错
             "author": author_name, 
             "avatar": avatar,
             "content": c.content, 
-            "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            # 返回当前用户对该条评论的状态
+            "userAction": user_likes.get(c.id, None) 
         })
     return res
 
+
+class CommentActionReq(BaseModel):
+    action: str # "like" 或 "dislike"
+
 # 👇 新增：评论点赞/点踩接口
 @app.post("/api/comments/{comment_id}/action")
-def action_comment(comment_id: int, action_data: CommentAction, db: Session = Depends(get_db)):
+def action_comment(comment_id: int, req: CommentActionReq, token: str = Header(...), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        username = payload.get("username")
+    except:
+        raise HTTPException(status_code=401, detail="请先登录")
+
     c = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
-    if c:
-        c.likes = (c.likes or 0) + action_data.like_inc
-        c.dislikes = (c.dislikes or 0) + action_data.dislike_inc
-        db.commit()
-    return {"status": "success"}
+    if not c:
+        raise HTTPException(status_code=404, detail="评论不存在")
+
+    # 查当前用户对这条评论的记录
+    record = db.query(models.CommentLike).filter(
+        models.CommentLike.comment_id == comment_id,
+        models.CommentLike.username == username
+    ).first()
+
+    action = req.action
+
+    if record:
+        if record.action == action:
+            # 取消点赞或取消踩
+            if action == "like": c.likes -= 1
+            else: c.dislikes -= 1
+            db.delete(record)
+            action_result = None # 代表最终无状态
+        else:
+            # 切换状态 (比如从踩变赞)
+            if action == "like":
+                c.dislikes -= 1
+                c.likes += 1
+            else:
+                c.likes -= 1
+                c.dislikes += 1
+            record.action = action
+            action_result = action
+    else:
+        # 新增
+        if action == "like": c.likes += 1
+        else: c.dislikes += 1
+        new_record = models.CommentLike(comment_id=comment_id, username=username, action=action)
+        db.add(new_record)
+        action_result = action
+
+    db.commit()
+    return {"status": "success", "likes": c.likes, "dislikes": c.dislikes, "userAction": action_result}
 
 @app.post("/api/comments/{comment_id}/pin")
 def pin_comment(comment_id: int, token: str = Header(...), db: Session = Depends(get_db)):

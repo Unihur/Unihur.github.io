@@ -66,3 +66,10 @@ class User(Base):
     theme_style = Column(String, default="default") # default 或 liquid
     banner_mode = Column(String, default="banner")
     is_dark = Column(Boolean, default=False)
+
+class CommentLike(Base):
+    __tablename__ = "comment_likes"
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, index=True)
+    username = Column(String(50), index=True)
+    action = Column(String(20)) # "like" 或 "dislike"
