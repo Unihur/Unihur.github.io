@@ -531,7 +531,8 @@ provide('isLoggedIn', isLoggedIn)
             <el-tooltip :content="isLoggedIn ? '' : '点击登录'" placement="bottom" :disabled="isLoggedIn">
               <el-avatar 
                 :size="36" 
-                :src="currentUserAvatar || siteConfig.avatar" 
+                :src="currentUserAvatar || ''" 
+                :icon="currentUserAvatar ? '' : UserFilled"
                 class="login-avatar"
               />
             </el-tooltip>
@@ -553,7 +554,8 @@ provide('isLoggedIn', isLoggedIn)
                 <el-tooltip content="点击上传新头像" placement="right">
                   <el-avatar 
                     :size="56" 
-                    :src="currentUserAvatar || siteConfig.avatar" 
+                    :src="currentUserAvatar || ''" 
+                    :icon="currentUserAvatar ? '' : UserFilled"
                     style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer;" 
                   />
                 </el-tooltip>
