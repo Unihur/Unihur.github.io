@@ -63,7 +63,7 @@ onMounted(() => {
       <el-table :data="pendingUsers" style="width: 100%; margin-bottom: 40px;" v-loading="loading">
         <el-table-column label="头像" width="100">
           <template #default="scope">
-            <el-avatar :src="scope.row.avatar || '/avatar.png'" />
+            <el-avatar :src="scope.row.avatar || ''" :icon="scope.row.avatar ? '' : UserFilled" />
           </template>
         </el-table-column>
         <el-table-column prop="username" label="昵称" />
@@ -79,7 +79,7 @@ onMounted(() => {
       <el-table :data="approvedUsers" style="width: 100%" v-loading="loading">
         <el-table-column label="头像" width="100">
           <template #default="scope">
-            <el-avatar :src="scope.row.avatar || '/avatar.png'" />
+            <el-avatar :src="scope.row.avatar || ''" :icon="scope.row.avatar ? '' : UserFilled" />
           </template>
         </el-table-column>
         <el-table-column prop="username" label="昵称" />
