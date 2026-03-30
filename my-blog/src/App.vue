@@ -312,17 +312,22 @@ onMounted(async () => {
     const res = await fetch('http://116.62.218.51:8000/api/settings')
     if (res.ok) {
       const data = await res.json()
-      // 1. 恢复 Banner 模式
-      if (data.banner_mode) {
-        bannerMode.value = data.banner_mode
+      
+      if (!isLoggedIn.value) {
+        // 1. 恢复 Banner 模式
+        if (data.banner_mode) {
+          bannerMode.value = data.banner_mode
+        }
+        
+        // 2. 恢复 夜间/日间 模式
+        isDark.value = data.is_dark
+        if (isDark.value) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
       }
-      // 2. 恢复 夜间/日间 模式
-      isDark.value = data.is_dark
-      if (isDark.value) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
+      
     }
   } catch (error) {
     console.error("加载设置失败，使用默认设置", error)
