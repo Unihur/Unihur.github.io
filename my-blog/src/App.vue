@@ -262,6 +262,12 @@ const handleThemeCommand = (command) => {
 
 onMounted(async () => {
 
+  if (isDark.value) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+
   // === 新增：读取记住的账号密码 ===
   const savedUser = localStorage.getItem('saved_username')
   const savedPass = localStorage.getItem('saved_password')
@@ -452,17 +458,18 @@ const saveSettingsToDB = async () => {
 }
 
 // ================= 夜间模式 =================
-const isDark = ref(false)
+const isDark = ref(localStorage.getItem('is-dark') === 'true')
 const toggleDarkMode = () => {
   isDark.value = !isDark.value
-  if (isDark.value) document.documentElement.classList.add('dark')
-  else document.documentElement.classList.remove('dark')
-  
-  // 原本调用 saveSettingsToDB()
-  // 改为只将个人偏好同步给后端账号
-  if (isLoggedIn.value) {
-    syncConfigToBackend({ is_dark: isDark.value })
+  if (isDark.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('is-dark', 'true') // 👈 存本地
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('is-dark', 'false') // 👈 存本地
   }
+  
+  saveSettingsToDB()
 }
 
 // ================= Banner 高度和布局计算 =================
