@@ -109,12 +109,14 @@ onMounted(async () => {
   text-align: center;
   padding: 20px;
   /* 让背景颜色在夜间模式下显得更深邃，符合你的参考图 */
-  background: rgba(255, 255, 255, 0.7);
+  /* background: rgba(255, 255, 255, 0.7);*/
 }
+/*
 html.dark .profile-card {
-  background: rgba(40, 42, 54, 0.8); /* 偏蓝紫的深灰色 */
+  background: rgba(40, 42, 54, 0.8);
   border-color: rgba(255, 255, 255, 0.05);
 }
+*/
 
 /* 头像外壳 */
 .avatar-wrapper {

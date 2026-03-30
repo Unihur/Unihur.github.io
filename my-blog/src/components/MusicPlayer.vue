@@ -115,11 +115,11 @@ const formatTime = (time) => {
   align-items: center;
   padding: 15px 20px;
   gap: 15px;
-  background: rgba(255, 255, 255, 0.7);
+  /*background: rgba(255, 255, 255, 0.7);*/
 }
-html.dark .modern-player {
+/*html.dark .modern-player {
   background: rgba(40, 42, 54, 0.8);
-}
+}*/
 
 /* 旋转唱片样式 */
 .cover-wrapper {

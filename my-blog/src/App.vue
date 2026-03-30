@@ -268,11 +268,11 @@ onMounted(async () => {
     document.documentElement.classList.remove('dark')
   }
 
+  applyThemeConfig()
+
   // === 新增：读取记住的账号密码 ===
   const savedUser = localStorage.getItem('saved_username')
   const savedPass = localStorage.getItem('saved_password')
-
-  applyThemeConfig()
 
   if (savedUser && savedPass) {
     loginForm.username = savedUser
@@ -280,13 +280,13 @@ onMounted(async () => {
     loginForm.remember = true
   }
 
-  if (themeStyle.value === 'liquid') {
-    document.documentElement.classList.add('liquid-glass')
-  }
-
-  if (localStorage.getItem('admin_token')) {
+  if (localStorage.getItem('admin_token') || localStorage.getItem('token')) {
     isLoggedIn.value = true
   }
+
+  setTimeout(() => {
+    startTypewriter()
+  }, 100)
 
   startTypewriter()
   if (siteConfig.live2dEnabled) {
