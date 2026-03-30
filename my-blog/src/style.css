@@ -102,3 +102,62 @@ html.dark.liquid-glass .glass-box {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
 html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+
+/* ================== 主题颜色层 ================== */
+/* 
+   核心思路：通过改变 --glass-bg 变量，让所有的 .glass-box 组件自动变色 
+   注意：只有在非夜间模式下生效，因为夜间模式有自己独立的深色覆盖。
+*/
+
+/* 默认白色/透明 */
+html.theme-color-white:not(.dark) .glass-box {
+  background: rgba(255, 255, 255, 0.7);
+}
+html.theme-color-white.liquid-glass:not(.dark) .glass-box {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* 天空蓝 */
+html.theme-color-blue:not(.dark) .glass-box {
+  background: rgba(230, 247, 255, 0.75); /* 淡蓝色毛玻璃 */
+}
+html.theme-color-blue.liquid-glass:not(.dark) .glass-box {
+  background: rgba(24, 144, 255, 0.05); /* 液态玻璃稍带蓝色调 */
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(24, 144, 255, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 樱花粉 */
+html.theme-color-pink:not(.dark) .glass-box {
+  background: rgba(255, 240, 246, 0.8);
+}
+html.theme-color-pink.liquid-glass:not(.dark) .glass-box {
+  background: rgba(255, 133, 192, 0.05);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(255, 133, 192, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 薄荷绿 */
+html.theme-color-green:not(.dark) .glass-box {
+  background: rgba(240, 249, 235, 0.8);
+}
+html.theme-color-green.liquid-glass:not(.dark) .glass-box {
+  background: rgba(103, 194, 58, 0.05);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(103, 194, 58, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.2);
+}

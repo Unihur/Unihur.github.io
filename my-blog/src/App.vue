@@ -218,23 +218,40 @@ const startTypewriter = () => {
   loop()
 }
 
-// 新增：主题样式状态管理 (default 或 liquid)
-const themeStyle = ref(localStorage.getItem('theme-style') || 'default')
+// 独立状态管理：材质与颜色
+const glassType = ref(localStorage.getItem('glass-type') || 'default')
+const themeColor = ref(localStorage.getItem('theme-color') || 'white')
 
-// 👇 补充缺失的 applyThemeStyle 函数 👇
-const applyThemeStyle = (style) => {
-  if (style === 'liquid') {
-    document.documentElement.classList.add('liquid-glass')
+const applyThemeConfig = () => {
+  const root = document.documentElement
+  
+  // 1. 处理材质
+  if (glassType.value === 'liquid') {
+    root.classList.add('liquid-glass')
   } else {
-    document.documentElement.classList.remove('liquid-glass')
+    root.classList.remove('liquid-glass')
   }
+
+  // 2. 清除所有旧颜色类名，并加上新颜色类名
+  root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green')
+  root.classList.add(`theme-color-${themeColor.value}`)
 }
 
-// 切换主题样式的方法
-const changeThemeStyle = (command) => {
-  themeStyle.value = command
-  applyThemeStyle(command)
-  syncConfigToBackend({ theme_style: command }) // 同步到服务器数据库
+// 统一处理下拉菜单指令
+const handleThemeCommand = (command) => {
+  if (command.startsWith('glass_')) {
+    glassType.value = command.split('_')[1]
+    localStorage.setItem('glass-type', glassType.value)
+  } else if (command.startsWith('color_')) {
+    themeColor.value = command.split('_')[1]
+    localStorage.setItem('theme-color', themeColor.value)
+  }
+  
+  applyThemeConfig()
+  
+  // 将二者合并为一个字符串传给后端（比如: "liquid|blue"）
+  const combinedStyle = `${glassType.value}|${themeColor.value}`
+  syncConfigToBackend({ theme_style: combinedStyle }) 
 }
 
 onMounted(async () => {
@@ -242,6 +259,9 @@ onMounted(async () => {
   // === 新增：读取记住的账号密码 ===
   const savedUser = localStorage.getItem('saved_username')
   const savedPass = localStorage.getItem('saved_password')
+
+  applyThemeConfig()
+
   if (savedUser && savedPass) {
     loginForm.username = savedUser
     loginForm.password = savedPass
@@ -493,14 +513,42 @@ provide('isLoggedIn', isLoggedIn)
             <el-icon class="icon-btn" @click="openSetting"><Setting /></el-icon>
           </el-tooltip>
 
-          <el-dropdown @command="changeThemeStyle" trigger="click">
+          <el-dropdown @command="handleThemeCommand" trigger="click">
             <span class="el-dropdown-link">
-              <el-tooltip content="主题颜色" placement="bottom"><el-icon class="icon-btn"><Brush /></el-icon></el-tooltip>
+              <el-tooltip content="主题与材质设置" placement="bottom"><el-icon class="icon-btn"><Brush /></el-icon></el-tooltip>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="default">毛玻璃</el-dropdown-item>
-                <el-dropdown-item command="liquid">液态玻璃</el-dropdown-item>
+                <!-- 第一部分：材质二选一 -->
+                <el-dropdown-item command="glass_default" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>默认毛玻璃</span>
+                  <el-icon v-if="glassType === 'default'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+                <el-dropdown-item command="glass_liquid" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>流光液态玻璃</span>
+                  <el-icon v-if="glassType === 'liquid'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+
+                <!-- 分割线 -->
+                <el-divider style="margin: 4px 0" />
+
+                <!-- 第二部分：主题颜色选择 -->
+                <el-dropdown-item command="color_white" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#ffffff; border:1px solid #ddd; margin-right:8px;"></span>经典白</span>
+                  <el-icon v-if="themeColor === 'white'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+                <el-dropdown-item command="color_blue" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#e6f7ff; margin-right:8px;"></span>天空蓝</span>
+                  <el-icon v-if="themeColor === 'blue'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+                <el-dropdown-item command="color_pink" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#fff0f6; margin-right:8px;"></span>樱花粉</span>
+                  <el-icon v-if="themeColor === 'pink'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+                <el-dropdown-item command="color_green" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#f0f9eb; margin-right:8px;"></span>薄荷绿</span>
+                  <el-icon v-if="themeColor === 'green'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
