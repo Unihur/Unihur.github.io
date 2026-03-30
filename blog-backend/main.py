@@ -461,23 +461,28 @@ def action_comment(comment_id: int, action_data: CommentAction, db: Session = De
 # ============ 评论管理（新增删除功能）============
 @app.delete("/api/comments/{comment_id}")
 def delete_comment(comment_id: int, token: str = Header(...), db: Session = Depends(get_db)):
-    # 验证是否为管理员
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        if payload.get("username") != "unihur":
-            raise HTTPException(status_code=403, detail="无权限删除评论")
+        current_user = payload.get("username")
     except:
         raise HTTPException(status_code=401, detail="登录已过期或无效")
         
-    # 执行删除
     comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
-    if comment:
-        db.delete(comment)
-        db.commit()
-        return {"status": "success", "message": "评论已删除"}
-    else:
+    if not comment:
         raise HTTPException(status_code=404, detail="评论不存在")
-
+        
+    # 核心：允许管理员(unihur) 或者是 评论的发布者删除
+    if current_user != "unihur" and current_user != comment.author:
+        raise HTTPException(status_code=403, detail="无权限删除此评论")
+        
+    db.delete(comment)
+    
+    # 级联删除：如果删的是根评论，把它下面的子回复也一并删掉
+    db.query(models.Comment).filter(models.Comment.parent_id == comment_id).delete()
+    
+    db.commit()
+    return {"status": "success", "message": "评论已删除"}
+    
 # 【新增】删除已有文章
 @app.delete("/api/articles/{slug}", response_model=dict)
 def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depends(verify_token)):

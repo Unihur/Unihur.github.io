@@ -198,7 +198,6 @@ const loadComments = async (slug) => {
     const map = {}
     const roots = []
 
-    // 1. 初始化并建立映射
     flatList.forEach(c => {
       c.children = []
       c.isLiked = false
@@ -207,28 +206,58 @@ const loadComments = async (slug) => {
       map[c.id] = c
     })
 
-    // 2. 组装父子关系
     flatList.forEach(c => {
       if (c.parent_id) {
-        // 寻找它的根节点
         let rootId = c.parent_id
         while (map[rootId] && map[rootId].parent_id) {
           rootId = map[rootId].parent_id
         }
-        // 记录被回复人的名字
         c.replyToAuthor = map[c.parent_id] ? map[c.parent_id].author : '未知'
-        
         if (map[rootId]) map[rootId].children.push(c)
       } else {
         roots.push(c)
       }
     })
 
+    // 初始化折叠与分页状态
+    roots.forEach(root => {
+      root.isExpanded = false    // 默认折叠
+      root.currentPage = 1       // 默认第一页
+      root.pageSize = 5          // 每页显示5条
+    })
+
     rootComments.value = roots
-    sortCommentsTree() // 执行初始排序
+    sortCommentsTree()
   } catch (error) {
     console.error('获取评论失败:', error)
   }
+}
+
+// 展开/收起回复列表
+const toggleReplies = (root) => {
+  root.isExpanded = !root.isExpanded
+  if (!root.isExpanded) {
+    root.currentPage = 1 // 收起时重置页码
+  }
+}
+
+// 获取某评论当前页的子回复
+const getPagedChildren = (root) => {
+  const start = (root.currentPage - 1) * root.pageSize
+  const end = start + root.pageSize
+  return root.children.slice(start, end)
+}
+
+const changePage = (root, delta) => {
+  const maxPage = Math.ceil(root.children.length / root.pageSize)
+  root.currentPage += delta
+  if (root.currentPage < 1) root.currentPage = 1
+  if (root.currentPage > maxPage) root.currentPage = maxPage
+}
+
+// 针对指定的页码跳转
+const goToPage = (root, page) => {
+  root.currentPage = page
 }
 
 // 展开回复框
@@ -314,8 +343,14 @@ onMounted(() => {
 
 // 发送评论 (整合主评论与回复)
 const submitComment = async (parentId = null) => {
-  const content = parentId ? replyContent.value : newComment.value
-  if (!content.trim()) return ElMessage.warning('内容不能为空')
+  let content = parentId ? replyContent.value : newComment.value
+  
+  // 核心2：如果回复内容包含了生成的蓝字前缀，发送给后端前将其去掉，保持数据库纯净
+  // 因为展示时前端会自动加上，不需要存入数据库
+  const replyPrefixRegex = /^回复\s*@[^\s：]+：/
+  content = content.replace(replyPrefixRegex, '').trim()
+
+  if (!content) return ElMessage.warning('内容不能为空')
   
   const authorName = currentUsername.value || '游客'
   try {
@@ -330,13 +365,26 @@ const submitComment = async (parentId = null) => {
     if (parentId) {
       replyContent.value = ''
       activeReplyId.value = null
+      
+      // 找到对应的根节点并强行展开它，跳到最后一页看新评论
+      const targetRoot = rootComments.value.find(r => r.id === parentId || r.children.some(c => c.id === parentId))
+      if (targetRoot) {
+        targetRoot.isExpanded = true
+        targetRoot.currentPage = Math.ceil((targetRoot.children.length + 1) / targetRoot.pageSize)
+      }
+
     } else {
       newComment.value = ''
     }
-    loadComments(route.params.slug)
+    await loadComments(route.params.slug) // 重新拉取
   } catch (e) {
     ElMessage.error('评论失败')
   }
+}
+
+// 检查是否可以删除评论
+const canDelete = (commentAuthor) => {
+  return currentUsername.value === 'unihur' || currentUsername.value === commentAuthor
 }
 
 // 回复发表
@@ -363,43 +411,42 @@ const submitReply = async (targetComment) => {
 // 删除评论
 const handleDeleteComment = async (id) => {
   try {
-    await ElMessageBox.confirm('确定要永久删除这条评论吗？', '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '删除确认', { type: 'warning' })
     await axios.delete(`http://116.62.218.51:8000/api/comments/${id}`, {
       headers: { token: localStorage.getItem('token') }
     })
-    ElMessage.success('评论已删除')
+    ElMessage.success('删除成功')
     loadComments(route.params.slug) 
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('权限不足或网络错误')
   }
 }
 
-// 修复的互斥点赞与点踩逻辑 (并同步到数据库)
+// 互斥点赞与点踩逻辑
 const handleCommentAction = async (comment, action) => {
   let likeInc = 0
   let dislikeInc = 0
 
   if (action === 'like') {
-    if (comment.isLiked) { // 取消赞
+    if (comment.isLiked) {
       comment.isLiked = false; comment.likes--; likeInc = -1;
-    } else { // 点赞
+    } else {
       comment.isLiked = true; comment.likes++; likeInc = 1;
-      if (comment.isDisliked) { // 互斥：取消踩
+      if (comment.isDisliked) {
         comment.isDisliked = false; comment.dislikes--; dislikeInc = -1;
       }
     }
   } else if (action === 'dislike') {
-    if (comment.isDisliked) { // 取消踩
+    if (comment.isDisliked) {
       comment.isDisliked = false; comment.dislikes--; dislikeInc = -1;
-    } else { // 点踩
+    } else {
       comment.isDisliked = true; comment.dislikes++; dislikeInc = 1;
-      if (comment.isLiked) { // 互斥：取消赞
+      if (comment.isLiked) {
         comment.isLiked = false; comment.likes--; likeInc = -1;
       }
     }
   }
 
-  // 异步发送给后端持久化
   try {
     await axios.post(`http://116.62.218.51:8000/api/comments/${comment.id}/action`, {
       like_inc: likeInc,
@@ -649,9 +696,8 @@ const navigateTo = (slug) => {
                 <div class="comment-content-box">
                   <div class="comment-header">
                     <span class="comment-author">{{ comment.author }}</span>
-                    <el-tooltip content="删除该评论" placement="top" v-if="currentUsername === 'unihur'">
-                      <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)"><Delete /></el-icon>
-                    </el-tooltip>
+                    <!-- 核心2：用户自己也能删除自己的评论 -->
+                    <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)" v-if="canDelete(comment.author)"><Delete /></el-icon>
                   </div>
                   
                   <div class="comment-text">{{ comment.content }}</div>
@@ -659,17 +705,18 @@ const navigateTo = (slug) => {
                   <div class="comment-footer">
                     <span class="comment-time">{{ comment.time }}</span>
                     <div class="comment-actions">
+                      <!-- 间距缩小，恢复大拇指图标 -->
                       <span class="action-btn" :class="{ 'active-like': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
-                        <el-icon size="18"><CaretTop /></el-icon> <span class="num">{{ comment.likes || 0 }}</span>
+                        <el-icon size="16"><CaretTop /></el-icon> <span class="num">{{ comment.likes || 0 }}</span>
                       </span>
                       <span class="action-btn" :class="{ 'active-like': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
-                        <el-icon size="18"><CaretBottom /></el-icon> <span class="num">{{ comment.dislikes || 0 }}</span>
+                        <el-icon size="16"><CaretBottom /></el-icon> <span class="num">{{ comment.dislikes || 0 }}</span>
                       </span>
-                      <span class="action-btn reply-btn" @click="showReplyBox(comment.id)">回复</span>
+                      <span class="action-btn reply-text-btn" @click="showReplyBox(comment.id)">回复</span>
                     </div>
                   </div>
 
-                  <!-- 回复输入框 -->
+                  <!-- 针对根评论的回复输入框 -->
                   <div class="reply-input-area" v-if="activeReplyId === comment.id">
                     <el-input v-model="replyContent" type="textarea" :rows="2" :placeholder="'回复 @' + comment.author + '：'" />
                     <div class="comment-input-footer">
@@ -683,54 +730,84 @@ const navigateTo = (slug) => {
                     </div>
                   </div>
 
-                  <!-- 子评论(回复)列表，缩进显示 -->
+                  <!-- 核心3：子评论列表及折叠逻辑 -->
                   <div class="sub-comments-list" v-if="comment.children && comment.children.length > 0">
-                    <div class="sub-comment-item" v-for="child in comment.children" :key="child.id">
-                      <el-avatar :src="child.avatar || ''" :icon="UserFilled" :size="32" class="comment-avatar" />
-                      <div class="sub-content-box">
-                        <div class="comment-header">
-                          <span class="comment-author">{{ child.author }}</span>
-                          <el-icon v-if="currentUsername === 'unihur'" class="delete-comment-btn" @click="handleDeleteComment(child.id)"><Delete /></el-icon>
-                        </div>
-                        <div class="comment-text">
-                          <span class="reply-target" v-if="child.replyToAuthor && child.replyToAuthor !== comment.author">回复 @{{ child.replyToAuthor }}：</span>
-                          {{ child.content }}
-                        </div>
-                        <div class="comment-footer">
-                          <span class="comment-time">{{ child.time }}</span>
-                          <div class="comment-actions">
-                            <span class="action-btn" :class="{ 'active-like': child.isLiked }" @click="handleCommentAction(child, 'like')">
-                              <el-icon size="16"><CaretTop /></el-icon> <span class="num">{{ child.likes || 0 }}</span>
-                            </span>
-                            <span class="action-btn" :class="{ 'active-like': child.isDisliked }" @click="handleCommentAction(child, 'dislike')">
-                              <el-icon size="16"><CaretBottom /></el-icon>
-                            </span>
-                            <span class="action-btn reply-btn" @click="showReplyBox(child.id)">回复</span>
-                          </div>
-                        </div>
+                    
+                    <!-- 如果收起，显示共XX条回复 -->
+                    <div class="toggle-reply-btn" v-if="!comment.isExpanded" @click="toggleReplies(comment)">
+                      共{{ comment.children.length }}条回复，点击查看
+                    </div>
 
-                        <!-- 针对子评论的回复框 -->
-                        <div class="reply-input-area" v-if="activeReplyId === child.id">
-                          <el-input v-model="replyContent" type="textarea" :rows="2" :placeholder="'回复 @' + child.author + '：'" />
-                          <div class="comment-input-footer">
-                            <div class="emoji-wrapper">
-                              <el-icon class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker"><PictureRounded /></el-icon>
-                              <div class="emoji-picker glass-box" v-if="showReplyEmojiPicker">
-                                <span v-for="e in emojis" :key="e" @click="insertEmoji(e, true)">{{ e }}</span>
-                              </div>
+                    <!-- 如果展开，显示具体内容 -->
+                    <div v-if="comment.isExpanded">
+                      <div class="sub-comment-item" v-for="child in getPagedChildren(comment)" :key="child.id">
+                        <el-avatar :src="child.avatar || ''" :icon="UserFilled" :size="32" class="comment-avatar" />
+                        <div class="sub-content-box">
+                          <div class="comment-header">
+                            <span class="comment-author">{{ child.author }}</span>
+                            <el-icon class="delete-comment-btn" @click="handleDeleteComment(child.id)" v-if="canDelete(child.author)"><Delete /></el-icon>
+                          </div>
+                          
+                          <div class="comment-text">
+                            <!-- 加上蓝色前缀 -->
+                            <span class="reply-target" v-if="child.replyToAuthor">回复 @{{ child.replyToAuthor }}：</span>
+                            {{ child.content }}
+                          </div>
+                          
+                          <div class="comment-footer">
+                            <span class="comment-time">{{ child.time }}</span>
+                            <div class="comment-actions">
+                              <span class="action-btn" :class="{ 'active-like': child.isLiked }" @click="handleCommentAction(child, 'like')">
+                                <el-icon size="14"><CaretTop /></el-icon> <span class="num">{{ child.likes || 0 }}</span>
+                              </span>
+                              <span class="action-btn" :class="{ 'active-like': child.isDisliked }" @click="handleCommentAction(child, 'dislike')">
+                                <el-icon size="14"><CaretBottom /></el-icon>
+                              </span>
+                              <!-- 点击子评论的回复时，将框默认填入前缀 -->
+                              <span class="action-btn reply-text-btn" @click="() => { showReplyBox(child.id); replyContent = `回复 @${child.author}： ` }">回复</span>
                             </div>
-                            <!-- 核心：虽然是回复子评论，但记录的父ID依然传这层评论的ID -->
-                            <el-button type="primary" size="small" @click="submitComment(child.id)">发送</el-button>
                           </div>
-                        </div>
 
+                          <!-- 针对子评论的回复框 -->
+                          <div class="reply-input-area" v-if="activeReplyId === child.id">
+                            <el-input v-model="replyContent" type="textarea" :rows="2" />
+                            <div class="comment-input-footer">
+                              <div class="emoji-wrapper">
+                                <el-icon class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker"><PictureRounded /></el-icon>
+                                <div class="emoji-picker glass-box" v-if="showReplyEmojiPicker">
+                                  <span v-for="e in emojis" :key="e" @click="insertEmoji(e, true)">{{ e }}</span>
+                                </div>
+                              </div>
+                              <el-button type="primary" size="small" @click="submitComment(child.id)">发送</el-button>
+                            </div>
+                          </div>
+
+                        </div>
                       </div>
+
+                      <!-- 分页器与收起按钮 -->
+                      <div class="pagination-row">
+                        <span class="page-info">共 {{ Math.ceil(comment.children.length / comment.pageSize) }} 页</span>
+                        <span class="page-btn" :class="{disabled: comment.currentPage === 1}" @click="changePage(comment, -1)">上一页</span>
+                        
+                        <span class="page-num" 
+                              v-for="p in Math.ceil(comment.children.length / comment.pageSize)" :key="p"
+                              :class="{active: comment.currentPage === p}"
+                              @click="goToPage(comment, p)">
+                          {{ p }}
+                        </span>
+
+                        <span class="page-btn" :class="{disabled: comment.currentPage === Math.ceil(comment.children.length / comment.pageSize)}" @click="changePage(comment, 1)">下一页</span>
+                        <span class="page-btn collapse-btn" @click="toggleReplies(comment)">收起</span>
+                      </div>
+
                     </div>
                   </div>
 
                 </div>
               </div>
             </div>
+
           </div>
 
         </el-col>
@@ -1069,7 +1146,66 @@ html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 .sub-comment-item { display: flex; gap: 12px; margin-bottom: 15px; }
 .sub-comment-item:last-child { margin-bottom: 0; }
 .sub-content-box { flex: 1; display: flex; flex-direction: column; }
-.reply-target { color: #409eff; font-weight: 500; margin-right: 5px; }
+/* 蓝色的回复用户ID */
+.reply-target { 
+  color: #00aeec; 
+  font-weight: 500; 
+  margin-right: 5px; 
+  font-size: 14px;
+}
+
+/* 展开收起按钮样式 */
+.toggle-reply-btn {
+  font-size: 13px;
+  color: #00aeec;
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+}
+.toggle-reply-btn:hover {
+  color: #00b5e5;
+  text-decoration: underline;
+}
+
+/* 分页器样式 */
+.pagination-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed rgba(0,0,0,0.05);
+  font-size: 13px;
+  color: #9499a0;
+}
+html.dark .pagination-row { border-top-color: rgba(255,255,255,0.05); }
+
+.page-btn { cursor: pointer; transition: color 0.2s; user-select: none; }
+.page-btn:hover { color: #00aeec; }
+.page-btn.disabled { color: #ccc; cursor: not-allowed; }
+.page-num { cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.page-num:hover { color: #00aeec; }
+.page-num.active { color: #fff; background: #00aeec; }
+
+.collapse-btn {
+  margin-left: auto; /* 收起按钮推到最右侧 */
+  color: #00aeec;
+}
+.collapse-btn:hover { text-decoration: underline; }
+
+/* 缩进背景调整 */
+.sub-comments-list {
+  background: rgba(0,0,0,0.02); 
+  border-radius: 8px; 
+  padding: 10px 15px; 
+  margin-top: 12px;
+}
+html.dark .sub-comments-list { background: rgba(255,255,255,0.03); }
+.sub-comment-item { 
+  display: flex; 
+  gap: 10px; 
+  margin-bottom: 12px; 
+}
 
 .comment-avatar { cursor: pointer; flex-shrink: 0; }
 .comment-content-box { flex: 1; display: flex; flex-direction: column; }
@@ -1088,11 +1224,29 @@ html.dark .comment-text { color: #e3e5e7; }
 .comment-time { margin-right: 20px; }
 
 /* ======== 修改间距：18px 缩小为 10px ======== */
-.comment-actions { display: flex; align-items: center; gap: 10px; }
+.comment-actions { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; /* 进一步缩小间距 */
+}
 
 /* 恢复 Caret 箭头图标并美化大小 */
-.action-btn { display: flex; align-items: center; cursor: pointer; transition: color 0.2s; color: #9499a0; }
+.action-btn { 
+  display: flex; 
+  align-items: center; 
+  cursor: pointer; 
+  color: #9499a0; 
+  transition: color 0.2s;
+}
 .action-btn:hover { color: #00aeec; }
+.action-btn .num { 
+  margin-left: 3px; 
+  font-size: 13px; /* 字体变小 */
+}
+.reply-text-btn {
+  font-size: 13px !important;
+  margin-left: 5px;
+}
 .action-btn .num { margin-left: 2px; font-size: 14px; font-weight: 500; }
 .active-like { color: #00aeec !important; }
 
