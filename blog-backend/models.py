@@ -73,3 +73,8 @@ class CommentLike(Base):
     comment_id = Column(Integer, index=True)
     username = Column(String(50), index=True)
     action = Column(String(20)) # "like" 或 "dislike"
+
+class SiteStat(Base):
+    __tablename__ = "site_stats"
+    id = Column(Integer, primary_key=True, index=True)
+    visitor_count = Column(Integer, default=0) # 全局访客数

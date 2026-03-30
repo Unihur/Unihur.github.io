@@ -658,3 +658,29 @@ def delete_visitor(user_id: int, token: str = Header(...), db: Session = Depends
         db.delete(user)
         db.commit()
     return {"status": "success"}
+
+# ============ 新增：全局访客统计接口 ============
+@app.get("/api/site/visitor-count")
+def get_visitor_count(db: Session = Depends(get_db)):
+    stat = db.query(models.SiteStat).first()
+    # 如果还没有记录，初始化为 0
+    if not stat:
+        stat = models.SiteStat(visitor_count=0)
+        db.add(stat)
+        db.commit()
+        db.refresh(stat)
+    return {"visitor_count": stat.visitor_count}
+
+@app.post("/api/site/visitor-count/increment")
+def increment_visitor_count(db: Session = Depends(get_db)):
+    stat = db.query(models.SiteStat).first()
+    if not stat:
+        stat = models.SiteStat(visitor_count=0)
+        db.add(stat)
+        db.commit()
+        db.refresh(stat)
+    
+    # 访客数 + 1
+    stat.visitor_count += 1
+    db.commit()
+    return {"visitor_count": stat.visitor_count}

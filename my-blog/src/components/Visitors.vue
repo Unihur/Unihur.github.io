@@ -1,5 +1,5 @@
 <template>
-  <div class="main-content-wrapper">
+  <div class="main-content-wrapper" :style="{ paddingTop: contentPaddingTop || '100px' }">
     <div class="glass-box">
       <h2>访客账号管理</h2>
       <el-table :data="visitors" style="width: 100%" v-loading="loading">
@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { UserFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
@@ -29,6 +29,7 @@ import { useRouter } from 'vue-router'
 const visitors = ref([])
 const loading = ref(false)
 const router = useRouter()
+const contentPaddingTop = inject('contentPaddingTop', '100px')
 
 const fetchVisitors = async () => {
   loading.value = true

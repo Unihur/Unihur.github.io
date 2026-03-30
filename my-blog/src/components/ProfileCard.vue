@@ -1,6 +1,7 @@
 <script setup>
 import { defineProps, computed, ref, onMounted } from 'vue'
 import { View, User } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 const props = defineProps({
   config: {
@@ -19,17 +20,25 @@ const totalViews = computed(() => {
   return props.articles.reduce((sum, article) => sum + (article.views || 0), 0)
 })
 
-// 简单访客模拟（基于访问此网站的次数）
+// 真正的全局访客统计逻辑
 const visitorCount = ref(0)
-onMounted(() => {
-  let count = parseInt(localStorage.getItem('global_visitor_count_v2') || '0')
-  // 如果这台电脑/手机是第一次访问你的博客
-  if (!localStorage.getItem('has_visited_flag')) {
-    count += 1
-    localStorage.setItem('global_visitor_count_v2', count)
-    localStorage.setItem('has_visited_flag', 'true') // 永久打上标记
+onMounted(async () => {
+  try {
+    // 检查这个设备是否是第一次访问你的网站
+    if (!localStorage.getItem('has_visited_flag')) {
+      // 第一次访问：调用自增接口，让全局数量 +1
+      const res = await axios.post('http://116.62.218.51:8000/api/site/visitor-count/increment')
+      visitorCount.value = res.data.visitor_count
+      // 打上标记，以后再刷新就不会让总数无限 +1 了
+      localStorage.setItem('has_visited_flag', 'true') 
+    } else {
+      // 已经是老访客了：调用查询接口，只获取当前总数显示出来，不 +1
+      const res = await axios.get('http://116.62.218.51:8000/api/site/visitor-count')
+      visitorCount.value = res.data.visitor_count
+    }
+  } catch (error) {
+    console.error('获取访客数失败:', error)
   }
-  visitorCount.value = count
 })
 
 </script>
