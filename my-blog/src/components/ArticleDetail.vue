@@ -1327,18 +1327,43 @@ html.dark .comment-text { color: #e3e5e7; }
 .comment-actions { 
   display: flex; 
   align-items: center; 
-  gap: 1px; /* 进一步缩小间距 */
+  gap: 12px; /* 进一步缩小间距 */
 }
 
-/* 恢复 Caret 箭头图标并美化大小 */
-.action-btn { display: flex; align-items: center; cursor: pointer; transition: color 0.2s; color: #9499a0; }
+/* 2. 重置按钮自身的隐藏宽度 */
+.action-btn { 
+  display: inline-flex; 
+  align-items: center; 
+  cursor: pointer; 
+  transition: color 0.2s; 
+  color: #9499a0; 
+  
+  /* 强制清空可能继承的 padding 和 margin，防止被撑大 */
+  margin: 0 !important; 
+  padding: 0 !important; 
+  background: transparent;
+  border: none;
+}
+
 .action-btn:hover { color: #00aeec; }
-.action-btn svg { margin-top: 1px; transition: fill 0.3s; }
 .action-btn:hover svg { fill: #00aeec !important; }
-.action-btn .num { margin-left: 3px; font-size: 13px; font-weight: 500; user-select: none; }
+
+.action-btn svg {
+  margin-right: 4px; /* 让图标和旁边的数字/文字保持一点点距离 */
+}
+
+.action-btn .num { 
+  font-size: 13px; 
+  font-weight: 500; 
+  user-select: none; 
+  margin: 0 !important; /* 清空可能存在的旧 margin */
+}
 
 /* 专门把“回复”两个字的字号调小 */
-.reply-text-btn { font-size: 12px; margin-left: 2px; }
+.reply-text-btn { 
+  font-size: 13px; 
+  margin: 0 !important; /* 清空边距 */
+}
 .active-blue { color: #00aeec !important; }
 
 .active-like { color: #00aeec !important; }

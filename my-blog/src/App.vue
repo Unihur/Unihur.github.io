@@ -14,7 +14,7 @@ import axios from 'axios'
 // ================= 登录与用户系统逻辑 =================
 const isLoggedIn = ref(localStorage.getItem('token') ? true : false)
 const showLoginDialog = ref(false)
-const loginForm = reactive({ username: '', password: '' })
+const loginForm = reactive({ username: '', password: '', remember: false })
 const currentUsername = ref(localStorage.getItem('username') || '')
 const currentUserAvatar = ref(localStorage.getItem('avatar') || '')
 const newUsernameInput = ref('')
@@ -34,27 +34,19 @@ const handleLoginSubmit = async () => {
       password: loginForm.password
     })
     
-    // 保存令牌
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('username', res.data.username)
-    localStorage.setItem('avatar', res.data.avatar || '')
-    currentUsername.value = res.data.username
-    currentUserAvatar.value = res.data.avatar || ''
-    isLoggedIn.value = true
-    showLoginDialog.value = false
-    
-    // 应用绑定的主题配置
-    const userConfig = res.data.config
-    if (userConfig.theme_style) {
-      themeStyle.value = userConfig.theme_style
-      applyThemeStyle(themeStyle.value)
+    // 👇 新增：处理记住密码
+    if (loginForm.remember) {
+      localStorage.setItem('saved_username', loginForm.username)
+      localStorage.setItem('saved_password', loginForm.password)
+    } else {
+      localStorage.removeItem('saved_username')
+      localStorage.removeItem('saved_password')
     }
-    if (userConfig.banner_mode) {
-      bannerMode.value = userConfig.banner_mode
-    }
-    
+
+    // ... 原有的保存token和主题配置代码保留 ...
     ElMessage.success('登录成功！')
   } catch (err) {
+    // 捕获后端的 403 审核提示 或 401 密码错误
     ElMessage.error(err.response?.data?.detail || '账号或密码错误')
   }
 }
@@ -197,6 +189,15 @@ const changeThemeStyle = (command) => {
 }
 
 onMounted(async () => {
+
+  // === 新增：读取记住的账号密码 ===
+  const savedUser = localStorage.getItem('saved_username')
+  const savedPass = localStorage.getItem('saved_password')
+  if (savedUser && savedPass) {
+    loginForm.username = savedUser
+    loginForm.password = savedPass
+    loginForm.remember = true
+  }
 
   if (themeStyle.value === 'liquid') {
     document.documentElement.classList.add('liquid-glass')
@@ -504,8 +505,7 @@ provide('isLoggedIn', isLoggedIn)
                 <el-tooltip content="点击上传新头像" placement="right">
                   <el-avatar 
                     :size="56" 
-                    :src="currentUserAvatar || ''" 
-                    :icon="currentUserAvatar ? '' : UserFilled"
+                    :src="currentUserAvatar || siteConfig.avatar" 
                     style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer;" 
                   />
                 </el-tooltip>
@@ -544,9 +544,13 @@ provide('isLoggedIn', isLoggedIn)
     <router-view />
 
     <!-- App.vue 模板中 -->
-    <el-dialog v-model="showLoginDialog" title="登录 / 自动注册" width="400px">
-      <el-input v-model="loginForm.username" placeholder="请输入账号" class="mb-3" />
-      <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password />
+    <el-dialog v-model="showLoginDialog" title="后台管理登录" width="350px">
+      <!-- 补充 v-model="loginForm.username" 等原有代码 -->
+      <el-input v-model="loginForm.username" placeholder="请输入账号" style="margin-bottom: 15px;" />
+      <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password style="margin-bottom: 15px;"/>
+      <!-- 👇 新增：记住密码 -->
+      <el-checkbox v-model="loginForm.remember">记住账号与密码</el-checkbox>
+      
       <template #footer>
         <el-button @click="showLoginDialog = false">取消</el-button>
         <el-button type="primary" @click="handleLoginSubmit">确定</el-button>

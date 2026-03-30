@@ -98,6 +98,40 @@ def login(data: LoginData, db: Session = Depends(get_db)):
         
     user = db.query(User).filter(User.username == data.username).first()
     
+    if not user:
+        # 自动注册：如果是站长直接免审，其他访客设为 False 待审
+        is_admin = (data.username == "unihur")
+        new_user = User(username=data.username, password=data.password, is_approved=is_admin)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="注册成功！请等待管理员审核。")
+        user = new_user
+    else:
+        # 如果已经存在，检查是否审核通过
+        if not user.is_approved and user.username != "unihur":
+            raise HTTPException(status_code=403, detail="账号正在审核中，请耐心等待。")
+        if user.password != data.password:
+            raise HTTPException(status_code=401, detail="密码错误")
+
+    token = jwt.encode({"username": user.username, "id": user.id}, SECRET_KEY, algorithm="HS256")
+    return {
+        "token": token, 
+        "username": user.username,
+        "avatar": user.avatar,
+        "config": {
+            "theme_style": user.theme_style,
+            "banner_mode": user.banner_mode,
+            "is_dark": user.is_dark
+        }
+    }
+    if not data.username or not data.password:
+        raise HTTPException(status_code=400, detail="账号和密码不能为空")
+        
+    user = db.query(User).filter(User.username == data.username).first()
+    
     # 【核心逻辑】如果没有该账号，直接创建（即自动注册）
     if not user:
         new_user = User(username=data.username, password=data.password)
@@ -644,17 +678,40 @@ def get_visitors(token: str = Header(...), db: Session = Depends(get_db)):
     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     if payload["username"] != "unihur":
         raise HTTPException(status_code=403, detail="无权限")
-    # 查出除管理员外的所有用户
+        
     users = db.query(models.User).filter(models.User.username != "unihur").all()
-    return [{"id": u.id, "username": u.username, "avatar": u.avatar} for u in users]
+    # 返回列表中带上 is_approved 状态
+    return [{"id": u.id, "username": u.username, "avatar": u.avatar, "is_approved": u.is_approved} for u in users]
+
+@app.put("/api/admin/visitors/{user_id}/approve")
+def approve_visitor(user_id: int, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload["username"] != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        user.is_approved = True
+        db.commit()
+    return {"status": "success"}
 
 @app.delete("/api/admin/visitors/{user_id}")
 def delete_visitor(user_id: int, token: str = Header(...), db: Session = Depends(get_db)):
     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     if payload["username"] != "unihur":
         raise HTTPException(status_code=403, detail="无权限")
+    
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user:
+        # 👇 新增：删除物理磁盘上的头像文件
+        if user.avatar:
+            try:
+                # 将 "http://116.62.218.51:8000/uploads/avatars/xxx.jpg" 截取为本地相对路径
+                file_path = user.avatar.split("8000/")[-1]
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print("删除头像文件失败:", e)
+
         db.delete(user)
         db.commit()
     return {"status": "success"}
