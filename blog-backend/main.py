@@ -169,6 +169,10 @@ class CommentCreate(BaseModel):
     reply_to: Optional[str] = None
     parent_id: Optional[int] = None
 
+class CommentAction(BaseModel):
+    like_inc: int = 0
+    dislike_inc: int = 0
+
 @app.get("/api/settings")
 def get_settings(db: Session = Depends(get_db)):
     setting = db.query(models.SiteSetting).first()
@@ -473,9 +477,6 @@ def delete_comment(comment_id: int, token: str = Header(...), db: Session = Depe
         return {"status": "success", "message": "评论已删除"}
     else:
         raise HTTPException(status_code=404, detail="评论不存在")
-class CommentAction(BaseModel):
-    like_inc: int = 0
-    dislike_inc: int = 0
 
 # 【新增】删除已有文章
 @app.delete("/api/articles/{slug}", response_model=dict)
