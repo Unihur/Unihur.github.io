@@ -235,25 +235,26 @@ const applyThemeConfig = () => {
   // 1. 处理材质
   root.classList.remove('liquid-glass', 'liquid-glass-clear')
   
-  // 👇 把这里的判断条件改成和你 HTML 模板里切出来的单词完全一致！
+  // 👇 修正判断条件，直接和后面截取出来的单词对齐
   if (glassType.value === 'liquid') {
     root.classList.add('liquid-glass')
-  } else if (glassType.value === 'clear_liquid') {
+  } else if (glassType.value === 'liquid_clear') {
     root.classList.add('liquid-glass-clear')
-  }
-
-  // 2. 清除所有旧颜色类名，并加上新颜色类名
+  } 
+  
+  // 2. 清除旧颜色，加上新颜色
   root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green', 'theme-color-purple', 'theme-color-orange')
   root.classList.add(`theme-color-${themeColor.value}`)
 }
+
 // 统一处理下拉菜单指令
 const handleThemeCommand = (command) => {
   if (command.startsWith('glass_')) {
-    // 修复：直接截取 "glass_" ���面的所有字符，防止带下划线的名字被腰斩
+    // 👇 修复：直接截取前缀 'glass_' 后面的所有内容
     glassType.value = command.substring(6) 
     localStorage.setItem('glass-type', glassType.value)
   } else if (command.startsWith('color_')) {
-    // 同样优化：直接截取 "color_" 后面的所有字符
+    // 👇 修复：直接截取前缀 'color_' 后面的所有内容
     themeColor.value = command.substring(6) 
     localStorage.setItem('theme-color', themeColor.value)
   }
