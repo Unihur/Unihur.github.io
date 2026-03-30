@@ -239,7 +239,7 @@ const applyThemeConfig = () => {
   }
 
   // 2. 清除所有旧颜色类名，并加上新颜色类名
-  root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green')
+  root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green', 'theme-color-purple', 'theme-color-orange')
   root.classList.add(`theme-color-${themeColor.value}`)
 }
 
@@ -576,6 +576,15 @@ provide('isLoggedIn', isLoggedIn)
                   <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#f0f9eb; margin-right:8px;"></span>薄荷绿</span>
                   <el-icon v-if="themeColor === 'green'" color="#67C23A"><Check /></el-icon>
                 </el-dropdown-item>
+                <el-dropdown-item command="color_purple" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#f3e8ff; border:1px solid #d9b8f1; margin-right:8px;"></span>薰衣紫</span>
+                  <el-icon v-if="themeColor === 'purple'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+                <el-dropdown-item command="color_orange" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#fff3e6; border:1px solid #f3d19e; margin-right:8px;"></span>暖阳橙</span>
+                  <el-icon v-if="themeColor === 'orange'" color="#67C23A"><Check /></el-icon>
+                </el-dropdown-item>
+
               </el-dropdown-menu>
             </template>
           </el-dropdown>
