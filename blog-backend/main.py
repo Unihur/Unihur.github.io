@@ -425,7 +425,8 @@ def create_comment(comment: CommentCreate, token: Optional[str] = Header(None), 
 
 @app.get("/api/comments/{article_slug}")
 def get_comments(article_slug: str, db: Session = Depends(get_db)):
-    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).all()
+    # 按照先置顶，再按时间倒序的规则从数据库取出
+    comments = db.query(models.Comment).filter(models.Comment.article_slug == article_slug).order_by(models.Comment.is_pinned.desc(), models.Comment.created_at.desc()).all()
     res = []
     for c in comments:
         author_name = c.author
@@ -438,9 +439,10 @@ def get_comments(article_slug: str, db: Session = Depends(get_db)):
                 
         res.append({
             "id": c.id, 
-            "parent_id": c.parent_id, # 新增
-            "likes": c.likes or 0,    # 新增
-            "dislikes": c.dislikes or 0, # 新增
+            "parent_id": c.parent_id,
+            "likes": c.likes or 0,    
+            "dislikes": c.dislikes or 0,
+            "is_pinned": c.is_pinned or False, 
             "author": author_name, 
             "avatar": avatar,
             "content": c.content, 
@@ -457,6 +459,21 @@ def action_comment(comment_id: int, action_data: CommentAction, db: Session = De
         c.dislikes = (c.dislikes or 0) + action_data.dislike_inc
         db.commit()
     return {"status": "success"}
+
+@app.post("/api/comments/{comment_id}/pin")
+def pin_comment(comment_id: int, token: str = Header(...), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        if payload.get("username") != "unihur":
+            raise HTTPException(status_code=403, detail="无权限操作")
+    except:
+        raise HTTPException(status_code=401, detail="无效令牌")
+        
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if comment:
+        comment.is_pinned = not comment.is_pinned
+        db.commit()
+    return {"status": "success", "is_pinned": comment.is_pinned}
 
 # ============ 评论管理（新增删除功能）============
 @app.delete("/api/comments/{comment_id}")
@@ -482,7 +499,7 @@ def delete_comment(comment_id: int, token: str = Header(...), db: Session = Depe
     
     db.commit()
     return {"status": "success", "message": "评论已删除"}
-    
+
 # 【新增】删除已有文章
 @app.delete("/api/articles/{slug}", response_model=dict)
 def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depends(verify_token)):

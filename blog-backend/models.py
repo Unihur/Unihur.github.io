@@ -47,6 +47,7 @@ class Comment(Base):
     dislikes = Column(Integer, default=0)
     reply_to = Column(String(50), nullable=True)
     parent_id = Column(Integer, nullable=True)
+    is_pinned = Column(Boolean, default=False)
 
 class Category(Base):
     __tablename__ = "categories"

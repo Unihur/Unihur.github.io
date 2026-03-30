@@ -422,6 +422,19 @@ const handleDeleteComment = async (id) => {
   }
 }
 
+// ====== 新增：管理员置顶/取消置顶评论 ======
+const handlePinComment = async (id) => {
+  try {
+    await axios.post(`http://116.62.218.51:8000/api/comments/${id}/pin`, {}, {
+      headers: { token: localStorage.getItem('token') }
+    })
+    ElMessage.success('操作成功')
+    loadComments(route.params.slug) // 刷新列表
+  } catch (e) {
+    ElMessage.error('权限不足或网络错误')
+  }
+}
+
 // 互斥点赞与点踩逻辑
 const handleCommentAction = async (comment, action) => {
   let likeInc = 0
@@ -475,11 +488,17 @@ const changeSort = (mode) => {
 // 对评论树进行排序
 const sortCommentsTree = () => {
   if (sortBy.value === 'hot') {
-    rootComments.value.sort((a, b) => b.likes - a.likes)
+    rootComments.value.sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+      return b.likes - a.likes;
+    })
   } else {
-    rootComments.value.sort((a, b) => new Date(b.time) - new Date(a.time))
+    rootComments.value.sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+      return new Date(b.time) - new Date(a.time);
+    })
   }
-  // 子评论固定按时间正序（旧的在上面）
+  // 子评论固定按时间正序
   rootComments.value.forEach(root => {
     root.children.sort((a, b) => new Date(a.time) - new Date(b.time))
   })
@@ -677,7 +696,6 @@ const navigateTo = (slug) => {
             <div class="comment-input">
               <el-input v-model="newComment" type="textarea" :rows="3" placeholder="写下你的评论..." />
               <div class="comment-input-footer">
-                <!-- 左侧表情按钮 -->
                 <div class="emoji-wrapper">
                   <el-icon class="emoji-btn" @click="showEmojiPicker = !showEmojiPicker"><PictureRounded /></el-icon>
                   <div class="emoji-picker glass-box" v-if="showEmojiPicker">
@@ -695,30 +713,54 @@ const navigateTo = (slug) => {
                 
                 <div class="comment-content-box">
                   <div class="comment-header">
-                    <span class="comment-author">{{ comment.author }}</span>
-                    <!-- 核心2：用户自己也能删除自己的评论 -->
-                    <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)" v-if="canDelete(comment.author)"><Delete /></el-icon>
+                    <div class="author-area">
+                      <span class="comment-author" :class="{ 'admin-name': comment.author === 'unihur' }">{{ comment.author }}</span>
+                      <!-- 管理员专属标识 -->
+                      <span class="admin-badge" v-if="comment.author === 'unihur'">管理员</span>
+                    </div>
+                    
+                    <div class="admin-tools" v-if="currentUsername === 'unihur'">
+                      <!-- 置顶按钮 (图钉) -->
+                      <el-tooltip :content="comment.is_pinned ? '取消置顶' : '置顶评论'" placement="top">
+                        <span class="pin-btn" :class="{ 'is-pinned-icon': comment.is_pinned }" @click="handlePinComment(comment.id)">📌</span>
+                      </el-tooltip>
+                      <el-tooltip content="删除该评论" placement="top">
+                        <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)"><Delete /></el-icon>
+                      </el-tooltip>
+                    </div>
+                    <!-- 普通用户只能删自己的 -->
+                    <el-icon class="delete-comment-btn" @click="handleDeleteComment(comment.id)" v-else-if="canDelete(comment.author)"><Delete /></el-icon>
                   </div>
                   
-                  <div class="comment-text">{{ comment.content }}</div>
+                  <div class="comment-text">
+                    <span class="pinned-badge" v-if="comment.is_pinned">置顶</span>
+                    {{ comment.content }}
+                  </div>
                   
+                  <!-- ======= 底部操作栏（间距缩小） ======= -->
                   <div class="comment-footer">
                     <span class="comment-time">{{ comment.time }}</span>
                     <div class="comment-actions">
-                      <!-- 间距缩小，恢复大拇指图标 -->
-                      <span class="action-btn" :class="{ 'active-like': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
-                        <el-icon size="16"><CaretTop /></el-icon> <span class="num">{{ comment.likes || 0 }}</span>
+                      <!-- 赞 (SVG大拇指) -->
+                      <span class="action-btn" :class="{ 'active-blue': comment.isLiked }" @click="handleCommentAction(comment, 'like')">
+                        <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="comment.isLiked ? '#00aeec' : '#9499a0'">
+                          <path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path>
+                        </svg>
+                        <span class="num">{{ comment.likes || '' }}</span>
                       </span>
-                      <span class="action-btn" :class="{ 'active-like': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
-                        <el-icon size="16"><CaretBottom /></el-icon> <span class="num">{{ comment.dislikes || 0 }}</span>
+                      <!-- 踩 (SVG反转) -->
+                      <span class="action-btn flip-icon" :class="{ 'active-blue': comment.isDisliked }" @click="handleCommentAction(comment, 'dislike')">
+                        <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="comment.isDisliked ? '#00aeec' : '#9499a0'">
+                          <path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path>
+                        </svg>
                       </span>
-                      <span class="action-btn reply-text-btn" @click="showReplyBox(comment.id)">回复</span>
+                      <span class="action-btn reply-text-btn" @click="() => { showReplyBox(comment.id); replyContent = `回复 @${comment.author}： ` }">回复</span>
                     </div>
                   </div>
 
-                  <!-- 针对根评论的回复输入框 -->
+                  <!-- 回复输入框 -->
                   <div class="reply-input-area" v-if="activeReplyId === comment.id">
-                    <el-input v-model="replyContent" type="textarea" :rows="2" :placeholder="'回复 @' + comment.author + '：'" />
+                    <el-input v-model="replyContent" type="textarea" :rows="2" class="custom-reply-input" />
                     <div class="comment-input-footer">
                       <div class="emoji-wrapper">
                         <el-icon class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker"><PictureRounded /></el-icon>
@@ -726,51 +768,56 @@ const navigateTo = (slug) => {
                           <span v-for="e in emojis" :key="e" @click="insertEmoji(e, true)">{{ e }}</span>
                         </div>
                       </div>
-                      <el-button type="primary" size="small" @click="submitComment(comment.id)">发送</el-button>
+                      <div>
+                        <el-button size="small" @click="activeReplyId = null">取消</el-button>
+                        <el-button type="primary" size="small" @click="submitComment(comment.id)">发送</el-button>
+                      </div>
                     </div>
                   </div>
 
                   <!-- 核心3：子评论列表及折叠逻辑 -->
                   <div class="sub-comments-list" v-if="comment.children && comment.children.length > 0">
                     
-                    <!-- 如果收起，显示共XX条回复 -->
+                    <!-- 默认收起状态 -->
                     <div class="toggle-reply-btn" v-if="!comment.isExpanded" @click="toggleReplies(comment)">
                       共{{ comment.children.length }}条回复，点击查看
                     </div>
 
-                    <!-- 如果展开，显示具体内容 -->
+                    <!-- 展开状态 -->
                     <div v-if="comment.isExpanded">
                       <div class="sub-comment-item" v-for="child in getPagedChildren(comment)" :key="child.id">
                         <el-avatar :src="child.avatar || ''" :icon="UserFilled" :size="32" class="comment-avatar" />
                         <div class="sub-content-box">
+                          
                           <div class="comment-header">
-                            <span class="comment-author">{{ child.author }}</span>
+                            <div class="author-area">
+                              <span class="comment-author" :class="{ 'admin-name': child.author === 'unihur' }">{{ child.author }}</span>
+                              <span class="admin-badge" v-if="child.author === 'unihur'">管理员</span>
+                            </div>
                             <el-icon class="delete-comment-btn" @click="handleDeleteComment(child.id)" v-if="canDelete(child.author)"><Delete /></el-icon>
                           </div>
                           
                           <div class="comment-text">
-                            <!-- 加上蓝色前缀 -->
-                            <span class="reply-target" v-if="child.replyToAuthor">回复 @{{ child.replyToAuthor }}：</span>
+                            <span class="reply-target" v-if="child.replyToAuthor">回复 <span class="blue-text">@{{ child.replyToAuthor }}</span>：</span>
                             {{ child.content }}
                           </div>
                           
                           <div class="comment-footer">
                             <span class="comment-time">{{ child.time }}</span>
                             <div class="comment-actions">
-                              <span class="action-btn" :class="{ 'active-like': child.isLiked }" @click="handleCommentAction(child, 'like')">
-                                <el-icon size="14"><CaretTop /></el-icon> <span class="num">{{ child.likes || 0 }}</span>
+                              <span class="action-btn" :class="{ 'active-blue': child.isLiked }" @click="handleCommentAction(child, 'like')">
+                                <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="child.isLiked ? '#00aeec' : '#9499a0'"><path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path></svg>
+                                <span class="num">{{ child.likes || '' }}</span>
                               </span>
-                              <span class="action-btn" :class="{ 'active-like': child.isDisliked }" @click="handleCommentAction(child, 'dislike')">
-                                <el-icon size="14"><CaretBottom /></el-icon>
+                              <span class="action-btn flip-icon" :class="{ 'active-blue': child.isDisliked }" @click="handleCommentAction(child, 'dislike')">
+                                <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="child.isDisliked ? '#00aeec' : '#9499a0'"><path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path></svg>
                               </span>
-                              <!-- 点击子评论的回复时，将框默认填入前缀 -->
                               <span class="action-btn reply-text-btn" @click="() => { showReplyBox(child.id); replyContent = `回复 @${child.author}： ` }">回复</span>
                             </div>
                           </div>
 
-                          <!-- 针对子评论的回复框 -->
                           <div class="reply-input-area" v-if="activeReplyId === child.id">
-                            <el-input v-model="replyContent" type="textarea" :rows="2" />
+                            <el-input v-model="replyContent" type="textarea" :rows="2" class="custom-reply-input" />
                             <div class="comment-input-footer">
                               <div class="emoji-wrapper">
                                 <el-icon class="emoji-btn" @click="showReplyEmojiPicker = !showReplyEmojiPicker"><PictureRounded /></el-icon>
@@ -778,27 +825,31 @@ const navigateTo = (slug) => {
                                   <span v-for="e in emojis" :key="e" @click="insertEmoji(e, true)">{{ e }}</span>
                                 </div>
                               </div>
-                              <el-button type="primary" size="small" @click="submitComment(child.id)">发送</el-button>
+                              <div>
+                                <el-button size="small" @click="activeReplyId = null">取消</el-button>
+                                <el-button type="primary" size="small" @click="submitComment(comment.id)">发送</el-button>
+                              </div>
                             </div>
                           </div>
 
                         </div>
                       </div>
 
-                      <!-- 分页器与收起按钮 -->
-                      <div class="pagination-row">
-                        <span class="page-info">共 {{ Math.ceil(comment.children.length / comment.pageSize) }} 页</span>
-                        <span class="page-btn" :class="{disabled: comment.currentPage === 1}" @click="changePage(comment, -1)">上一页</span>
-                        
-                        <span class="page-num" 
-                              v-for="p in Math.ceil(comment.children.length / comment.pageSize)" :key="p"
-                              :class="{active: comment.currentPage === p}"
-                              @click="goToPage(comment, p)">
-                          {{ p }}
-                        </span>
-
-                        <span class="page-btn" :class="{disabled: comment.currentPage === Math.ceil(comment.children.length / comment.pageSize)}" @click="changePage(comment, 1)">下一页</span>
-                        <span class="page-btn collapse-btn" @click="toggleReplies(comment)">收起</span>
+                      <!-- 展开后的底部分页与收起按钮 -->
+                      <div class="pagination-row" v-if="comment.children.length > pageSize">
+                        <span class="page-info">共 {{ Math.ceil(comment.children.length / pageSize) }} 页</span>
+                        <el-pagination
+                          small
+                          layout="prev, pager, next"
+                          :total="comment.children.length"
+                          :page-size="pageSize"
+                          v-model:current-page="comment.currentPage"
+                          style="display: inline-block; margin: 0 10px;"
+                        />
+                        <span class="fold-btn" @click="comment.isExpanded = false">收起</span>
+                      </div>
+                      <div class="pagination-row" v-else>
+                        <span class="fold-btn" @click="comment.isExpanded = false" style="margin-left:0;">收起</span>
                       </div>
 
                     </div>
@@ -807,7 +858,6 @@ const navigateTo = (slug) => {
                 </div>
               </div>
             </div>
-
           </div>
 
         </el-col>
@@ -1074,6 +1124,30 @@ html.dark .markdown-body :deep(pre) { background: #2d2d2d; }
 
 /* ================= 评论区风格样式 ================= */
 
+/* 管理员姓名变红，管理员专属徽章 */
+.author-area { display: flex; align-items: center; gap: 6px; }
+.admin-name { color: #f56c6c !important; font-weight: bold; }
+.admin-badge {
+  color: #f56c6c; border: 1px solid #f56c6c; padding: 0 4px; 
+  border-radius: 4px; font-size: 11px; transform: scale(0.9); transform-origin: left;
+}
+
+/* 置顶徽章 (红色小红框) */
+.pinned-badge {
+  color: #f56c6c; border: 1px solid #f56c6c; padding: 0 4px;
+  border-radius: 4px; font-size: 11px; margin-right: 6px; 
+  vertical-align: middle; display: inline-block;
+}
+
+/* 管理员工具栏：置顶图钉 */
+.admin-tools { display: flex; align-items: center; gap: 10px; }
+.pin-btn { cursor: pointer; font-size: 14px; filter: grayscale(100%); transition: all 0.3s; }
+.is-pinned-icon { filter: grayscale(0%); transform: rotate(45deg); }
+
+/* @用户 蓝色高亮 */
+.blue-text { color: #00aeec; cursor: pointer; }
+.reply-target { color: #666; margin-right: 5px; }
+
 .comments-header-row {
   display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 10px; margin-bottom: 20px;
 }
@@ -1146,6 +1220,7 @@ html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 .sub-comment-item { display: flex; gap: 12px; margin-bottom: 15px; }
 .sub-comment-item:last-child { margin-bottom: 0; }
 .sub-content-box { flex: 1; display: flex; flex-direction: column; }
+
 /* 蓝色的回复用户ID */
 .reply-target { 
   color: #00aeec; 
@@ -1156,29 +1231,18 @@ html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 
 /* 展开收起按钮样式 */
 .toggle-reply-btn {
-  font-size: 13px;
-  color: #00aeec;
-  cursor: pointer;
-  user-select: none;
-  display: inline-block;
+  font-size: 13px; color: #00aeec; cursor: pointer; user-select: none;
+  display: inline-block; margin-top: 5px; font-weight: 500;
 }
-.toggle-reply-btn:hover {
-  color: #00b5e5;
-  text-decoration: underline;
-}
+.toggle-reply-btn:hover { text-decoration: underline; }
 
 /* 分页器样式 */
 .pagination-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px dashed rgba(0,0,0,0.05);
-  font-size: 13px;
-  color: #9499a0;
+  display: flex; align-items: center; justify-content: flex-start; margin-top: 12px; font-size: 12px; color: #666;
 }
-html.dark .pagination-row { border-top-color: rgba(255,255,255,0.05); }
+.page-info { margin-right: 5px; }
+.fold-btn { margin-left: 10px; color: #9499a0; cursor: pointer; font-size: 12px; }
+.fold-btn:hover { color: #00aeec; }
 
 .page-btn { cursor: pointer; transition: color 0.2s; user-select: none; }
 .page-btn:hover { color: #00aeec; }
@@ -1194,19 +1258,12 @@ html.dark .pagination-row { border-top-color: rgba(255,255,255,0.05); }
 .collapse-btn:hover { text-decoration: underline; }
 
 /* 缩进背景调整 */
-.sub-comments-list {
-  background: rgba(0,0,0,0.02); 
-  border-radius: 8px; 
-  padding: 10px 15px; 
-  margin-top: 12px;
-}
-html.dark .sub-comments-list { background: rgba(255,255,255,0.03); }
-.sub-comment-item { 
-  display: flex; 
-  gap: 10px; 
-  margin-bottom: 12px; 
-}
+.sub-comments-list { margin-top: 10px; background: rgba(0,0,0,0.02); border-radius: 6px; padding: 12px; }
+html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 
+.sub-comment-item { display: flex; gap: 10px; margin-bottom: 12px; }
+.sub-comment-item:last-child { margin-bottom: 0; }
+.sub-content-box { flex: 1; display: flex; flex-direction: column; }
 .comment-avatar { cursor: pointer; flex-shrink: 0; }
 .comment-content-box { flex: 1; display: flex; flex-direction: column; }
 
@@ -1220,34 +1277,29 @@ html.dark .comment-author { color: #999; }
 /* 正文与时间 */
 .comment-text { font-size: 15px; line-height: 1.6; color: #18191c; margin-bottom: 10px; }
 html.dark .comment-text { color: #e3e5e7; }
-.comment-footer { display: flex; align-items: center; font-size: 13px; color: #9499a0; }
-.comment-time { margin-right: 20px; }
+
+/* ======== 修改间距：极小间距和较小字体 ======== */
+.comment-footer { display: flex; align-items: center; font-size: 12px; color: #9499a0; }
+.comment-time { margin-right: 15px; }
 
 /* ======== 修改间距：18px 缩小为 10px ======== */
 .comment-actions { 
   display: flex; 
   align-items: center; 
-  gap: 12px; /* 进一步缩小间距 */
+  gap: 1px; /* 进一步缩小间距 */
 }
 
 /* 恢复 Caret 箭头图标并美化大小 */
-.action-btn { 
-  display: flex; 
-  align-items: center; 
-  cursor: pointer; 
-  color: #9499a0; 
-  transition: color 0.2s;
-}
+.action-btn { display: flex; align-items: center; cursor: pointer; transition: color 0.2s; color: #9499a0; }
 .action-btn:hover { color: #00aeec; }
-.action-btn .num { 
-  margin-left: 3px; 
-  font-size: 13px; /* 字体变小 */
-}
-.reply-text-btn {
-  font-size: 13px !important;
-  margin-left: 5px;
-}
-.action-btn .num { margin-left: 2px; font-size: 14px; font-weight: 500; }
+.action-btn svg { margin-top: 1px; transition: fill 0.3s; }
+.action-btn:hover svg { fill: #00aeec !important; }
+.action-btn .num { margin-left: 3px; font-size: 13px; font-weight: 500; user-select: none; }
+
+/* 专门把“回复”两个字的字号调小 */
+.reply-text-btn { font-size: 12px; margin-left: 2px; }
+.active-blue { color: #00aeec !important; }
+
 .active-like { color: #00aeec !important; }
 
 /* 大拇指图标稍微比时间字体大一点 (15px) */
@@ -1256,8 +1308,8 @@ html.dark .comment-text { color: #e3e5e7; }
 .active-blue { color: #00aeec !important; }
 
 /* 回复输入框容器 */
-
-.reply-input-area { margin-top: 15px; padding-left: 0; }
+.reply-input-area { margin-top: 10px; }
+.custom-reply-input :deep(textarea) { font-size: 14px; }
 
 .reply-input-box {
   margin-top: 15px;
@@ -1316,10 +1368,8 @@ html.dark .reply-input-box { background: rgba(255,255,255,0.05); }
   }
 }
 
-/* 修改翻转样式，让踩的大拇指往下指 */
-.flip-icon svg {
-  transform: rotate(180deg);
-}
+/* 踩大拇指翻转 */
+.flip-icon svg { transform: rotate(180deg); }
 
 /* 图标整体变大一点，数字变大一点，对齐文本 */
 .action-btn {
