@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch, provide } from 'vue' 
-import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled,UserFilled, User  } from '@element-plus/icons-vue'
+import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled,UserFilled, User, Check, Clock, Warning  } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import MouseTrail from './components/MouseTrail.vue'
@@ -18,6 +18,26 @@ const loginForm = reactive({ username: '', password: '', remember: false })
 const currentUsername = ref(localStorage.getItem('username') || '')
 const currentUserAvatar = ref(localStorage.getItem('avatar') || '')
 const newUsernameInput = ref('')
+const checkStatusResult = ref(null) 
+
+// 👇 新增：请求后端的检测方法
+const handleCheckStatus = async () => {
+  if (!loginForm.username) {
+    ElMessage.warning('请先输入要检测的账号')
+    return
+  }
+  try {
+    const res = await axios.get(`http://116.62.218.51:8000/api/user/status?username=${loginForm.username}`)
+    checkStatusResult.value = res.data
+  } catch(e) {
+    ElMessage.error('检测失败')
+  }
+}
+
+// 👇 新增：当用户修改账号输入框时，清空掉之前的检测结果
+watch(() => loginForm.username, () => {
+  checkStatusResult.value = null
+})
 
 // 点击头像：如果没登录就弹窗（登录后触发下拉框所以不用管）
 const handleLoginClick = () => {
@@ -573,16 +593,43 @@ provide('isLoggedIn', isLoggedIn)
     <router-view />
 
     <!-- App.vue 模板中 -->
-    <el-dialog v-model="showLoginDialog" title="登录账号" width="350px">
-      <!-- 补充 v-model="loginForm.username" 等原有代码 -->
-      <el-input v-model="loginForm.username" placeholder="请输入账号" style="margin-bottom: 15px;" />
+    <el-dialog v-model="showLoginDialog" title="账号登录" width="360px">
+      
+      <!-- 1. 账号输入框，附带检测按钮 -->
+      <el-input v-model="loginForm.username" placeholder="请输入账号" style="margin-bottom: 15px;">
+        <template #append>
+          <el-button @click="handleCheckStatus">检测状态</el-button>
+        </template>
+      </el-input>
+
+      <!-- 2. 👇 新增：用来显示检测结果的提示框 -->
+      <div v-if="checkStatusResult" style="margin-top: -5px; margin-bottom: 15px; display: flex; align-items: center;">
+        <!-- 审核通过（绿色打勾框） -->
+        <el-tag v-if="checkStatusResult.status === 'approved'" type="success" effect="dark">
+          <el-icon style="vertical-align: middle; margin-right: 4px;"><Check /></el-icon>
+          {{ checkStatusResult.message }}
+        </el-tag>
+        
+        <!-- 审核中（黄色时钟框） -->
+        <el-tag v-else-if="checkStatusResult.status === 'pending'" type="warning" effect="dark">
+          <el-icon style="vertical-align: middle; margin-right: 4px;"><Clock /></el-icon>
+          {{ checkStatusResult.message }}
+        </el-tag>
+        
+        <!-- 未注册（灰色提示框） -->
+        <el-tag v-else type="info">
+          <el-icon style="vertical-align: middle; margin-right: 4px;"><Warning /></el-icon>
+          {{ checkStatusResult.message }}
+        </el-tag>
+      </div>
+
+      <!-- 3. 密码框与记住密码 (保留你之前的) -->
       <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password style="margin-bottom: 15px;"/>
-      <!-- 👇 新增：记住密码 -->
       <el-checkbox v-model="loginForm.remember">记住账号与密码</el-checkbox>
       
       <template #footer>
         <el-button @click="showLoginDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleLoginSubmit">确定</el-button>
+        <el-button type="primary" @click="handleLoginSubmit">确定登录</el-button>
       </template>
     </el-dialog>
 
