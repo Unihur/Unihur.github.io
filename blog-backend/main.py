@@ -163,6 +163,26 @@ class UpdateConfigData(BaseModel):
     banner_mode: Optional[str] = None
     new_username: Optional[str] = None
 
+# ============ 新增：检测账号审核状态接口 ============
+@app.get("/api/user/status")
+def check_user_approval_status(username: str, db: Session = Depends(get_db)):
+    if not username:
+        raise HTTPException(status_code=400, detail="账号不能为空")
+    
+    # 因为管理员 unihur 是特权免审的，直接返回通过
+    if username == "unihur":
+        return {"status": "approved", "message": "超级管理员账号"}
+        
+    user = db.query(models.User).filter(models.User.username == username).first()
+    
+    if not user:
+        return {"status": "not_found", "message": "该账号尚未注册，登录将自动提交申请"}
+    
+    if user.is_approved:
+        return {"status": "approved", "message": "账号已通过审核"}
+    else:
+        return {"status": "pending", "message": "账号正在审核中，请耐心等待"}
+
 @app.post("/api/user/update")
 def update_user_info(data: UpdateConfigData, token: str = Header(...), db: Session = Depends(get_db)):
     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
