@@ -83,6 +83,12 @@ const handleLoginSubmit = async () => {
     if (userConfig.banner_mode) {
       bannerMode.value = userConfig.banner_mode
     }
+
+    if (userConfig.is_dark !== undefined) {
+      isDark.value = userConfig.is_dark
+      if (isDark.value) document.documentElement.classList.add('dark')
+      else document.documentElement.classList.remove('dark')
+    }
     
     ElMessage.success('登录成功！')
 
@@ -283,14 +289,20 @@ onMounted(async () => {
 
   if (isLoggedIn.value) {
     try {
-      await axios.get('http://116.62.218.51:8000/api/user/me', {
+      const meRes = await axios.get('http://116.62.218.51:8000/api/user/me', {
         headers: { token: localStorage.getItem('token') }
       })
+      // 👇 刷新页面时，如果已经登录，恢复账号绑定的专属配置
+      const userConfig = meRes.data.config || {}
+      if (userConfig.is_dark !== undefined) {
+        isDark.value = userConfig.is_dark
+        if (isDark.value) document.documentElement.classList.add('dark')
+        else document.documentElement.classList.remove('dark')
+      }
     } catch (error) {
-      // 如果后端返回 401 (也就是我们刚才抛出的账号被注销)
       if (error.response && error.response.status === 401) {
         ElMessage.warning('您的账号已被管理员删除，已回退为游客状态')
-        logout() // 调用你写好的 logout 函数，清理掉本地的幽灵数据
+        logout() 
       }
     }
   }
@@ -441,8 +453,11 @@ const toggleDarkMode = () => {
   if (isDark.value) document.documentElement.classList.add('dark')
   else document.documentElement.classList.remove('dark')
   
-  // 新增：切换完模式后，立即保存到数据库
-  saveSettingsToDB()
+  // 原本调用 saveSettingsToDB()
+  // 改为只将个人偏好同步给后端账号
+  if (isLoggedIn.value) {
+    syncConfigToBackend({ is_dark: isDark.value })
+  }
 }
 
 // ================= Banner 高度和布局计算 =================

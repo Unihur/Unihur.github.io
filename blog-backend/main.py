@@ -162,6 +162,7 @@ class UpdateConfigData(BaseModel):
     theme_style: Optional[str] = None
     banner_mode: Optional[str] = None
     new_username: Optional[str] = None
+    is_dark: Optional[bool] = None
 
 # ============ 新增：检测账号审核状态接口 ============
 @app.get("/api/user/status")
@@ -190,6 +191,7 @@ def update_user_info(data: UpdateConfigData, token: str = Header(...), db: Sessi
     
     if data.theme_style: user.theme_style = data.theme_style
     if data.banner_mode: user.banner_mode = data.banner_mode
+    if data.is_dark is not None: user.is_dark = data.is_dark
     if data.new_username: 
         # 修改用户名需检查是否冲突
         if db.query(User).filter(User.username == data.new_username).first():
@@ -766,13 +768,19 @@ def increment_visitor_count(db: Session = Depends(get_db)):
 @app.get("/api/user/me")
 def check_user_status(token: str = Header(...), db: Session = Depends(get_db)):
     try:
-        # 解码 Token
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        # 去数据库里查一下，这个 ID 的用户还存不存在
         user = db.query(models.User).filter(models.User.id == payload.get("id")).first()
         if not user:
             raise HTTPException(status_code=401, detail="账号已被注销")
-        return {"status": "ok"}
+        
+        # 👇 修改返回数据，把 config 带上
+        return {
+            "status": "ok", 
+            "config": {
+                "theme_style": user.theme_style,
+                "banner_mode": user.banner_mode,
+                "is_dark": user.is_dark
+            }
+        }
     except:
-        # Token过期或账号不存在都会抛出 401 错误
         raise HTTPException(status_code=401, detail="登录失效")
