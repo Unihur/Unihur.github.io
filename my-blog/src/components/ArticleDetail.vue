@@ -704,7 +704,7 @@ const navigateTo = (slug) => {
             <div class="comment-list">
               <!-- 遍历根评论 -->
               <div class="comment-item" v-for="comment in rootComments" :key="comment.id">
-                <el-avatar :src="comment.avatar || ''" :icon="UserFilled" :size="48" class="comment-avatar" />
+                <el-avatar :src="comment.avatar || siteConfig.avatar" :size="48" class="comment-avatar" />
                 
                 <div class="comment-content-box">
                   <div class="comment-header">
@@ -782,7 +782,7 @@ const navigateTo = (slug) => {
                     <div v-else>
                       <!-- 这里一定要用 getPagedChildren(comment) 来截取当前页 -->
                       <div class="sub-comment-item" v-for="child in getPagedChildren(comment)" :key="child.id">
-                        <el-avatar :src="child.avatar || ''" :icon="UserFilled" :size="32" class="comment-avatar" />
+                        <el-avatar :src="child.avatar || siteConfig.avatar" :size="32" class="comment-avatar" />
                         <div class="sub-content-box">
                           
                           <div class="comment-header">
