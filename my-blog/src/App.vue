@@ -155,10 +155,11 @@ const updateUsername = async () => {
 
 // ================= 把设置同步到数据库的函数 (修复了 405 报错) =================
 const syncConfigToBackend = async (configData) => {
-  if (!isLoggedIn.value) return 
+  const token = localStorage.getItem('token')
+  if (!isLoggedIn.value || !token) return 
   try {
     await axios.post('http://116.62.218.51:8000/api/user/update', configData, {
-      headers: { token: localStorage.getItem('token') }
+      headers: { token: token }
     })
   } catch(e) {
     console.error('配置同步失败', e)
@@ -231,39 +232,37 @@ const themeColor = ref(localStorage.getItem('theme-color') || 'white')
 const applyThemeConfig = () => {
   const root = document.documentElement
   
-  // 1. 处理材质 (先清理所有可能存在的材质类，再加新的)
+  // 1. 处理材质
   root.classList.remove('liquid-glass', 'liquid-glass-clear')
   
-  if (glassType.value === 'liquid_classic') {
-    // 经典带模糊高光的液态玻璃
+  // 👇 把这里的判断条件改成和你 HTML 模板里切出来的单词完全一致！
+  if (glassType.value === 'liquid') {
     root.classList.add('liquid-glass')
-  } else if (glassType.value === 'liquid_clear') {
-    // 新的高透清爽型液态玻璃
+  } else if (glassType.value === 'clear_liquid') {
     root.classList.add('liquid-glass-clear')
-  } 
-  // 如果是 default 则什么都不加，默认走毛玻璃逻辑
+  }
 
   // 2. 清除所有旧颜色类名，并加上新颜色类名
   root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green', 'theme-color-purple', 'theme-color-orange')
   root.classList.add(`theme-color-${themeColor.value}`)
 }
-
-
 // 统一处理下拉菜单指令
 const handleThemeCommand = (command) => {
   if (command.startsWith('glass_')) {
-    glassType.value = command.split('_')[1]
+    // 修复：直接截取 "glass_" ���面的所有字符，防止带下划线的名字被腰斩
+    glassType.value = command.substring(6) 
     localStorage.setItem('glass-type', glassType.value)
   } else if (command.startsWith('color_')) {
-    themeColor.value = command.split('_')[1]
+    // 同样优化：直接截取 "color_" 后面的所有字符
+    themeColor.value = command.substring(6) 
     localStorage.setItem('theme-color', themeColor.value)
   }
   
   applyThemeConfig()
   
   // 将二者合并为一个字符串传给后端（比如: "liquid|blue"）
-  const combinedStyle = `${glassType.value}|${themeColor.value}`
-  syncConfigToBackend({ theme_style: combinedStyle }) 
+  // const combinedStyle = `${glassType.value}|${themeColor.value}`
+  // syncConfigToBackend({ theme_style: combinedStyle }) 
 }
 
 onMounted(async () => {
@@ -299,10 +298,11 @@ onMounted(async () => {
     loadLive2D()
   }
 
-  if (isLoggedIn.value) {
+  const userToken = localStorage.getItem('token')
+  if (isLoggedIn.value && userToken) {
     try {
       const meRes = await axios.get('http://116.62.218.51:8000/api/user/me', {
-        headers: { token: localStorage.getItem('token') }
+        headers: { token: userToken }
       })
       // 👇 刷新页面时，如果已经登录，恢复账号绑定的专属配置
       const userConfig = meRes.data.config || {}
@@ -317,6 +317,9 @@ onMounted(async () => {
         logout() 
       }
     }
+  } else {
+    // 如果没有 token，强行把 isLoggedIn 设为 false 防止死循环错觉
+    isLoggedIn.value = false
   }
 
   // ========== 新增：页面加载时从数据库读取设置 ==========
@@ -363,7 +366,7 @@ watch(siteConfig, (newVal) => {
 }, { deep: true, immediate: true })
 
 // ================= 看板娘初始化 =================
-let oml2dInstance = null 
+let oml2dInstance = window.__oml2dInstance__ || null 
 
 const loadLive2D = () => {
   if (oml2dInstance) return 
@@ -389,11 +392,9 @@ const loadLive2D = () => {
       position: [offsetX, 0] // x轴偏移，防止挡住中间的内容框
     }],
     primaryColor: '#ff79c6',
-    // 👇 开启菜单，它会自动在左侧出现一个抽屉小图标
     menus: { 
-      disable: false, // 启用菜单
+      disable: false, 
       items: (defaultItems) => {
-        // 你可以保留默认功能（关于、换装等），如果你只想要“收起/隐藏”功能，可以这样精简：
         return [
           defaultItems[0], // 换模型
           defaultItems[1], // 换衣服
@@ -402,7 +403,6 @@ const loadLive2D = () => {
             name: '隐藏看板娘',
             icon: 'icon-close',
             onClick: () => {
-              // 调用内置的隐藏功能，变成右下角的待展开按钮
               oml2dInstance.stage.slideOut() 
             }
           }
@@ -410,7 +410,11 @@ const loadLive2D = () => {
       }
     }
   })
+
+  // 👇 将创建好的实例绑定到 window 对象上，保证热更新时不会丢失
+  window.__oml2dInstance__ = oml2dInstance
 }
+
 const handleConfigUpdate = (newConfig) => {
   Object.assign(siteConfig, newConfig)
 

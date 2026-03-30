@@ -102,8 +102,8 @@ html.dark.liquid-glass .glass-box {
 /* =======================================================
    新版清透液态：完全继承老版液态的边缘，但反光层在底层 (锐利清晰)
    ======================================================= */
-/* 1. 复用基础的边缘阴影（将 clear-liquid-glass 也加上�� */
-html.clear-liquid-glass .glass-box {
+/* 1. 复用基础的边缘阴影（将 liquid-glass-clear 也加上） */
+html.liquid-glass-clear .glass-box {
   position: relative;
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(12px);
@@ -119,7 +119,7 @@ html.clear-liquid-glass .glass-box {
 }
 
 /* 2. 黑边滤镜复用 */
-html.clear-liquid-glass .glass-box::before {
+html.liquid-glass-clear .glass-box::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -131,7 +131,7 @@ html.clear-liquid-glass .glass-box::before {
 }
 
 /* 3. 核心：高光放到底部，并且稍微弱一点 */
-html.clear-liquid-glass .glass-box::after {
+html.liquid-glass-clear .glass-box::after {
   content: '';
   position: absolute;
   z-index: -1; 
@@ -142,8 +142,8 @@ html.clear-liquid-glass .glass-box::after {
   pointer-events: none;
 }
 
-/* 4. 夜间模式下的 clear-liquid-glass 适配 */
-html.dark.clear-liquid-glass .glass-box {
+/* 4. 夜间模式下的 liquid-glass-clear 适配 */
+html.dark.liquid-glass-clear .glass-box {
   background: rgba(0, 0, 0, 0.2);
   border: 1px double rgba(255, 255, 255, 0.08);
   box-shadow:
