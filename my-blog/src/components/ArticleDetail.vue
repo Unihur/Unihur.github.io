@@ -773,13 +773,14 @@ const navigateTo = (slug) => {
                   <!-- 核心3：子评论列表及折叠逻辑 -->
                   <div class="sub-comments-list" v-if="comment.children && comment.children.length > 0">
                     
-                    <!-- 默认收起状态 -->
+                    <!-- 收起状态，仅显示提示 -->
                     <div class="toggle-reply-btn" v-if="!comment.isExpanded" @click="toggleReplies(comment)">
-                      共{{ comment.children.length }}条回复，点击查看
+                      共 {{ comment.children.length }} 条回复，点击查看
                     </div>
 
                     <!-- 展开状态 -->
-                    <div v-if="comment.isExpanded">
+                    <div v-else>
+                      <!-- 这里一定要用 getPagedChildren(comment) 来截取当前页 -->
                       <div class="sub-comment-item" v-for="child in getPagedChildren(comment)" :key="child.id">
                         <el-avatar :src="child.avatar || ''" :icon="UserFilled" :size="32" class="comment-avatar" />
                         <div class="sub-content-box">
@@ -793,19 +794,26 @@ const navigateTo = (slug) => {
                           </div>
                           
                           <div class="comment-text">
-                            <span class="reply-target" v-if="child.replyToAuthor">回复 <span class="blue-text">@{{ child.replyToAuthor }}</span>：</span>
+                            <span class="reply-target" v-if="child.replyToAuthor && child.replyToAuthor !== comment.author">
+                              回复 <span class="blue-text">@{{ child.replyToAuthor }}</span>：
+                            </span>
                             {{ child.content }}
                           </div>
                           
+                          <!-- 子评论的底部操作栏... (保留你原有的 action-btn 结构) -->
                           <div class="comment-footer">
                             <span class="comment-time">{{ child.time }}</span>
                             <div class="comment-actions">
                               <span class="action-btn" :class="{ 'active-blue': child.isLiked }" @click="handleCommentAction(child, 'like')">
-                                <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="child.isLiked ? '#00aeec' : '#9499a0'"><path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path></svg>
+                                <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="child.isLiked ? '#00aeec' : '#9499a0'">
+                                  <path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path>
+                                </svg>
                                 <span class="num">{{ child.likes || '' }}</span>
                               </span>
                               <span class="action-btn flip-icon" :class="{ 'active-blue': child.isDisliked }" @click="handleCommentAction(child, 'dislike')">
-                                <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="child.isDisliked ? '#00aeec' : '#9499a0'"><path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path></svg>
+                                <svg viewBox="0 0 1024 1024" width="14" height="14" :fill="child.isDisliked ? '#00aeec' : '#9499a0'">
+                                  <path d="M853.333333 469.333333h-190.293333l40.96-193.28c4.693333-22.186667-2.133333-45.653333-17.92-62.293333-14.506667-15.36-35.413333-23.466667-56.746667-22.186667l-35.84 2.56-258.133333 300.373334V853.333333h384c24.746667 0 46.933333-16.64 53.333333-40.533333l71.68-256c5.546667-19.626667-0.426667-40.533333-14.933333-55.04-14.933333-14.933333-35.413333-23.466667-56.746667-23.466666zM256 853.333333H128c-23.466667 0-42.666667-19.2-42.666667-42.666666V512c0-23.466667 19.2-42.666667 42.666667-42.666667h128c23.466667 0 42.666667 19.2 42.666667 42.666667v298.666667c0 23.466667-19.2 42.666667-42.666667 42.666666z"></path>
+                                </svg>
                               </span>
                               <span class="action-btn reply-text-btn" @click="() => { showReplyBox(child.id); replyContent = `回复 @${child.author}： ` }">回复</span>
                             </div>
@@ -830,8 +838,8 @@ const navigateTo = (slug) => {
                         </div>
                       </div>
 
-                      <!-- 展开后的底部分页与收起按钮 -->
-                      <div class="pagination-row" v-if="comment.children.length > comment.pageSize">
+                      <!-- 分页器与蓝色的收起按钮 -->
+                      <div class="pagination-row">
                         <span class="page-info">共 {{ Math.ceil(comment.children.length / comment.pageSize) }} 页</span>
                         <span class="page-btn" :class="{disabled: comment.currentPage === 1}" @click="changePage(comment, -1)">上一页</span>
                         
@@ -843,8 +851,9 @@ const navigateTo = (slug) => {
                         </span>
 
                         <span class="page-btn" :class="{disabled: comment.currentPage === Math.ceil(comment.children.length / comment.pageSize)}" @click="changePage(comment, 1)">下一页</span>
-                        <!-- 确保这里收起按钮的类名绑定蓝色的CSS -->
-                        <span class="collapse-btn" @click="toggleReplies(comment)">收起</span>
+                        
+                        <!-- 核心：蓝色收起按钮 -->
+                        <span class="fold-btn" @click="toggleReplies(comment)">收起</span>
                       </div>
 
                     </div>
@@ -1127,11 +1136,16 @@ html.dark .markdown-body :deep(pre) { background: #2d2d2d; }
   border-radius: 4px; font-size: 11px; transform: scale(0.9); transform-origin: left;
 }
 
-/* 置顶徽章 (红色小红框) */
+/* 置顶徽章 (橙色小框) */
 .pinned-badge {
-  color: #f56c6c; border: 1px solid #f56c6c; padding: 0 4px;
-  border-radius: 4px; font-size: 11px; margin-right: 6px; 
-  vertical-align: middle; display: inline-block;
+  color: #ff9800;          /* 字体改为橙色 */
+  border: 1px solid #ff9800; /* 边框改为橙色 */
+  padding: 0 4px;
+  border-radius: 4px; 
+  font-size: 11px; 
+  margin-right: 6px; 
+  vertical-align: middle; 
+  display: inline-block;
 }
 
 /* 管理员工具栏：置顶图钉 */
@@ -1256,8 +1270,16 @@ html.dark .sub-comments-list { background: rgba(255,255,255,0.02); }
 }
 html.dark .pagination-row { border-top-color: rgba(255,255,255,0.05); }
 .page-info { margin-right: 5px; }
-.fold-btn { margin-left: 10px; color: #9499a0; cursor: pointer; font-size: 12px; }
-.fold-btn:hover { color: #00aeec; }
+/* 顺便修复一下收起按钮为蓝色 */
+.fold-btn { 
+  margin-left: auto; /* 推到最右边 */
+  color: #00aeec;    /* 强制设为蓝色 */
+  cursor: pointer; 
+  font-size: 13px; 
+}
+.fold-btn:hover { 
+  text-decoration: underline; 
+}
 
 .page-btn { cursor: pointer; transition: color 0.2s; user-select: none; }
 .page-btn:hover { color: #00aeec; }
