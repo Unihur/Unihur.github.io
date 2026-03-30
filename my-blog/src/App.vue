@@ -774,7 +774,21 @@ html.dark .navbar {
 .nav-links span { font-weight: bold; cursor: pointer; transition: color 0.3s; }
 .nav-links span:hover { color: #409EFF; }
 .nav-icons { display: flex; gap: 15px; align-items: center; }
-.icon-btn { font-size: 22px; cursor: pointer; outline: none; transition: all 0.3s; }
+.icon-btn { 
+  font-size: 22px; 
+  cursor: pointer; 
+  outline: none; 
+  transition: all 0.3s; 
+  color: #333; /* 强制黑色或深灰 */
+}
+html.dark .icon-btn {
+  color: #E5EAF3; /* 夜间模式保持亮色 */
+}
+.el-dropdown-link {
+  color: inherit;
+  display: flex;
+  align-items: center;
+}
 .icon-btn:hover { color: #409EFF; transform: scale(1.1); }
 
 /* 新增：导航栏右侧登录头像样式 */

@@ -77,11 +77,12 @@ html.liquid-glass .glass-box::before {
 html.liquid-glass .glass-box::after {
   content: '';
   position: absolute;
-  z-index: 10;
+  z-index: -1;  /* 将反光层放到底部，不遮挡任何文字和图片 */
   inset: 0;
   border-radius: inherit;
   filter: blur(3px);
-  background: linear-gradient(45deg, rgba(255, 255, 255, 0.8) 0%, transparent 20%, transparent 80%, rgba(255, 255, 255, 0.8) 100%);
+  /* 稍微调低白色反光强度（从0.8降到0.4），让整个卡片更清透 */
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.4) 0%, transparent 20%, transparent 80%, rgba(255, 255, 255, 0.4) 100%);
   pointer-events: none;
 }
 
