@@ -154,30 +154,19 @@ const handleDelete = async () => {
       type: 'warning',
     })
     
-    // 👇 确保 token 存在
-     const token = localStorage.getItem('token')
-    if (!token) {
-      ElMessage.error('登录状态失效，请重新登录')
-      return
-    }
+    // 强制获取本地 token
+    const userToken = localStorage.getItem('token') || ''
     
-    // 直接把 headers 写进请求函数里
-    if (isEditMode.value) {
-      response = await axios.put(`/api/articles/${originalSlug.value}`, article, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    } else {
-      response = await axios.post('/api/articles', article, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    }
-    
-    // 👇 修复点：直接在第二个参数里展开 headers，这是最稳妥的写法
-    const res = await axios.delete(`/api/articles/${originalSlug.value}`, {
-        headers: { Authorization: `Bearer ${token}` }
+    // 注意：删除请求一定要把 headers 用第二个参数的大括号包裹好
+    const delRes = await axios.delete(`/api/articles/${originalSlug.value}`, {
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+        token: userToken,
+        admin_token: userToken
+      }
     })
     
-    if (res.data.status === 'success') { 
+    if (delRes.data.status === 'success') {
       ElMessage.success('🗑️ 文章已成功删除！')
       setTimeout(() => {
         router.push('/') 
@@ -186,11 +175,7 @@ const handleDelete = async () => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      if (error.response && error.response.status === 401) {
-        ElMessage.error('权限不足或令牌过期，请重新登录')
-      } else {
-        ElMessage.error('删除失败，请检查网络或后端配置。')
-      }
+      ElMessage.error('删除失败，权限不足或登录已过期')
     }
   }
 }
@@ -202,33 +187,26 @@ const handlePublish = async () => {
   }
   
   try {
-    let response;
+    let pubRes; // 用一个新的变量名，避开打包冲突
     
-    // 👇 1. 强校验：确保 token 一定存在
-    const token = localStorage.getItem('token')
-    if (!token) {
-      ElMessage.error('登录状态已失效，请重新登录！')
-      return;
-    }
+    const userToken = localStorage.getItem('token') || ''
     
-    // 👇 2. 构建标准的请求头
-    const config = {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json' // 明确告诉后端这是 JSON 数据
+    // 这里把三种可能的 token 都塞进 header 里，后端想认哪个认哪个
+    const reqHeaders = {
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+        token: userToken,
+        admin_token: userToken
       }
     }
     
     if (isEditMode.value) {
-      // 更新文章
-      response = await axios.put(`/api/articles/${originalSlug.value}`, article, config)
+      pubRes = await axios.put(`/api/articles/${originalSlug.value}`, article, reqHeaders)
     } else {
-      // 发布新文章
-      response = await axios.post('/api/articles', article, config)
+      pubRes = await axios.post('/api/articles', article, reqHeaders)
     }
     
-    const targetSlug = article.slug 
-    if (response.data.status === 'success') {
+    if (pubRes.data.status === 'success') {
       ElMessage.success(isEditMode.value ? '🎉 文章更新成功！' : '🎉 文章发布成功！')
       
       if (isEditMode.value) originalSlug.value = article.slug 
@@ -240,20 +218,16 @@ const handlePublish = async () => {
           router.push('/')
         }
       }, 1000)
-
     }
   } catch (error) {
     console.error('保存失败:', error)
-    if (error.response && error.response.status === 401) {
-      ElMessage.error('权限不足或登录已过期，请重新登录') // 专门捕获 401
-    } else if (error.response && error.response.data && error.response.data.detail) {
+    if (error.response && error.response.data && error.response.data.detail) {
       ElMessage.error(error.response.data.detail) 
     } else {
-      ElMessage.error('网络请求失败，请检查后端是否启动。')
+      ElMessage.error('网络请求失败或权限不足')
     }
   }
 }
-
 </script>
 
 <template>
