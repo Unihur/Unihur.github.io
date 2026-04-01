@@ -86,9 +86,10 @@ class LoginData(BaseModel):
     password: str
 
 # 设定你的管理员账号、密码和用于加密的密钥
-ADMIN_USER = "unihur"
-ADMIN_PASS = "Zyh176626149" # 换成你想要的复杂密码
-SECRET_KEY = "unihur_super_admin_key" # 随便写一串复杂的英文字符
+# 如果找不到环境变量，就使用后面的默认值（或者你可以让它直接报错，为了安全起见）
+ADMIN_USER = os.getenv("ADMIN_USER", "unihur")  # 用户名一般无所谓，可以放明文
+ADMIN_PASS = os.getenv("ADMIN_PASS", "default_password_please_change") 
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback_secret_key_change_me")
 
 # =========== 新增：登录接口 ===========
 @app.post("/api/login")
