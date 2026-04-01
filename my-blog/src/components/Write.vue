@@ -185,29 +185,36 @@ const handlePublish = async () => {
   try {
     let response;
     
-    const token = localStorage.getItem('admin_token')
+    // 👇 1. 强校验：确保 token 一定存在
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('登录状态已失效，请重新登录！')
+      return;
+    }
+    
+    // 👇 2. 构建标准的请求头
     const config = {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' // 明确告诉后端这是 JSON 数据
+      }
     }
     
-    // 如果是编辑模式，发送 PUT 请求给刚才后端写的更新接口
     if (isEditMode.value) {
-      // 👇 注意这里最后加了 , config
-      response = await axios.put(`https://unihur.xyz/api/articles/${originalSlug.value}`, article, config)
+      // 更新文章
+      response = await axios.put(`/api/articles/${originalSlug.value}`, article, config)
     } else {
-      // 👇 这里最后也加了 , config
-      response = await axios.post('https://unihur.xyz/api/articles', article, config)
+      // 发布新文章
+      response = await axios.post('/api/articles', article, config)
     }
     
-    const targetSlug = article.slug // 获取当前文章的最新的 slug
+    const targetSlug = article.slug 
     if (response.data.status === 'success') {
       ElMessage.success(isEditMode.value ? '🎉 文章更新成功！' : '🎉 文章发布成功！')
       
-      // 如果你改了 slug，下次更新需要用新 slug，同步更新一下标记
       if (isEditMode.value) originalSlug.value = article.slug 
 
       setTimeout(() => {
-        // 如果是更新文章，跳转回文章详情页；如果是新发布，回到主页
         if (isEditMode.value) {
           router.push(`/post/${article.slug}`)
         } else {
@@ -218,8 +225,10 @@ const handlePublish = async () => {
     }
   } catch (error) {
     console.error('保存失败:', error)
-    if (error.response && error.response.data && error.response.data.detail) {
-      ElMessage.error(error.response.data.detail) // 报后端返回的具体错误（比如slug被占用）
+    if (error.response && error.response.status === 401) {
+      ElMessage.error('权限不足或登录已过期，请重新登录') // 专门捕获 401
+    } else if (error.response && error.response.data && error.response.data.detail) {
+      ElMessage.error(error.response.data.detail) 
     } else {
       ElMessage.error('网络请求失败，请检查后端是否启动。')
     }
