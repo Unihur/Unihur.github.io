@@ -217,6 +217,36 @@ def verify_token(authorization: str = Header(None)):
 
 # ===== 路由 API =====
 
+# ============ 图片上传与图库接口 ============
+@app.post("/api/upload/image")
+def upload_image(file: UploadFile = File(...), _user: str = Depends(verify_token)): # 👈 这里改了
+    file_ext = file.filename.split('.')[-1]
+    # 生成一个唯一的文件名（用时间戳防重复）
+    file_name = f"{int(datetime.now().timestamp())}_{file.filename}"
+    file_path = f"uploads/images/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # 返回正确的 HTTPS / 域名相对路径
+    return {"status": "success", "url": f"/uploads/images/{file_name}"}
+
+@app.get("/api/images")
+def get_images(_user: str = Depends(verify_token)): # 👈 这里也改了
+    image_dir = "uploads/images"
+    if not os.path.exists(image_dir):
+        return []
+    
+    images = []
+    # 遍历文件夹下所有的图片
+    for filename in os.listdir(image_dir):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            images.append(f"/uploads/images/{filename}")
+            
+    # 按照文件的修改时间倒序排列（最新的在最前面）
+    images.sort(key=lambda x: os.path.getmtime(f"uploads/images/{x.split('/')[-1]}"), reverse=True)
+    return images
+
 class SettingUpdate(BaseModel):
     banner_mode: str
     is_dark: bool
@@ -787,32 +817,3 @@ def check_user_status(token: str = Header(...), db: Session = Depends(get_db)):
     except:
         raise HTTPException(status_code=401, detail="登录失效")
 
-# ============ 图片上传与图库接口 ============
-@app.post("/api/upload/image")
-def upload_image(file: UploadFile = File(...), _admin: str = Depends(verify_admin)):
-    file_ext = file.filename.split('.')[-1]
-    # 生成一个唯一的文件名（用时间戳防重复）
-    file_name = f"{int(datetime.now().timestamp())}_{file.filename}"
-    file_path = f"uploads/images/{file_name}"
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    # 返回正确的 HTTPS / 域名相对路径
-    return {"status": "success", "url": f"/uploads/images/{file_name}"}
-
-@app.get("/api/images")
-def get_images(_admin: str = Depends(verify_admin)):
-    image_dir = "uploads/images"
-    if not os.path.exists(image_dir):
-        return []
-    
-    images = []
-    # 遍历文件夹下所有的图片
-    for filename in os.listdir(image_dir):
-        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-            images.append(f"/uploads/images/{filename}")
-            
-    # 按照文件的修改时间倒序排列（最新的在最前面）
-    images.sort(key=lambda x: os.path.getmtime(f"uploads/images/{x.split('/')[-1]}"), reverse=True)
-    return images
