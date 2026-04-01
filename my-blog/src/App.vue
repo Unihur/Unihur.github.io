@@ -20,6 +20,11 @@ const currentUserAvatar = ref(localStorage.getItem('avatar') || '')
 const newUsernameInput = ref('')
 const checkStatusResult = ref(null) 
 
+// 增加一个判断是否为管理员的计算属性
+const isAdmin = computed(() => {
+  return isLoggedIn.value && currentUsername.value === 'unihur'
+})
+
 // 👇 新增：请求后端的检测方法
 const handleCheckStatus = async () => {
   if (!loginForm.username) {
@@ -526,6 +531,7 @@ provide('typewriterText', typewriterText)
 provide('contentPaddingTop', contentPaddingTop)
 provide('contentMarginTop', contentMarginTop)
 provide('isLoggedIn', isLoggedIn)
+provide('isAdmin', isAdmin)
 
 </script>
 <template>

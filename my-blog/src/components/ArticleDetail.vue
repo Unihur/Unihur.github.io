@@ -13,6 +13,7 @@ import ProfileCard from './ProfileCard.vue'
 
 const route = useRoute()
 const router = useRouter()
+const isAdmin = inject('isAdmin')
 
 // 注入全局 UI 配置，保持和首页一样的横幅效果
 const siteConfig = inject('siteConfig')
@@ -616,7 +617,7 @@ const navigateTo = (slug) => {
                 </template>
 
                 <!-- 👇 新增：编辑按钮 (只在管理员登录时显示) -->
-                <div class="edit-btn-wrapper" v-if="isLoggedIn">
+                <div class="edit-btn-wrapper" v-if="isAdmin">
                   <el-button round size="small" class="pink-edit-btn" @click="editArticle">
                     <el-icon><Edit /></el-icon> 编辑文章
                   </el-button>

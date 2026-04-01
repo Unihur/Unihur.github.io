@@ -21,6 +21,7 @@ const contentPaddingTop = inject('contentPaddingTop')
 const contentMarginTop = inject('contentMarginTop')
 
 const isLoggedIn = inject('isLoggedIn') // 获取登录状态
+const isAdmin = inject('isAdmin')
 
 // ================= 新增：搜索逻辑 =================
 const searchQuery = ref('') // 绑定搜索框的值
@@ -239,7 +240,7 @@ const formatDate = (dateStr) => {
                 <!-- 右侧：编辑 -> 删除 -> 数量 -->
                 <div class="cat-right-info">
                   <!-- 管理员操作：重命名 -> 删除 -->
-                  <div v-if="isLoggedIn" class="cat-admin-ops" @click.stop>
+                  <div v-if="isAdmin" class="cat-admin-ops" @click.stop>
                     <el-tooltip content="重命名分类" placement="top">
                       <el-icon class="admin-icon" @click.stop="handleRenameCategory(cat.name)"><Edit /></el-icon>
                     </el-tooltip>
@@ -255,7 +256,7 @@ const formatDate = (dateStr) => {
             </ul>
 
             <!-- 管理员特权：添加分类按钮 -->
-            <div v-if="isLoggedIn" style="text-align: center; margin-top: 15px;">
+            <div v-if="isAdmin" style="text-align: center; margin-top: 15px;">
               <el-button type="warning" plain size="small" @click="handleAddCategory">
                 <el-icon><Plus /></el-icon> 添加分类
               </el-button>
