@@ -620,7 +620,7 @@ const navigateTo = (slug) => {
                 </div>
               </div>
               
-              <div class="meta-row tags-row" v-if="article.category || (article.tags && article.tags.length > 0)">
+              <div class="meta-row tags-row" v-if="article.category || (article.tags && article.tags.length > 0) || isAdmin">
                 <!-- 分类框 (黄色) -->
                 <div class="meta-box category-box" v-if="article.category">
                   <el-icon><Folder /></el-icon>
