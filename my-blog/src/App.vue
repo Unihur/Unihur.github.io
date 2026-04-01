@@ -450,9 +450,13 @@ const router = useRouter()
 
 // 写作按钮点击逻辑
 const handleWriteClick = () => {
-  if (!isLoggedIn.value) {
-    ElMessage.warning('请先点击右侧头像登录管理员账号！')
-    showLoginDialog.value = true 
+  // 核心修复：把 !isLoggedIn 换成 !isAdmin
+  if (!isAdmin.value) {
+    ElMessage.warning('权限不足：只有管理员可以发布或编辑文章！')
+    // 如果连登录都没登录，就弹窗提示他登录
+    if (!isLoggedIn.value) {
+      showLoginDialog.value = true 
+    }
     return
   }
   router.push('/write')

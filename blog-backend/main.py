@@ -215,6 +215,22 @@ def verify_token(authorization: str = Header(None)):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="无效的令牌")
 
+
+# =========== 新增：检查管理员的依赖函数 ===========
+def verify_admin(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未登录或令牌缺失")
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        # 核心拦截：必须是 unihur 才能放行
+        if payload.get("username") != "unihur":
+            raise HTTPException(status_code=403, detail="无权限操作：只有管理员才能发布或编辑文章！")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="令牌已过期，请重新登录")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="无效的令牌")
+
 # ===== 路由 API =====
 
 # ============ 图片上传与图库接口 ============
@@ -288,7 +304,7 @@ def read_root():
 
 # 【新增】发布文章 (存入数据库)
 @app.post("/api/articles", response_model=dict)
-def create_article(article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+def create_article(article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
     # 检查 slug 是否已存在，防止 URL 重复
     db_article = db.query(models.Article).filter(models.Article.slug == article.slug).first()
     if db_article:
@@ -321,7 +337,7 @@ def create_article(article: ArticleCreate, db: Session = Depends(get_db), _token
 
 # 【新增】更新已有文章
 @app.put("/api/articles/{slug}", response_model=dict)
-def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
     db_article = db.query(models.Article).filter(models.Article.slug == slug).first()
     if not db_article:
         raise HTTPException(status_code=404, detail="文章不存在，无法更新！")
@@ -651,7 +667,7 @@ def delete_comment(comment_id: int, token: str = Header(...), db: Session = Depe
 
 # 【新增】删除已有文章
 @app.delete("/api/articles/{slug}", response_model=dict)
-def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
     # 1. 在数据库里找这篇文章
     db_article = db.query(models.Article).filter(models.Article.slug == slug).first()
     
@@ -680,7 +696,7 @@ def get_categories(db: Session = Depends(get_db)):
     return result
 
 @app.post("/api/categories")
-def add_category(cat: CategoryCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+def add_category(cat: CategoryCreate, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
     if db.query(models.Category).filter(models.Category.name == cat.name).first():
         raise HTTPException(status_code=400, detail="分类已存在")
     new_cat = models.Category(name=cat.name)
@@ -689,7 +705,7 @@ def add_category(cat: CategoryCreate, db: Session = Depends(get_db), _token: str
     return {"status": "success"}
 
 @app.put("/api/categories/{old_name}")
-def rename_category(old_name: str, cat: CategoryCreate, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+def rename_category(old_name: str, cat: CategoryCreate, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
     db_cat = db.query(models.Category).filter(models.Category.name == old_name).first()
     if not db_cat:
         raise HTTPException(404, detail="分类不存在")
@@ -700,7 +716,7 @@ def rename_category(old_name: str, cat: CategoryCreate, db: Session = Depends(ge
     return {"status": "success"}
 
 @app.delete("/api/categories/{name}")
-def delete_category(name: str, db: Session = Depends(get_db), _token: str = Depends(verify_token)):
+def delete_category(name: str, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
     db_cat = db.query(models.Category).filter(models.Category.name == name).first()
     if db_cat:
         db.delete(db_cat)
