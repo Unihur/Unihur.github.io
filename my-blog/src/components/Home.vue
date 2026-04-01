@@ -31,7 +31,7 @@ const selectedCategory = ref('') // 当前选中的分类
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('http://116.62.218.51:8000/api/categories')
+    const res = await axios.get('https://unihur.xyz/api/categories')
     categories.value = res.data
   } catch (error) {
     console.error('获取分类失败', error)
@@ -55,7 +55,7 @@ const handleAddCategory = async () => {
   try {
     const { value } = await ElMessageBox.prompt('请输入新分类名称', '添加分类', { confirmButtonText: '确定', cancelButtonText: '取消' })
     if (value) {
-      await axios.post('http://116.62.218.51:8000/api/categories', { name: value }, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
+      await axios.post('https://unihur.xyz/api/categories', { name: value }, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
       ElMessage.success('添加成功')
       fetchCategories()
     }
@@ -67,7 +67,7 @@ const handleRenameCategory = async (oldName) => {
   try {
     const { value } = await ElMessageBox.prompt('请输入新名称', '重命名分类', { inputValue: oldName, confirmButtonText: '确定', cancelButtonText: '取消' })
     if (value && value !== oldName) {
-      await axios.put(`http://116.62.218.51:8000/api/categories/${oldName}`, { name: value }, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
+      await axios.put(`https://unihur.xyz/api/categories/${oldName}`, { name: value }, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
       ElMessage.success('重命名成功')
       fetchCategories()
       fetchArticles() // 刷新文章列表以显示新分类名
@@ -79,7 +79,7 @@ const handleRenameCategory = async (oldName) => {
 const handleDeleteCategory = async (name) => {
   try {
     await ElMessageBox.confirm(`确定要删除分类 "${name}" 吗？该分类下的文章将变为无分类。`, '警告', { type: 'warning' })
-    await axios.delete(`http://116.62.218.51:8000/api/categories/${name}`, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
+    await axios.delete(`https://unihur.xyz/api/categories/${name}`, { headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }})
     ElMessage.success('删除成功')
     if (selectedCategory.value === name) selectedCategory.value = ''
     fetchCategories()
@@ -153,7 +153,7 @@ const fetchArticles = async () => {
   try {
     isLoading.value = true
     // 请求我们刚才写好的 Python 后端接口
-    const res = await axios.get('http://116.62.218.51:8000/api/articles')
+    const res = await axios.get('https://unihur.xyz/api/articles')
     // 把拿到的真实数据赋值给变量
     articleList.value = res.data
   } catch (error) {

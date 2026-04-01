@@ -690,7 +690,7 @@ def upload_avatar(file: UploadFile = File(...), token: str = Header(...), db: Se
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    user.avatar = f"http://116.62.218.51:8000/{file_path}"
+    user.avatar = f"https://unihur.xyz/{file_path}"
     db.commit()
     return {"status": "success", "avatar": user.avatar}
 
@@ -727,8 +727,8 @@ def delete_visitor(user_id: int, token: str = Header(...), db: Session = Depends
         # 👇 新增：删除物理磁盘上的头像文件
         if user.avatar:
             try:
-                # 将 "http://116.62.218.51:8000/uploads/avatars/xxx.jpg" 截取为本地相对路径
-                file_path = user.avatar.split("8000/")[-1]
+                # 将 "https://unihur.xyz/uploads/avatars/xxx.jpg" 截取为本地相对路径
+                file_path = user.avatar.split("unihur.xyz/")[-1]
                 if os.path.exists(file_path):
                     os.remove(file_path)
             except Exception as e:

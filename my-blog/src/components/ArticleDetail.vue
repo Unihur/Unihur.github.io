@@ -77,7 +77,7 @@ const handleLike = async () => {
   try {
     // 假设文章的 slug 存在，告诉后端这篇文章被点赞了
     if (article.value && article.value.slug) {
-      await axios.post(`http://116.62.218.51:8000/api/articles/${article.value.slug}/like`)
+      await axios.post(`https://unihur.xyz/api/articles/${article.value.slug}/like`)
     }
   } catch (error) {
     console.error('点赞保存到后端失败:', error)
@@ -161,7 +161,7 @@ const handleShare = async () => {
   // 3. 告诉后端记录这条转发
   try {
     if (article.value && article.value.slug) {
-      await axios.post(`http://116.62.218.51:8000/api/articles/${article.value.slug}/share`)
+      await axios.post(`https://unihur.xyz/api/articles/${article.value.slug}/share`)
     }
   } catch (error) {
     console.error('转发保存到后端失败:', error)
@@ -194,7 +194,7 @@ window.addEventListener('storage', () => {
 const loadComments = async (slug) => {
   try {
     // 携带 token 以便后端判定当前账号点赞状态
-    const res = await axios.get(`http://116.62.218.51:8000/api/comments/${slug}`, {
+    const res = await axios.get(`https://unihur.xyz/api/comments/${slug}`, {
       headers: { token: localStorage.getItem('token') || '' }
     })
     const flatList = res.data
@@ -275,7 +275,7 @@ const showReplyBox = (commentId) => {
 const fetchArticle = async (slug) => {
   try {
     isLoading.value = true
-    const res = await axios.get(`http://116.62.218.51:8000/api/articles/${slug}`)
+    const res = await axios.get(`https://unihur.xyz/api/articles/${slug}`)
     
     // 👇【关键修改点】不管后端返回的是嵌套的，还是没嵌套的，我们都能拿到！
     const data = res.data
@@ -320,7 +320,7 @@ const fetchArticle = async (slug) => {
 // 新增：获取所有文章为了算总浏览量
 const fetchAllArticlesForStats = async () => {
    try {
-    const res = await axios.get('http://116.62.218.51:8000/api/articles')
+    const res = await axios.get('https://unihur.xyz/api/articles')
     // 取决于你后端的格式，可能是 res.data，也可能是 res.data.articles
     // 如果你在主页用的 res.data，那就统一用 res.data
     allArticles.value = res.data 
@@ -358,7 +358,7 @@ const submitComment = async (parentId = null) => {
   
   const authorName = currentUsername.value || '游客'
   try {
-    await axios.post('http://116.62.218.51:8000/api/comments', {
+    await axios.post('https://unihur.xyz/api/comments', {
       article_slug: route.params.slug,
       author: authorName,
       content: content,
@@ -396,7 +396,7 @@ const submitReply = async (targetComment) => {
   if (!replyContent.value.trim()) return ElMessage.warning('回复内容不能为空')
   const username = localStorage.getItem('username') || '游客'
   try {
-    await axios.post('http://116.62.218.51:8000/api/comments', {
+    await axios.post('https://unihur.xyz/api/comments', {
       article_slug: route.params.slug,
       author: username,
       content: replyContent.value,
@@ -416,7 +416,7 @@ const submitReply = async (targetComment) => {
 const handleDeleteComment = async (id) => {
   try {
     await ElMessageBox.confirm('确定要删除这条评论吗？', '删除确认', { type: 'warning' })
-    await axios.delete(`http://116.62.218.51:8000/api/comments/${id}`, {
+    await axios.delete(`https://unihur.xyz/api/comments/${id}`, {
       headers: { token: localStorage.getItem('token') }
     })
     ElMessage.success('删除成功')
@@ -429,7 +429,7 @@ const handleDeleteComment = async (id) => {
 // ====== 新增：管理员置顶/取消置顶评论 ======
 const handlePinComment = async (id) => {
   try {
-    await axios.post(`http://116.62.218.51:8000/api/comments/${id}/pin`, {}, {
+    await axios.post(`https://unihur.xyz/api/comments/${id}/pin`, {}, {
       headers: { token: localStorage.getItem('token') }
     })
     ElMessage.success('操作成功')
@@ -447,7 +447,7 @@ const handleCommentAction = async (comment, action) => {
 
   try {
     // 请求后端处理状态反转
-    const res = await axios.post(`http://116.62.218.51:8000/api/comments/${comment.id}/action`, {
+    const res = await axios.post(`https://unihur.xyz/api/comments/${comment.id}/action`, {
       action: action
     }, {
       headers: { token: localStorage.getItem('token') }

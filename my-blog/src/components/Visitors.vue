@@ -16,7 +16,7 @@ const approvedUsers = computed(() => visitors.value.filter(u => u.is_approved))
 const fetchVisitors = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://116.62.218.51:8000/api/admin/visitors', {
+    const res = await axios.get('https://unihur.xyz/api/admin/visitors', {
       headers: { token: localStorage.getItem('token') }
     })
     visitors.value = res.data
@@ -30,7 +30,7 @@ const fetchVisitors = async () => {
 // 👇 新增审核通过 API
 const approveVisitor = async (id) => {
   try {
-    await axios.put(`http://116.62.218.51:8000/api/admin/visitors/${id}/approve`, {}, {
+    await axios.put(`https://unihur.xyz/api/admin/visitors/${id}/approve`, {}, {
       headers: { token: localStorage.getItem('token') }
     })
     ElMessage.success('审核已通过')
@@ -43,7 +43,7 @@ const approveVisitor = async (id) => {
 const deleteVisitor = async (id) => {
   try {
     await ElMessageBox.confirm('确定要删除该账号吗？该用户的头像文件也会被物理删除！', '警告', { type: 'warning' })
-    await axios.delete(`http://116.62.218.51:8000/api/admin/visitors/${id}`, {
+    await axios.delete(`https://unihur.xyz/api/admin/visitors/${id}`, {
       headers: { token: localStorage.getItem('token') }
     })
     ElMessage.success('账号已彻底删除')

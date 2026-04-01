@@ -27,7 +27,7 @@ onMounted(async () => {
     
     try {
       // 这里的接口是之前你写好的获取单篇文章接口
-      const res = await axios.get(`http://116.62.218.51:8000/api/articles/${querySlug}`)
+      const res = await axios.get(`https://unihur.xyz/api/articles/${querySlug}`)
       const data = res.data.article || res.data // 兼容格式
       
       // 把后端拿到的数据塞进表单里
@@ -94,7 +94,7 @@ const categoryOptions = ref([])
 // 获取后端所有分类
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('http://116.62.218.51:8000/api/categories')
+    const res = await axios.get('https://unihur.xyz/api/categories')
     // 将后端返回的 [{name: 'xx', count: 1}] 转换成下拉框需要的 {value: 'xx', label: 'xx'}
     categoryOptions.value = res.data.map(cat => ({
       value: cat.name,
@@ -160,7 +160,7 @@ const handleDelete = async () => {
     const config = { headers: { Authorization: `Bearer ${token}` } }
     
     // 3. 发送删除请求 (⚠️ 注意：如果你已经换成了线上域名，这里的 IP 记得换成你的实际地址)
-    const response = await axios.delete(`http://116.62.218.51:8000/api/articles/${originalSlug.value}`, config)
+    const response = await axios.delete(`https://unihur.xyz/api/articles/${originalSlug.value}`, config)
     
     if (response.data.status === 'success') {
       ElMessage.success('🗑️ 文章已成功删除！')
@@ -193,10 +193,10 @@ const handlePublish = async () => {
     // 如果是编辑模式，发送 PUT 请求给刚才后端写的更新接口
     if (isEditMode.value) {
       // 👇 注意这里最后加了 , config
-      response = await axios.put(`http://116.62.218.51:8000/api/articles/${originalSlug.value}`, article, config)
+      response = await axios.put(`https://unihur.xyz/api/articles/${originalSlug.value}`, article, config)
     } else {
       // 👇 这里最后也加了 , config
-      response = await axios.post('http://116.62.218.51:8000/api/articles', article, config)
+      response = await axios.post('https://unihur.xyz/api/articles', article, config)
     }
     
     const targetSlug = article.slug // 获取当前文章的最新的 slug

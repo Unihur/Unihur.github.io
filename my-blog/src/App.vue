@@ -27,7 +27,7 @@ const handleCheckStatus = async () => {
     return
   }
   try {
-    const res = await axios.get(`http://116.62.218.51:8000/api/user/status?username=${loginForm.username}`)
+    const res = await axios.get(`https://unihur.xyz/api/user/status?username=${loginForm.username}`)
     checkStatusResult.value = res.data
   } catch(e) {
     ElMessage.error('检测失败')
@@ -49,7 +49,7 @@ const handleLoginClick = () => {
 // 核心：提交登录 / 自动注册 (修复了 422 报错，确保传的是正确格式)
 const handleLoginSubmit = async () => {
   try {
-    const res = await axios.post('http://116.62.218.51:8000/api/login', {
+    const res = await axios.post('https://unihur.xyz/api/login', {
       username: loginForm.username,
       password: loginForm.password
     })
@@ -122,7 +122,7 @@ const handleAvatarUpload = async (options) => {
   const formData = new FormData()
   formData.append('file', options.file)
   try {
-    const res = await axios.post('http://116.62.218.51:8000/api/user/avatar', formData, {
+    const res = await axios.post('https://unihur.xyz/api/user/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'token': localStorage.getItem('token')
@@ -140,7 +140,7 @@ const handleAvatarUpload = async (options) => {
 const updateUsername = async () => {
   if (!newUsernameInput.value) return ElMessage.warning('新用户名不能为空')
   try {
-    await axios.post('http://116.62.218.51:8000/api/user/update', 
+    await axios.post('https://unihur.xyz/api/user/update', 
       { new_username: newUsernameInput.value },
       { headers: { token: localStorage.getItem('token') } }
     )
@@ -158,7 +158,7 @@ const syncConfigToBackend = async (configData) => {
   const token = localStorage.getItem('token')
   if (!isLoggedIn.value || !token) return 
   try {
-    await axios.post('http://116.62.218.51:8000/api/user/update', configData, {
+    await axios.post('https://unihur.xyz/api/user/update', configData, {
       headers: { token: token }
     })
   } catch(e) {
@@ -302,7 +302,7 @@ onMounted(async () => {
   const userToken = localStorage.getItem('token')
   if (isLoggedIn.value && userToken) {
     try {
-      const meRes = await axios.get('http://116.62.218.51:8000/api/user/me', {
+      const meRes = await axios.get('https://unihur.xyz/api/user/me', {
         headers: { token: userToken }
       })
       // 👇 刷新页面时，如果已经登录，恢复账号绑定的专属配置
@@ -325,7 +325,7 @@ onMounted(async () => {
 
   // ========== 新增：页面加载时从数据库读取设置 ==========
   try {
-    const res = await fetch('http://116.62.218.51:8000/api/settings')
+    const res = await fetch('https://unihur.xyz/api/settings')
     if (res.ok) {
       const data = await res.json()
       
@@ -455,7 +455,7 @@ const handleWriteClick = () => {
 // ================= 把设置保存到数据库的函数 =================
 const saveSettingsToDB = async () => {
   try {
-    await fetch('http://116.62.218.51:8000/api/settings', {
+    await fetch('https://unihur.xyz/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

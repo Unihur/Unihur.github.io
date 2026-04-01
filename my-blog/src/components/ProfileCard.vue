@@ -27,13 +27,13 @@ onMounted(async () => {
     // 检查这个设备是否是第一次访问你的网站
     if (!localStorage.getItem('has_visited_flag')) {
       // 第一次访问：调用自增接口，让全局数量 +1
-      const res = await axios.post('http://116.62.218.51:8000/api/site/visitor-count/increment')
+      const res = await axios.post('https://unihur.xyz/api/site/visitor-count/increment')
       visitorCount.value = res.data.visitor_count
       // 打上标记，以后再刷新就不会让总数无限 +1 了
       localStorage.setItem('has_visited_flag', 'true') 
     } else {
       // 已经是老访客了：调用查询接口，只获取当前总数显示出来，不 +1
-      const res = await axios.get('http://116.62.218.51:8000/api/site/visitor-count')
+      const res = await axios.get('https://unihur.xyz/api/site/visitor-count')
       visitorCount.value = res.data.visitor_count
     }
   } catch (error) {
