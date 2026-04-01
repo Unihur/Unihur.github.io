@@ -157,7 +157,13 @@ const handleDelete = async () => {
     
     // 2. 携带门禁卡
     const token = localStorage.getItem('admin_token')
-    const config = { headers: { Authorization: `Bearer ${token}` } }
+    const config = {
+      headers: { 
+        Authorization: `Bearer ${token}`, // 满足最新标准的接口
+        token: token,                     // 满足之前的普通接口
+        admin_token: token                // 满足最老版本的管理员接口
+      }
+    }
     
     // 3. 发送删除请求 (⚠️ 注意：如果你已经换成了线上域名，这里的 IP 记得换成你的实际地址)
     const response = await axios.delete(`https://unihur.xyz/api/articles/${originalSlug.value}`, config)
