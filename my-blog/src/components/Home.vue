@@ -439,16 +439,46 @@ html.dark .category-list li { border-bottom-color: rgba(255,255,255,0.1); }
 .tag-list .custom-tag { margin: 5px; }
 .music-player { text-align: center; font-weight: bold; color: inherit; }
 
-.post-card { display: flex; justify-content: space-between; align-items: stretch;padding: 20px; transition: transform 0.3s; }
-.post-card:hover { transform: translateY(-5px); }
-.post-info { flex: 1; padding-right: 30px; }
+.post-card { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: stretch; /* 让左右两边高度强制保持一致 */
+  padding: 0 !important; /* 强制去除内边距 */
+  min-height: 180px; /* 保证卡片有一个好看的最小高度 */
+  overflow: hidden; /* 核心：裁切图片超出卡片圆角的部分 */
+  transition: transform 0.3s; 
+}
+.post-card:hover { 
+  transform: translateY(-5px); 
+}
+.post-info { 
+  flex: 1; 
+  padding: 25px 30px 25px 25px; /* 上、右、下、左 的内边距 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* 选填：让文字垂直居中。如果不喜欢可以删掉这行 */
+}
 .post-meta { font-size: 0.8rem; color: #666; margin-bottom: 10px; }
 html.dark .post-meta { color: #aaa; }
 .post-desc { color: #444; line-height: 1.6; }
 html.dark .post-desc { color: #ccc; }
-.post-cover { width: 280px; height: 180px; border-radius: 8px; overflow: hidden;flex-shrink: 0; }
-.post-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
-.post-cover img:hover { transform: scale(1.1); }
+.post-cover { 
+  width: 350px; /* 图片的固定宽度，可以根据你的喜好微调 */
+  flex-shrink: 0; /* 防止图片被挤压 */
+  margin: 0;
+  border-radius: 0; /* 取消单独的圆角，因为父级的 overflow: hidden 已经做了圆角裁切 */
+}
+
+.post-cover img { 
+  width: 100%; 
+  height: 100%; /* 填满父级高度 */
+  object-fit: cover; /* 核心裁切属性：保证图片不变形的前提下铺满整个区域 */
+  display: block; /* 去掉底部的默认留白 */
+  transition: transform 0.5s; 
+}
+.post-cover img:hover { 
+  transform: scale(1.1); /* 鼠标悬浮时图片稍微放大，更有质感 */
+}
 
 /* 强制让主页文章卡片里的所有图标按原比例渲染，增加锐度防模糊 */
 .post-meta .el-icon {

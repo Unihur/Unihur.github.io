@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, inject, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, inject, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage, ElMessageBox} from 'element-plus'
@@ -204,10 +204,12 @@ const loadComments = async (slug) => {
 
     flatList.forEach(c => {
       c.children = []
-      // 根据后端的 userAction 初始化前端状态
       c.isLiked = c.userAction === 'like'
       c.isDisliked = c.userAction === 'dislike'
-      c.avatar = c.avatar || ('/ciel.png' + c.author + c.id)
+      
+      // 改成空字符串，让模板自动去触发默认头像的 fallback
+      c.avatar = c.avatar || '' 
+      
       map[c.id] = c
     })
 
@@ -340,10 +342,27 @@ watch(() => route.params.slug, (newSlug) => {
   }
 })
 
+// ====== 新增：点击空白处自动关闭表情包 ======
+const handleOutsideClick = (e) => {
+  // 如果点击的区域不在 emoji-wrapper 内部，就把表情包关掉
+  if (!e.target.closest('.emoji-wrapper')) {
+    showEmojiPicker.value = false
+    showReplyEmojiPicker.value = false
+  }
+}
+
 onMounted(() => {
+
+  document.addEventListener('click', handleOutsideClick)
+
   fetchArticle(route.params.slug)
   //fetchAllArticlesForStats()
   loadComments(route.params.slug) // 👉 新增：第一次进页面时，拉取评论
+})
+
+onUnmounted(() => {
+  // 页面销毁时移除事件，防止内存泄漏
+  document.removeEventListener('click', handleOutsideClick)
 })
 
 // 发送评论 (整合主评论与回复)
@@ -705,7 +724,7 @@ const navigateTo = (slug) => {
             <div class="comment-list">
               <!-- 遍历根评论 -->
               <div class="comment-item" v-for="comment in rootComments" :key="comment.id">
-                <el-avatar :src="comment.avatar || siteConfig.avatar" :size="48" class="comment-avatar" />
+                <el-avatar :src="comment.avatar || ''" :icon="comment.avatar ? '' : UserFilled" :size="48" class="comment-avatar" />
                 
                 <div class="comment-content-box">
                   <div class="comment-header">
@@ -783,7 +802,7 @@ const navigateTo = (slug) => {
                     <div v-else>
                       <!-- 这里一定要用 getPagedChildren(comment) 来截取当前页 -->
                       <div class="sub-comment-item" v-for="child in getPagedChildren(comment)" :key="child.id">
-                        <el-avatar :src="child.avatar || siteConfig.avatar" :size="32" class="comment-avatar" />
+                        <el-avatar :src="child.avatar || ''" :icon="child.avatar ? '' : UserFilled" :size="32" class="comment-avatar" />
                         <div class="sub-content-box">
                           
                           <div class="comment-header">
@@ -1169,14 +1188,49 @@ html.dark .comments-header-row { border-bottom-color: rgba(255,255,255,0.1); }
 .comment-input-footer {
   display: flex; justify-content: space-between; align-items: center; margin-top: 10px; position: relative;
 }
-.emoji-wrapper { position: relative; }
+.emoji-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 .emoji-btn { font-size: 24px; color: #999; cursor: pointer; transition: color 0.3s; }
 .emoji-btn:hover { color: #f56c6c; }
 .emoji-picker {
-  position: absolute; top: 35px; left: 0; width: 220px; display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; z-index: 100; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  position: absolute;
+  top: 35px;  /* 👈 核心修改：改为 top，在按钮的下方弹出 */
+  left: 0;
+  width: 260px; 
+  height: 160px; 
+  overflow-y: auto; 
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px;
+  z-index: 1000; /* 调大层级，防止被下面的评论挡住 */
+  border-radius: 8px;
+  /* 加一点阴影，看起来更有立体悬浮感 */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
+  background: var(--bg-color, rgba(255, 255, 255, 0.9)); /* 确保有背景色，不会透明混在一起 */
 }
-.emoji-picker span { font-size: 20px; cursor: pointer; transition: transform 0.2s; }
-.emoji-picker span:hover { transform: scale(1.3); }
+html.dark .emoji-picker {
+  background: rgba(30, 30, 30, 0.95);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* 隐藏系统默认的丑陋滚动条（变成类似手机的隐藏式，更好看） */
+.emoji-picker::-webkit-scrollbar { width: 4px; }
+.emoji-picker::-webkit-scrollbar-thumb { background-color: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+html.dark .emoji-picker::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.2); }
+
+.emoji-picker span {
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px;
+  transition: transform 0.2s;
+}
+.emoji-picker span:hover {
+  transform: scale(1.3);
+}
 
 .comments-title { margin-bottom: 20px; font-size: 1.2rem; }
 
@@ -1188,16 +1242,21 @@ html.dark .comments-header-row { border-bottom-color: rgba(255,255,255,0.1); }
   margin-top: 10px; 
 }
 .emoji-btn {
-  font-size: 14px;
-  color: #666;
+  font-size: 20px;
+  color: #9499a0;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 5px;
   transition: color 0.3s;
 }
-.emoji-btn:hover { color: #409EFF; }
-html.dark .emoji-btn { color: #aaa; }
+.emoji-btn:hover {
+  color: #409eff; /* 变成主色调蓝色 */
+  transform: scale(1.1);
+}
+html.dark .emoji-btn:hover {
+  color: #66b1ff;
+}
 
 .emoji-grid {
   display: grid;
