@@ -148,36 +148,51 @@ const handlePreview = () => {
 // ================= 新增：删除文章逻辑 =================
 const handleDelete = async () => {
   try {
-    // 1. 弹出二次确认框
     await ElMessageBox.confirm('确定要永久删除这篇文章吗？操作不可恢复！', '警告', {
       confirmButtonText: '确认删除',
       cancelButtonText: '取消',
       type: 'warning',
     })
     
-    // 2. 携带门禁卡
-    const token = localStorage.getItem('admin_token')
-    const config = {
-      headers: { 
-        Authorization: `Bearer ${token}`, // 满足最新标准的接口
-        token: token,                     // 满足之前的普通接口
-        admin_token: token                // 满足最老版本的管理员接口
-      }
+    // 👇 确保 token 存在
+     const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('登录状态失效，请重新登录')
+      return
     }
     
-    // 3. 发送删除请求 (⚠️ 注意：如果你已经换成了线上域名，这里的 IP 记得换成你的实际地址)
-    const response = await axios.delete(`https://unihur.xyz/api/articles/${originalSlug.value}`, config)
+    // 直接把 headers 写进请求函数里
+    if (isEditMode.value) {
+      response = await axios.put(`/api/articles/${originalSlug.value}`, article, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } else {
+      response = await axios.post('/api/articles', article, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    }
+    
+    // 👇 修复点：直接在第二个参数里展开 headers，这是最稳妥的写法
+    const response = await axios.delete(`/api/articles/${originalSlug.value}`, {
+      headers: { 
+        Authorization: `Bearer ${token}`
+      }
+    })
     
     if (response.data.status === 'success') {
       ElMessage.success('🗑️ 文章已成功删除！')
       setTimeout(() => {
-        router.push('/') // 删除后跳回主页
+        router.push('/') 
       }, 1000)
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败，请检查网络或后端配置。')
+      if (error.response && error.response.status === 401) {
+        ElMessage.error('权限不足或令牌过期，请重新登录')
+      } else {
+        ElMessage.error('删除失败，请检查网络或后端配置。')
+      }
     }
   }
 }
