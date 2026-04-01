@@ -180,6 +180,63 @@ const handleDelete = async () => {
   }
 }
 
+// ============ 新增：封面上传与图库逻辑 ============
+const showGallery = ref(false)
+const galleryImages = ref([])
+
+// 拦截 element-plus 的默认上传行为，改用 axios 自行上传
+const handleCoverUpload = async (options) => {
+  const token = localStorage.getItem('token')
+  if (!token) return ElMessage.error('登录已过期')
+
+  const formData = new FormData()
+  formData.append('file', options.file)
+
+  try {
+    const res = await axios.post('/api/upload/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${token}`,
+        token: token,
+        admin_token: token
+      }
+    })
+    if (res.data.status === 'success') {
+      article.cover = res.data.url
+      ElMessage.success('封面上传成功！')
+    }
+  } catch (error) {
+    ElMessage.error('上传图片失败')
+  }
+}
+
+// 打开图库抽屉/弹窗并拉取图片列表
+const openGallery = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) return ElMessage.error('登录已过期')
+
+  try {
+    const res = await axios.get('/api/images', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        token: token,
+        admin_token: token
+      }
+    })
+    galleryImages.value = res.data
+    showGallery.value = true
+  } catch (error) {
+    ElMessage.error('获取图库失败')
+  }
+}
+
+// 选择图库中的图片作为封面
+const selectCoverFromGallery = (url) => {
+  article.cover = url
+  showGallery.value = false
+  ElMessage.success('已选择该图片作为封面！')
+}
+
 const handlePublish = async () => {
   if (!article.title || !article.slug) {
     ElMessage.error('文章标题和Slug别名不能为空！')
@@ -277,15 +334,31 @@ const handlePublish = async () => {
       <div class="right-panel">
         <!-- 导入封面 -->
         <div class="glass-box panel-section cover-section">
+          <!-- 如果已经有封面了，就显示预览图 -->
+          <div v-if="article.cover" style="text-align: center; margin-bottom: 10px;">
+            <img :src="article.cover" style="width: 100%; border-radius: 8px; margin-bottom: 10px; object-fit: cover; max-height: 180px;" />
+            <el-button type="danger" size="small" @click="article.cover = ''">移除封面</el-button>
+          </div>
+
+          <!-- 如果没有封面，就显示上传框 -->
           <el-upload
+            v-else
             class="cover-uploader"
             drag
             action="#"
-            :auto-upload="false"
+            :http-request="handleCoverUpload"
+            :show-file-list="false"
           >
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-            <div class="el-upload__text">导入封面</div>
+            <div class="el-upload__text">拖拽图片到此处，或 <em>点击上传</em></div>
           </el-upload>
+
+          <!-- 从历史图库中选择 -->
+          <div style="text-align: center; margin-top: 15px;">
+            <el-button type="primary" plain @click="openGallery" style="width: 100%;">
+              <el-icon style="margin-right: 5px;"><Picture /></el-icon> 从历史图库中选择
+            </el-button>
+          </div>
         </div>
 
         <div class="glass-box panel-section settings-section">
@@ -372,6 +445,25 @@ const handlePublish = async () => {
     </el-drawer>
   
   </div>
+
+<!-- 图库选择弹窗 -->
+    <el-dialog v-model="showGallery" title="选择历史封面" width="50%">
+      <div v-if="galleryImages.length === 0" style="text-align: center; color: #999;">
+        暂无历史图片
+      </div>
+      <el-row :gutter="10" v-else>
+        <el-col :span="6" v-for="url in galleryImages" :key="url" style="margin-bottom: 10px;">
+          <div 
+            style="border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color 0.3s;"
+            :style="article.cover === url ? 'border-color: #409eff;' : ''"
+            @click="selectCoverFromGallery(url)"
+          >
+            <img :src="url" style="width: 100%; height: 100px; object-fit: cover; display: block;" />
+          </div>
+        </el-col>
+      </el-row>
+    </el-dialog>
+
 </template>
 
 <style scoped>
