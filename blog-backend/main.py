@@ -263,6 +263,15 @@ def get_images(_user: str = Depends(verify_token)): # 👈 这里也改了
     images.sort(key=lambda x: os.path.getmtime(f"uploads/images/{x.split('/')[-1]}"), reverse=True)
     return images
 
+# ============ 新增：删除历史图库图片接口 ============
+@app.delete("/api/images/{filename}")
+def delete_image(filename: str, _token: str = Depends(verify_admin)):
+    file_path = f"uploads/images/{filename}"
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return {"status": "success", "message": "图片已删除"}
+    raise HTTPException(status_code=404, detail="图片不存在")
+
 class SettingUpdate(BaseModel):
     banner_mode: str
     is_dark: bool

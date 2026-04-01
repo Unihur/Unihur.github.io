@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, Close  } from '@element-plus/icons-vue'
 
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
@@ -237,6 +237,43 @@ const selectCoverFromGallery = (url) => {
   ElMessage.success('已选择该图片作为封面！')
 }
 
+// ====== 新增：删除历史图库的图片 ======
+const deleteGalleryImage = async (url) => {
+  try {
+    await ElMessageBox.confirm('确定要从服务器彻底删除这张图片吗？', '删除确认', { 
+      type: 'warning',
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消'
+    })
+    
+    // 从 url 中提取出文件名，例如 "/uploads/images/123.jpg" 提取出 "123.jpg"
+    const filename = url.split('/').pop()
+    const token = localStorage.getItem('token') || ''
+    
+    const res = await axios.delete(`/api/images/${filename}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        token: token,
+        admin_token: token
+      }
+    })
+    
+    if (res.data.status === 'success') {
+      ElMessage.success('🗑️ 图片已删除')
+      // 从弹窗的列表中移除这张图
+      galleryImages.value = galleryImages.value.filter(img => img !== url)
+      // 如果当前文章封面恰好是这张图，顺便清空封面
+      if (article.cover === url) {
+        article.cover = ''
+      }
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败，可能没有权限或图片已不存在')
+    }
+  }
+}
+
 const handlePublish = async () => {
   if (!article.title || !article.slug) {
     ElMessage.error('文章标题和Slug别名不能为空！')
@@ -454,11 +491,16 @@ const handlePublish = async () => {
       <el-row :gutter="10" v-else>
         <el-col :span="6" v-for="url in galleryImages" :key="url" style="margin-bottom: 10px;">
           <div 
-            style="border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color 0.3s;"
+            style="position: relative; border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color 0.3s;"
             :style="article.cover === url ? 'border-color: #409eff;' : ''"
             @click="selectCoverFromGallery(url)"
           >
             <img :src="url" style="width: 100%; height: 100px; object-fit: cover; display: block;" />
+            
+            <!-- 👇 新增：红色删除小圈圈 (加上 .stop 阻止冒泡，防止点击删除时触发选中图片) -->
+            <div class="delete-img-btn" @click.stop="deleteGalleryImage(url)">
+              <el-icon><Close /></el-icon>
+            </div>
           </div>
         </el-col>
       </el-row>
@@ -612,6 +654,29 @@ html.dark .markdown-body code {
 .markdown-body pre code {
   background-color: transparent; /* 代码块里的 code 不加背景 */
   padding: 0;
+}
+
+/* 新增：图库图片右上角的红色小叉叉 */
+.delete-img-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background-color: rgba(245, 108, 108, 0.85); /* 半透明红色 */
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: transform 0.2s, background-color 0.2s;
+  z-index: 10;
+}
+
+.delete-img-btn:hover {
+  background-color: #f56c6c; /* 悬浮时变成实心红 */
+  transform: scale(1.15); /* 微微变大 */
 }
 
 </style>
