@@ -173,13 +173,11 @@ const handleDelete = async () => {
     }
     
     // 👇 修复点：直接在第二个参数里展开 headers，这是最稳妥的写法
-    const response = await axios.delete(`/api/articles/${originalSlug.value}`, {
-      headers: { 
-        Authorization: `Bearer ${token}`
-      }
+    const res = await axios.delete(`/api/articles/${originalSlug.value}`, {
+        headers: { Authorization: `Bearer ${token}` }
     })
     
-    if (response.data.status === 'success') {
+    if (res.data.status === 'success') { 
       ElMessage.success('🗑️ 文章已成功删除！')
       setTimeout(() => {
         router.push('/') 
