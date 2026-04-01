@@ -286,6 +286,7 @@ onMounted(async () => {
     loginForm.remember = true
   }
 
+  //admin
   if (localStorage.getItem('token')) {
   isLoggedIn.value = true
   }
