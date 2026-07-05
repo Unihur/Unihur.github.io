@@ -13,10 +13,10 @@ onMounted(() => {
   const ctx = canvas.getContext('2d')
   let particles = []
   let ripples = [] // 新增：用来存水波纹的数据
-  
+
   let lastTime = 0
-  const generateInterval = 30 
-  
+  const generateInterval = 30
+
   const resize = () => {
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
@@ -26,15 +26,15 @@ onMounted(() => {
 
   const addParticle = (e) => {
     const now = Date.now()
-    if (now - lastTime < generateInterval) return 
+    if (now - lastTime < generateInterval) return
     lastTime = now
 
     particles.push({
       x: e.clientX,
       y: e.clientY,
-      size: Math.random() * 8 + 6, 
+      size: Math.random() * 8 + 6,
       color: `hsl(${Math.random() * 60 + 300}, 100%, 70%)`,
-      life: 1 
+      life: 1
     })
   }
   window.addEventListener('mousemove', addParticle)
@@ -44,8 +44,8 @@ onMounted(() => {
     ripples.push({
       x: e.clientX,
       y: e.clientY,
-      radius: 0,      // 初始半径
-      alpha: 1,       // 初始透明度
+      radius: 0, // 初始半径
+      alpha: 1, // 初始透明度
       maxRadius: 50 + Math.random() * 20 // 扩散的最大半径
     })
   }
@@ -53,12 +53,14 @@ onMounted(() => {
 
   const animate = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    
+
     // 1. 画心形拖尾
     for (let i = 0; i < particles.length; i++) {
       let p = particles[i]
       ctx.beginPath()
-      const x = p.x, y = p.y, size = p.size 
+      const x = p.x,
+        y = p.y,
+        size = p.size
       ctx.moveTo(x, y - size / 4)
       ctx.bezierCurveTo(x, y - size, x - size, y - size, x - size, y - size / 4)
       ctx.bezierCurveTo(x - size, y + size / 2, x, y + size, x, y + size)
@@ -67,11 +69,11 @@ onMounted(() => {
       ctx.fillStyle = p.color
       ctx.globalAlpha = p.life
       ctx.fill()
-      
-      p.life -= 0.01   
-      p.size -= 0.05   
-      p.y += 0.5       
-      
+
+      p.life -= 0.01
+      p.size -= 0.05
+      p.y += 0.5
+
       if (p.life <= 0 || p.size <= 0) {
         particles.splice(i, 1)
         i--

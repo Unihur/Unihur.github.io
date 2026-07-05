@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Vite 插件自动生成的类型声明
+auto-imports.d.ts
+components.d.ts
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

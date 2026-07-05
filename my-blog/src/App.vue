@@ -1,982 +1,115 @@
 <script setup>
-import { ref, reactive, computed, onMounted, watch, provide } from 'vue' 
-import { Search, Setting, Brush, Picture, Sunny, Moon, HomeFilled, Edit, Box, VideoPlay, ChatDotSquare, Guide, InfoFilled,UserFilled, User, Check, Clock, Warning  } from '@element-plus/icons-vue'
+// 应用外壳：
+// - 负责挂载 AppHeader / 路由出口 / MouseTrail
+// - 统一初始化 theme、打字机、Live2D
+// - 首屏恢复：登录用户的配置 + 全站公开设置
+// - 监听 siteConfig 中 Live2D 字段变化，动态加载 / 换模型 / 提示刷新
+import { onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 
-import MouseTrail from './components/MouseTrail.vue'
-import SettingDrawer from './components/SettingDrawer.vue'
+import { useSiteStore } from '@/stores/site'
+import { useUserStore } from '@/stores/user'
+import { useTypewriter } from '@/composables/useTypewriter'
+import { useLive2d } from '@/composables/useLive2d'
 
-import { loadOml2d } from 'oh-my-live2d'
-import { useRouter } from 'vue-router'
+import AppHeader from '@/components/AppHeader.vue'
+import MouseTrail from '@/components/MouseTrail.vue'
 
-import axios from 'axios'
+const siteStore = useSiteStore()
+const userStore = useUserStore()
 
-// ================= 登录与用户系统逻辑 =================
-const isLoggedIn = ref(localStorage.getItem('token') ? true : false)
-const showLoginDialog = ref(false)
-const loginForm = reactive({ username: '', password: '', remember: false })
-const currentUsername = ref(localStorage.getItem('username') || '')
-const currentUserAvatar = ref(localStorage.getItem('avatar') || '')
-const newUsernameInput = ref('')
-const checkStatusResult = ref(null) 
+// 打字机单例：signature 变化会自动重启
+const { start: startTypewriter } = useTypewriter(() => siteStore.siteConfig.signature)
 
-// 增加一个判断是否为管理员的计算属性
-const isAdmin = computed(() => {
-  return isLoggedIn.value && currentUsername.value === 'unihur'
-})
-
-// 👇 新增：请求后端的检测方法
-const handleCheckStatus = async () => {
-  if (!loginForm.username) {
-    ElMessage.warning('请先输入要检测的账号')
-    return
-  }
-  try {
-    const res = await axios.get(`https://unihur.xyz/api/user/status?username=${loginForm.username}`)
-    checkStatusResult.value = res.data
-  } catch(e) {
-    ElMessage.error('检测失败')
-  }
-}
-
-// 👇 新增：当用户修改账号输入框时，清空掉之前的检测结果
-watch(() => loginForm.username, () => {
-  checkStatusResult.value = null
-})
-
-// 点击头像：如果没登录就弹窗（登录后触发下拉框所以不用管）
-const handleLoginClick = () => {
-  if (!isLoggedIn.value) {
-    showLoginDialog.value = true
-  }
-}
-
-// 核心：提交登录 / 自动注册 (修复了 422 报错，确保传的是正确格式)
-const handleLoginSubmit = async () => {
-  try {
-    const res = await axios.post('https://unihur.xyz/api/login', {
-      username: loginForm.username,
-      password: loginForm.password
-    })
-    
-    // 1. 处理记住密码逻辑
-    if (loginForm.remember) {
-      localStorage.setItem('saved_username', loginForm.username)
-      localStorage.setItem('saved_password', loginForm.password)
-    } else {
-      localStorage.removeItem('saved_username')
-      localStorage.removeItem('saved_password')
-    }
-
-    // 2. 核心：保存 Token 到本地，更新界面的登录状态变量
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('username', res.data.username)
-    localStorage.setItem('avatar', res.data.avatar || '')
-    currentUsername.value = res.data.username
-    currentUserAvatar.value = res.data.avatar || ''
-    
-    // 3. 改变登录状态，并关闭弹窗
-    isLoggedIn.value = true
-    showLoginDialog.value = false
-    
-    // 4. 应用该用户绑定的主题和横幅配置
-    const userConfig = res.data.config || {}
-    if (userConfig.theme_style && typeof applyThemeStyle === 'function') {
-      themeStyle.value = userConfig.theme_style
-      applyThemeStyle(themeStyle.value)
-    }
-    if (userConfig.banner_mode) {
-      bannerMode.value = userConfig.banner_mode
-    }
-
-    if (userConfig.is_dark !== undefined) {
-      isDark.value = userConfig.is_dark
-      if (isDark.value) document.documentElement.classList.add('dark')
-      else document.documentElement.classList.remove('dark')
-    }
-    
-    ElMessage.success('登录成功！')
-
-  } catch (err) {
-    const status = err.response?.status
-    const errorMsg = err.response?.data?.detail || '账号或密码错误'
-
-    if (status === 403) {
-      // 问题1修复：如果是 403 (即需要等待审核)，用黄色警告提示，并自动关闭弹窗
-      ElMessage.warning(errorMsg)
-      showLoginDialog.value = false
-    } else {
-      // 密码错误等其他情况，用红色错误提示，保留弹窗让用户重新输入
-      ElMessage.error(errorMsg)
-    }
-  }
-}
-// 退出登录
-const logout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('username')
-  localStorage.removeItem('avatar')
-  isLoggedIn.value = false
-  currentUsername.value = ''
-  currentUserAvatar.value = ''
-  ElMessage.success('已安全退出登录')
-}
-
-// 上传新头像的方法
-const handleAvatarUpload = async (options) => {
-  const formData = new FormData()
-  formData.append('file', options.file)
-  try {
-    const res = await axios.post('https://unihur.xyz/api/user/avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'token': localStorage.getItem('token')
-      }
-    })
-    currentUserAvatar.value = res.data.avatar
-    localStorage.setItem('avatar', res.data.avatar)
-    ElMessage.success('头像修改成功！')
-  } catch(e) {
-    ElMessage.error('上传失败')
-  }
-}
-
-// 修改用户名
-const updateUsername = async () => {
-  if (!newUsernameInput.value) return ElMessage.warning('新用户名不能为空')
-  try {
-    await axios.post('https://unihur.xyz/api/user/update', 
-      { new_username: newUsernameInput.value },
-      { headers: { token: localStorage.getItem('token') } }
-    )
-    currentUsername.value = newUsernameInput.value
-    localStorage.setItem('username', newUsernameInput.value)
-    newUsernameInput.value = ''
-    ElMessage.success('用户名修改成功！')
-  } catch (err) {
-    ElMessage.error(err.response?.data?.detail || '修改失败')
-  }
-}
-
-// ================= 把设置同步到数据库的函数 (修复了 405 报错) =================
-const syncConfigToBackend = async (configData) => {
-  const token = localStorage.getItem('token')
-  if (!isLoggedIn.value || !token) return 
-  try {
-    await axios.post('https://unihur.xyz/api/user/update', configData, {
-      headers: { token: token }
-    })
-  } catch(e) {
-    console.error('配置同步失败', e)
-  }
-}
-
-// ================= 全局状态：网站配置 =================
-const siteConfig = reactive({
-  name: 'UniHur',
-  signature: '✨ 纸上得来终觉浅，绝知此事要躬行！ ✨',
-  avatar: '/avatar.png',
-  favicon: '/favicon.png',
-
-  live2dEnabled: true, 
-  live2dPath: '/ulk/ulk.model3.json',
-  live2dScale: 0.4,
-  live2dPosition: 'right'
-})
-
-// ================= 增加：打字机特效逻辑 =================
-const typewriterText = ref('') // 页面上实际显示的文字
-let typeTimer = null
-
-const startTypewriter = () => {
-  if (typeTimer) clearTimeout(typeTimer)
-  
-  let i = 0;
-  let isDeleting = false;
-  const fullText = siteConfig.signature
-
-  const loop = () => {
-    if (!siteConfig.signature) {
-      typewriterText.value = ''
-      return
-    }
-
-    const currentFullText = siteConfig.signature
-
-    if (!isDeleting) {
-      typewriterText.value = currentFullText.substring(0, i + 1)
-      i++
-      
-      if (i === currentFullText.length) {
-        isDeleting = true
-        typeTimer = setTimeout(loop, 2000)
-        return
-      }
-      typeTimer = setTimeout(loop, Math.random() * 100 + 100)
-      
-    } else {
-      typewriterText.value = currentFullText.substring(0, i - 1)
-      i--
-      
-      if (i === 0) {
-        isDeleting = false
-        typeTimer = setTimeout(loop, 500)
-        return
-      }
-      typeTimer = setTimeout(loop, 50)
-    }
-  }
-  
-  loop()
-}
-
-// 独立状态管理：材质与颜色
-const glassType = ref(localStorage.getItem('glass-type') || 'default')
-const themeColor = ref(localStorage.getItem('theme-color') || 'white')
-
-const applyThemeConfig = () => {
-  const root = document.documentElement
-  
-  // 1. 处理材质
-  root.classList.remove('liquid-glass', 'liquid-glass-clear')
-  
-  // 👇 修正判断条件，直接和后面截取出来的单词对齐
-  if (glassType.value === 'liquid') {
-    root.classList.add('liquid-glass')
-  } else if (glassType.value === 'liquid_clear') {
-    root.classList.add('liquid-glass-clear')
-  } 
-  
-  // 2. 清除旧颜色，加上新颜色
-  root.classList.remove('theme-color-white', 'theme-color-blue', 'theme-color-pink', 'theme-color-green', 'theme-color-purple', 'theme-color-orange')
-  root.classList.add(`theme-color-${themeColor.value}`)
-}
-
-// 统一处理下拉菜单指令
-const handleThemeCommand = (command) => {
-  if (command.startsWith('glass_')) {
-    // 👇 修复：直接截取前缀 'glass_' 后面的所有内容
-    glassType.value = command.substring(6) 
-    localStorage.setItem('glass-type', glassType.value)
-  } else if (command.startsWith('color_')) {
-    // 👇 修复：直接截取前缀 'color_' 后面的所有内容
-    themeColor.value = command.substring(6) 
-    localStorage.setItem('theme-color', themeColor.value)
-  }
-  
-  applyThemeConfig()
-  
-  // 将二者合并为一个字符串传给后端（比如: "liquid|blue"）
-  // const combinedStyle = `${glassType.value}|${themeColor.value}`
-  // syncConfigToBackend({ theme_style: combinedStyle }) 
-}
+// Live2D
+const live2d = useLive2d(siteStore.siteConfig)
 
 onMounted(async () => {
+  // 应用本地保存的主题
+  siteStore.applyThemeConfig()
 
-  if (isDark.value) {
-    document.documentElement.classList.add('dark')
-  } else {
-    document.documentElement.classList.remove('dark')
-  }
-
-  applyThemeConfig()
-
-  // === 新增：读取记住的账号密码 ===
-  const savedUser = localStorage.getItem('saved_username')
-  const savedPass = localStorage.getItem('saved_password')
-
-  if (savedUser && savedPass) {
-    loginForm.username = savedUser
-    loginForm.password = savedPass
-    loginForm.remember = true
-  }
-
-  //admin
-  if (localStorage.getItem('token')) {
-  isLoggedIn.value = true
-  }
-
-  setTimeout(() => {
-    startTypewriter()
-  }, 100)
-
+  // 启动打字机（仅一次）
   startTypewriter()
-  if (siteConfig.live2dEnabled) {
-    loadLive2D()
+
+  // Live2D 懒加载
+  if (siteStore.siteConfig.live2dEnabled) {
+    live2d.load()
   }
 
-  const userToken = localStorage.getItem('token')
-  if (isLoggedIn.value && userToken) {
-    try {
-      const meRes = await axios.get('https://unihur.xyz/api/user/me', {
-        headers: { token: userToken }
-      })
-      // 👇 刷新页面时，如果已经登录，恢复账号绑定的专属配置
-      const userConfig = meRes.data.config || {}
-      if (userConfig.is_dark !== undefined) {
-        isDark.value = userConfig.is_dark
-        if (isDark.value) document.documentElement.classList.add('dark')
-        else document.documentElement.classList.remove('dark')
-      }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        ElMessage.warning('您的账号已被管理员删除，已回退为游客状态')
-        logout() 
-      }
+  // 已登录用户：拉取最新个人配置
+  if (userStore.token) {
+    const me = await userStore.refreshProfile()
+    if (me) {
+      siteStore.applyUserConfig(me.config || {})
     }
-  } else {
-    // 如果没有 token，强行把 isLoggedIn 设为 false 防止死循环错觉
-    isLoggedIn.value = false
   }
 
-  // ========== 新增：页面加载时从数据库读取设置 ==========
+  // 全站公开设置（覆盖未登录态的 banner / 夜间模式）
   try {
-    const res = await fetch('https://unihur.xyz/api/settings')
-    if (res.ok) {
-      const data = await res.json()
-      
-      if (!isLoggedIn.value) {
-        // 1. 恢复 Banner 模式
-        if (data.banner_mode) {
-          bannerMode.value = data.banner_mode
-        }
-        
-        // 2. 恢复 夜间/日间 模式
-        isDark.value = data.is_dark
-        if (isDark.value) {
-          document.documentElement.classList.add('dark')
-        } else {
-          document.documentElement.classList.remove('dark')
-        }
+    const data = await siteStore.loadPublicSettings()
+    if (data && !userStore.isLoggedIn) {
+      if (data.banner_mode) siteStore.bannerMode = data.banner_mode
+      if (data.is_dark !== undefined) {
+        siteStore.isDark = !!data.is_dark
       }
-      
+      siteStore.applyThemeConfig()
     }
-  } catch (error) {
-    console.error("加载设置失败，使用默认设置", error)
+  } catch (_) {
+    /* 已在 store 内打印错误 */
   }
 })
 
-// ================= 深度监听配置，让网页实时变化 =================
-watch(siteConfig, (newVal) => {
-  document.title = `${newVal.name}'s Blog`
-
-  let link = document.querySelector("link[rel~='icon']");
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    document.head.appendChild(link);
-  }
-  link.href = newVal.favicon;
-
-  document.documentElement.setAttribute('data-l2d-pos', newVal.live2dPosition)
-  document.documentElement.style.setProperty('--l2d-scale', newVal.live2dScale)
-}, { deep: true, immediate: true })
-
-// ================= 看板娘初始化 =================
-let oml2dInstance = window.__oml2dInstance__ || null 
-
-const loadLive2D = () => {
-  if (oml2dInstance) return 
-  
-  // 动态判断当前屏幕宽度来决定初始大小和偏移量
-  const screenWidth = window.innerWidth
-  let adaptiveScale = siteConfig.live2dScale
-  let offsetX = 0
-  
-  // 简单响应式逻辑
-  if (screenWidth < 1400 && screenWidth >= 1000) {
-    adaptiveScale = siteConfig.live2dScale * 0.7
-    offsetX = -50 // 笔记本稍微往右挪一点防挡
-  } else if (screenWidth < 1000) {
-    adaptiveScale = siteConfig.live2dScale * 0.5
-    offsetX = -100 // 平板更往右一点
-  }
-
-  oml2dInstance = loadOml2d({
-    models: [{ 
-      path: siteConfig.live2dPath,
-      scale: adaptiveScale,
-      position: [offsetX, 0] // x轴偏移，防止挡住中间的内容框
-    }],
-    primaryColor: '#ff79c6',
-    menus: { 
-      disable: false, 
-      items: (defaultItems) => {
-        return [
-          defaultItems[0], // 换模型
-          defaultItems[1], // 换衣服
-          {
-            id: 'Hide',
-            name: '隐藏看板娘',
-            icon: 'icon-close',
-            onClick: () => {
-              oml2dInstance.stage.slideOut() 
-            }
-          }
-        ]
-      }
+// 监听 Live2D 相关字段变化（来自 SettingDrawer 的修改）
+watch(
+  () => siteStore.siteConfig.live2dEnabled,
+  (enabled) => {
+    if (enabled && !live2d.getInstance()) {
+      live2d.load()
+    } else if (!enabled && live2d.getInstance()) {
+      // 关闭需要刷新页面才能彻底清理内存
+      ElMessage.warning('关闭看板娘需刷新页面才能清理内存哦！')
+      setTimeout(() => window.location.reload(), 1500)
     }
-  })
-
-  // 👇 将创建好的实例绑定到 window 对象上，保证热更新时不会丢失
-  window.__oml2dInstance__ = oml2dInstance
-}
-
-const handleConfigUpdate = (newConfig) => {
-  Object.assign(siteConfig, newConfig)
-
-  if (newConfig.live2dEnabled && !oml2dInstance) {
-    loadLive2D() 
-  } else if (!newConfig.live2dEnabled && oml2dInstance) {
-    ElMessage.warning('关闭看板娘需刷新页面才能清理内存哦！')
-    setTimeout(() => window.location.reload(), 1500)
-  } else if (newConfig.live2dEnabled && oml2dInstance) {
-    oml2dInstance.loadNextModel({ path: newConfig.live2dPath })
   }
-}
-
-// ================= 抽屉和登录逻辑 =================
-const showSettingDrawer = ref(false)
-const openSetting = () => {
-  if (!isLoggedIn.value) {
-    ElMessage.warning('请先点击右侧头像登录管理员账号！')
-    showLoginDialog.value = true 
-    return
-  }
-  showSettingDrawer.value = true
-}
-
-const router = useRouter()
-
-// 写作按钮点击逻辑
-const handleWriteClick = () => {
-  // 核心修复：把 !isLoggedIn 换成 !isAdmin
-  if (!isAdmin.value) {
-    ElMessage.warning('权限不足：只有管理员可以发布或编辑文章！')
-    // 如果连登录都没登录，就弹窗提示他登录
-    if (!isLoggedIn.value) {
-      showLoginDialog.value = true 
+)
+watch(
+  () => siteStore.siteConfig.live2dPath,
+  (newPath) => {
+    if (siteStore.siteConfig.live2dEnabled && live2d.getInstance() && newPath) {
+      live2d.changeModel(newPath)
     }
-    return
   }
-  router.push('/write')
-}
-
-// ================= 把设置保存到数据库的函数 =================
-const saveSettingsToDB = async () => {
-  try {
-    await fetch('https://unihur.xyz/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        banner_mode: bannerMode.value, 
-        is_dark: isDark.value 
-      })
-    })
-  } catch (error) {
-    console.error("保存设置失败", error)
-  }
-}
-
-// ================= 夜间模式 =================
-const isDark = ref(localStorage.getItem('is-dark') === 'true')
-const toggleDarkMode = () => {
-  isDark.value = !isDark.value
-  if (isDark.value) {
-    document.documentElement.classList.add('dark')
-    localStorage.setItem('is-dark', 'true') // 👈 存本地
-  } else {
-    document.documentElement.classList.remove('dark')
-    localStorage.setItem('is-dark', 'false') // 👈 存本地
-  }
-  
-  saveSettingsToDB()
-}
-
-// ================= Banner 高度和布局计算 =================
-const bannerImages = ref([
-  '/banner/1.png', '/banner/2.jpg', '/banner/3.jpg', '/banner/4.jpeg',
-  '/banner/5.jpg', '/banner/6.jpg', '/banner/7.jpg'
-])
-
-const bannerMode = ref('banner')
-const changeBannerMode = (command) => { 
-  bannerMode.value = command 
-  
-  // 新增：切换完Banner后，立即保存到数据库
-  saveSettingsToDB()
-}
-
-const bannerHeightValue = '30vw' 
-
-// 👇 必须先定义所有的 computed 变量
-const carouselHeight = computed(() => {
-  if (bannerMode.value === 'fullscreen' || bannerMode.value === 'background') return '100vh'
-  return bannerHeightValue
-})
-const bannerWrapperHeight = computed(() => {
-  if (bannerMode.value === 'fullscreen' || bannerMode.value === 'background') return '100vh'
-  return bannerHeightValue
-})
-const contentPaddingTop = computed(() => {
-  return (bannerMode.value === 'background' || bannerMode.value === 'hidden') ? '120px' : '0px'
-})
-const contentMarginTop = computed(() => {
-  return (bannerMode.value === 'banner' || bannerMode.value === 'fullscreen') ? '0px' : '0px'
-})
-
-// 👇 最后！在所有的变量和函数都定义完毕后，再统一把它们 provide 出去给 Home.vue 用
-provide('siteConfig', siteConfig)
-provide('bannerMode', bannerMode)
-provide('bannerImages', bannerImages)
-provide('bannerWrapperHeight', bannerWrapperHeight)
-provide('carouselHeight', carouselHeight)
-provide('typewriterText', typewriterText)
-provide('contentPaddingTop', contentPaddingTop)
-provide('contentMarginTop', contentMarginTop)
-provide('isLoggedIn', isLoggedIn)
-provide('isAdmin', isAdmin)
-
+)
 </script>
+
 <template>
   <div class="app-root">
-    
-    <!-- 1. 顶部导航栏 -->
-    <div class="nav-container">
-      <nav class="glass-box navbar">
-        <div class="nav-links">
-          <router-link to="/" custom v-slot="{ navigate }">
-            <span @click="navigate"><el-icon><HomeFilled /></el-icon>首页</span>
-          </router-link>
-          <span @click="handleWriteClick"><el-icon><Edit /></el-icon>写作</span>
-          <span><el-icon><Box /></el-icon>项目</span>
-          <span><el-icon><VideoPlay /></el-icon>娱乐</span>
-          <span><el-icon><ChatDotSquare /></el-icon>留言</span>
-          <span><el-icon><Guide /></el-icon>导航</span>
-          <span><el-icon><InfoFilled /></el-icon>关于</span>
-          <span v-if="currentUsername === 'unihur'" @click="router.push('/visitors')" style="color: #f56c6c;"><el-icon><User /></el-icon>访客管理</span>
-        </div>
-        
-        <div class="nav-icons">
-          <el-tooltip content="设置" placement="bottom">
-            <el-icon class="icon-btn" @click="openSetting"><Setting /></el-icon>
-          </el-tooltip>
-
-          <el-dropdown @command="handleThemeCommand" trigger="click">
-            <span class="el-dropdown-link">
-              <el-tooltip content="主题与材质设置" placement="bottom"><el-icon class="icon-btn"><Brush /></el-icon></el-tooltip>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <!-- 第一部分：材质二选一 -->
-                <el-dropdown-item command="glass_default" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span>毛玻璃</span>
-                  <el-icon v-if="glassType === 'default'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="glass_liquid" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span>流光液态玻璃</span>
-                  <el-icon v-if="glassType === 'liquid'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="glass_liquid_clear" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span>清透水晶</span>
-                  <el-icon v-if="glassType === 'liquid_clear'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-
-                <!-- 分割线 -->
-                <el-divider style="margin: 4px 0" />
-
-                <!-- 第二部分：主题颜色选择 -->
-                <el-dropdown-item command="color_white" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#ffffff; border:1px solid #ddd; margin-right:8px;"></span>经典白</span>
-                  <el-icon v-if="themeColor === 'white'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="color_blue" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#e6f7ff; margin-right:8px;"></span>天空蓝</span>
-                  <el-icon v-if="themeColor === 'blue'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="color_pink" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#fff0f6; margin-right:8px;"></span>樱花粉</span>
-                  <el-icon v-if="themeColor === 'pink'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="color_green" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#f0f9eb; margin-right:8px;"></span>薄荷绿</span>
-                  <el-icon v-if="themeColor === 'green'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="color_purple" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#f3e8ff; border:1px solid #d9b8f1; margin-right:8px;"></span>薰衣紫</span>
-                  <el-icon v-if="themeColor === 'purple'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-                <el-dropdown-item command="color_orange" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#fff3e6; border:1px solid #f3d19e; margin-right:8px;"></span>暖阳橙</span>
-                  <el-icon v-if="themeColor === 'orange'" color="#67C23A"><Check /></el-icon>
-                </el-dropdown-item>
-
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          
-          <el-dropdown @command="changeBannerMode" trigger="click">
-            <span class="el-dropdown-link">
-              <el-tooltip content="Banner设置" placement="bottom"><el-icon class="icon-btn"><Picture /></el-icon></el-tooltip>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="banner">横幅图模式</el-dropdown-item>
-                <el-dropdown-item command="fullscreen">填充屏幕</el-dropdown-item>
-                <el-dropdown-item command="background">背景图片模式</el-dropdown-item>
-                <el-dropdown-item command="hidden">隐藏</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-
-          <el-tooltip :content="isDark ? '日间模式' : '夜间模式'" placement="bottom">
-            <el-icon class="icon-btn" @click="toggleDarkMode"><component :is="isDark ? Sunny : Moon" /></el-icon>
-          </el-tooltip>
-
-          <!-- 新增：用户登录头像 -->
-          <div class="divider"></div>
-          <el-dropdown :disabled="!isLoggedIn" trigger="hover" :hide-on-click="false" placement="bottom-end">
-          <!-- 头像本体 -->
-          <div class="avatar-wrapper" @click="handleLoginClick" style="display: flex; align-items: center; cursor: pointer; outline: none;">
-            <el-tooltip :content="isLoggedIn ? '' : '点击登录'" placement="bottom" :disabled="isLoggedIn">
-              <el-avatar 
-                :size="36" 
-                :src="currentUserAvatar || ''" 
-                :icon="currentUserAvatar ? '' : UserFilled"
-                class="login-avatar"
-              />
-            </el-tooltip>
-          </div>
-          
-          <!-- 下拉面板内容 -->
-          <template #dropdown>
-            <el-dropdown-menu style="width: 260px; padding: 15px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
-              
-              <!-- 顶部信息区 -->
-              <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 15px;">
-              <!-- 使用 el-upload 覆盖头像 -->
-              <el-upload
-                action=""
-                :http-request="handleAvatarUpload"
-                :show-file-list="false"
-                accept="image/png, image/jpeg, image/gif"
-              >
-                <el-tooltip content="点击上传新头像" placement="right">
-                  <el-avatar 
-                    :size="56" 
-                    :src="currentUserAvatar || ''" 
-                    :icon="currentUserAvatar ? '' : UserFilled"
-                    style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer;" 
-                  />
-                </el-tooltip>
-              </el-upload>
-              <h3 style="margin: 0; font-size: 1.1rem; color: #333;">{{ currentUsername }}</h3>
-            </div>
-              
-              <el-divider style="margin: 10px 0;" />
-              
-              <!-- 修改资料区 -->
-              <div style="margin: 10px 0;">
-                <div style="font-size: 0.8rem; color: #999; margin-bottom: 6px;">修改昵称</div>
-                <el-input v-model="newUsernameInput" placeholder="输入新名字" size="default">
-                  <template #append>
-                    <el-button @click="updateUsername" style="color: #409EFF;">保存</el-button>
-                  </template>
-                </el-input>
-              </div>
-
-              <el-divider style="margin: 10px 0;" />
-              
-              <!-- 退出登录按钮 -->
-              <el-button type="danger" plain style="width: 100%; border-radius: 8px;" @click="logout">
-                退出登录
-              </el-button>
-              
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-          </div>
-
-      </nav>
-    </div>
-
-    <!-- 👇 魔法标签：路由匹配到的组件会显示在这里！ -->
+    <AppHeader />
     <router-view />
-
-    <!-- App.vue 模板中 -->
-    <el-dialog v-model="showLoginDialog" title="账号登录" width="360px">
-      
-      <!-- 1. 账号输入框，附带检测按钮 -->
-      <el-input v-model="loginForm.username" placeholder="请输入账号" style="margin-bottom: 15px;">
-        <template #append>
-          <el-button @click="handleCheckStatus">检测状态</el-button>
-        </template>
-      </el-input>
-
-      <!-- 2. 👇 新增：用来显示检测结果的提示框 -->
-      <div v-if="checkStatusResult" style="margin-top: -5px; margin-bottom: 15px; display: flex; align-items: center;">
-        <!-- 审核通过（绿色打勾框） -->
-        <el-tag v-if="checkStatusResult.status === 'approved'" type="success" effect="dark">
-          <el-icon style="vertical-align: middle; margin-right: 4px;"><Check /></el-icon>
-          {{ checkStatusResult.message }}
-        </el-tag>
-        
-        <!-- 审核中（黄色时钟框） -->
-        <el-tag v-else-if="checkStatusResult.status === 'pending'" type="warning" effect="dark">
-          <el-icon style="vertical-align: middle; margin-right: 4px;"><Clock /></el-icon>
-          {{ checkStatusResult.message }}
-        </el-tag>
-        
-        <!-- 未注册（灰色提示框） -->
-        <el-tag v-else type="info">
-          <el-icon style="vertical-align: middle; margin-right: 4px;"><Warning /></el-icon>
-          {{ checkStatusResult.message }}
-        </el-tag>
-      </div>
-
-      <!-- 3. 密码框与记住密码 (保留你之前的) -->
-      <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password style="margin-bottom: 15px;"/>
-      <el-checkbox v-model="loginForm.remember">记住账号与密码</el-checkbox>
-      
-      <template #footer>
-        <el-button @click="showLoginDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleLoginSubmit">确定登录</el-button>
-      </template>
-    </el-dialog>
-
-    <SettingDrawer 
-      v-model:visible="showSettingDrawer" 
-      :config="siteConfig" 
-      @updateConfig="handleConfigUpdate"
-    />
-
     <MouseTrail />
-
   </div>
-
 </template>
 
 <style scoped>
-/* 样式部分基本保持不变，新增了头像和分割线样式 */
-.app-root { width: 100%; }
-
-.nav-container { 
-  position: fixed; /* 👈 将 absolute 改为 fixed 即可吸顶跟随 */
-  top: 15px; 
-  left: 0; 
-  width: 100%; 
-  display: flex; 
-  justify-content: center; 
-  z-index: 999; 
-  padding: 0 20px; 
-  box-sizing: border-box; 
+.app-root {
+  width: 100%;
 }
 
-.navbar { 
-  width: 100%; 
-  max-width: 1160px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  border-radius: 50px; 
-  padding: 10px 30px; 
-  margin: 0; 
-  /*background: rgba(255, 255, 255, 0.85); */
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* 加一点淡淡的阴影区分层次 */
-}
-
-/* 如果你的网站有夜间模式，记得也给夜间模式下的 navbar 加上样式 */
-html.dark .navbar {
-  /*background: rgba(30, 30, 30, 0.85);*/
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-}
-
-.nav-links { display: flex; gap: 20px; }
-.nav-links span { font-weight: bold; cursor: pointer; transition: color 0.3s; }
-.nav-links span:hover { color: #409EFF; }
-.nav-icons { display: flex; gap: 15px; align-items: center; }
-.icon-btn { 
-  font-size: 22px; 
-  cursor: pointer; 
-  outline: none; 
-  transition: all 0.3s; 
-  color: #333; /* 强制黑色或深灰 */
-}
-html.dark .icon-btn {
-  color: #E5EAF3; /* 夜间模式保持亮色 */
-}
-.el-dropdown-link {
-  color: inherit;
-  display: flex;
-  align-items: center;
-}
-.icon-btn:hover { color: #409EFF; transform: scale(1.1); }
-
-/* 新增：导航栏右侧登录头像样式 */
-.divider { width: 1px; height: 20px; background-color: rgba(0,0,0,0.2); margin: 0 5px; }
-html.dark .divider { background-color: rgba(255,255,255,0.2); }
-.login-avatar { cursor: pointer; border: 2px solid transparent; transition: border-color 0.3s, transform 0.3s; }
-.login-avatar:hover { transform: scale(1.1); border-color: #409EFF; }
-
-.banner { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; transition: height 0.5s ease; }
-.banner.background { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
-.banner.banner, .banner.fullscreen { z-index: 1; }
-.banner-carousel { position: absolute; top: 0; left: 0; width: 100%; z-index: 1; }
-.carousel-img { width: 100%; height: 100%; object-fit: cover; }
-.banner-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.2); z-index: 2; pointer-events: none; }
-
-/* 解答2：博客标题位置调整 */
-.blog-title {
-  position: relative; z-index: 3; font-size: 6rem; font-weight: 900; color: #fff; text-shadow: 2px 2px 8px rgba(0,0,0,0.5); text-align: center;
-  /* 如果你想让标题往下移，就把这里的 -80px 改成 0px，或者正数比如 50px */
-  margin-top: -60px; 
-}
-.blog-subtitle { font-size: 2rem; font-weight: normal; margin-top: 10px; text-shadow: 1px 1px 5px rgba(0,0,0,0.8); }
-
-.waves-container { position: absolute; bottom: 0px; left: 0; width: 100%; height: 6vw; min-height: 100px; z-index: 10; line-height: 0; }
-.waves { width: 100%; height: 100%; display: block; }
-.wave1, .wave2, .wave3, .wave4 { transition: fill 0.3s ease; }
-.wave1 { fill: rgba(244, 244, 245, 0.3); } .wave2 { fill: rgba(244, 244, 245, 0.5); } .wave3 { fill: rgba(244, 244, 245, 0.7); } .wave4 { fill: #f4f4f5; } 
-
-/* 原来的夜间波浪是 20, 20, 20 的灰色，改成带紫调的颜色 */
-html.dark .wave1 { fill: rgba(43, 34, 61, 0.3); } /* #2b223d 半透明 */
-html.dark .wave2 { fill: rgba(43, 34, 61, 0.5); }
-html.dark .wave3 { fill: rgba(43, 34, 61, 0.7); }
-html.dark .wave4 { fill: #1a1525; } /* 必须和 body 背景色一样，消除分界线 */
-
-.parallax > use { animation: move-forever 25s cubic-bezier(.55,.5,.45,.5) infinite; }
-.parallax > use:nth-child(1) { animation-delay: -2s; animation-duration: 7s; }
-.parallax > use:nth-child(2) { animation-delay: -3s; animation-duration: 10s; }
-.parallax > use:nth-child(3) { animation-delay: -4s; animation-duration: 13s; }
-.parallax > use:nth-child(4) { animation-delay: -5s; animation-duration: 20s; }
-@keyframes move-forever { 0% { transform: translate3d(-90px,0,0); } 100% { transform: translate3d(85px,0,0); } }
-
-.main-content-wrapper { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px 20px; position: relative; z-index: 10; transition: padding-top 0.5s ease, margin-top 0.5s ease; }
-
-.category-list { list-style: none; padding: 0; }
-.category-list li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed rgba(0,0,0,0.1); }
-html.dark .category-list li { border-bottom-color: rgba(255,255,255,0.1); }
-.tag-list .custom-tag { margin: 5px; }
-.music-player { text-align: center; font-weight: bold; color: inherit; }
-
-.post-card { display: flex; justify-content: space-between; align-items: center; transition: transform 0.3s; }
-.post-card:hover { transform: translateY(-5px); }
-.post-info { flex: 1; padding-right: 20px; }
-.post-meta { font-size: 0.8rem; color: #666; margin-bottom: 10px; }
-html.dark .post-meta { color: #aaa; }
-.post-desc { color: #444; line-height: 1.6; }
-html.dark .post-desc { color: #ccc; }
-.post-cover { width: 200px; height: 140px; border-radius: 8px; overflow: hidden; }
-.post-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
-.post-cover img:hover { transform: scale(1.1); }
-
-/* ================= 魔法 CSS 区域 ================= */
-/* 强制覆盖 oh-my-live2d 的默认位置，实现左/右切换 */
-:global(html[data-l2d-pos="right"] #oml2d-stage) {
+/* Live2D 全局位置 / 缩放覆盖（保持原 App.vue 中的魔法 CSS） */
+:global(html[data-l2d-pos='right'] #oml2d-stage) {
   left: auto !important;
-  right: 0 !important; 
+  right: 0 !important;
 }
-:global(html[data-l2d-pos="left"] #oml2d-stage) {
+:global(html[data-l2d-pos='left'] #oml2d-stage) {
   left: 0 !important;
-  right: auto !important; 
+  right: auto !important;
 }
-
-/* 强制读取我们在 JS 中设定的 --l2d-scale 变量，实现缩放 */
 :global(#oml2d-stage) {
   transform: scale(var(--l2d-scale, 1));
-  transform-origin: bottom; /* 确保以底座为中心缩放 */
-  transition: transform 0.3s ease, left 0.5s ease, right 0.5s ease;
+  transform-origin: bottom;
+  transition:
+    transform 0.3s ease,
+    left 0.5s ease,
+    right 0.5s ease;
 }
-
-.blog-title { position: relative; z-index: 3; font-size: 5rem; font-weight: 900; color: #fff; text-shadow: 2px 2px 8px rgba(0,0,0,0.5); text-align: center; margin-top: -60px; }
-
-/* 保证副标题有固定的最小高度，防止打字机删除到 0 时高度塌陷导致页面抖动 */
-.blog-subtitle { 
-  font-size: 2rem; 
-  font-weight: normal; 
-  margin-top: 10px; 
-  text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
-  min-height: 2.2rem; /* 给定一个最小高度 */
-}
-
-/* 👇 新增：闪烁的光标特效 */
-.cursor {
-  display: inline-block;
-  width: 3px;
-  background-color: transparent;
-  animation: blink 1s infinite;
-  margin-left: 2px;
-  color: #fff; /* 光标颜色 */
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-/* 自定义粉色登录按钮 */
-.pink-login-btn {
-  background: linear-gradient(135deg, #ff79c6, #ff9a9e);
-  border: none;
-  box-shadow: 0 4px 15px rgba(255, 121, 198, 0.4);
-  transition: all 0.3s;
-  font-weight: bold;
-}
-.pink-login-btn:hover {
-  background: linear-gradient(135deg, #ff9a9e, #ff79c6);
-  box-shadow: 0 6px 20px rgba(255, 121, 198, 0.6);
-  transform: translateY(-2px);
-}
-
-/* ================= 手机端全局适配 ================= */
-@media screen and (max-width: 768px) {
-  /* 1. 极大幅度缩小横幅标题，让出图片空间 */
-  .blog-title { 
-    font-size: 2rem !important; 
-    margin-top: 10px !important; /* 不用负数往上提了，往下放一点 */
-    padding: 0 10px;
-  }
-  .blog-subtitle { 
-    font-size: 1rem !important; 
-    margin-top: 5px !important;
-    min-height: 1.5rem !important;
-  }
-
-  /* 2. 增大横幅在手机端的高度，露出更多图片 */
-  .banner-carousel, .banner {
-    height: 300px !important; /* 高度从 220px 加大到 300px，让图片显示完整 */
-  }
-  /* 波浪往下移一点，不要挡住图片主体 */
-  .waves-container {
-    bottom: -15px !important; 
-  }
-
-  /* 3. 导航栏适配：允许横向滑动 */
-  .nav-container { 
-    top: 5px !important; 
-    padding: 0 10px !important; 
-  }
-  .navbar { 
-    padding: 10px !important; 
-    border-radius: 16px !important;
-  }
-  .nav-links { 
-    overflow-x: auto; 
-    white-space: nowrap; 
-    -webkit-overflow-scrolling: touch; 
-    padding-bottom: 2px;
-  }
-  .nav-links::-webkit-scrollbar { display: none; }
-  .nav-links span { font-size: 0.9rem; }
-  
-  /* 4. 防止正文被 Banner 的波浪挡住，给手机端正文加点上边距 */
-  .main-content-wrapper {
-    padding: 20px 10px 20px 10px !important;
-  }
-}
-
 </style>

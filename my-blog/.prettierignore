@@ -1,0 +1,6 @@
+dist
+node_modules
+*.d.ts
+dev-*.log
+public
+package-lock.json
