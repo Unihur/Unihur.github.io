@@ -140,10 +140,21 @@ const toggleDarkMode = () => siteStore.toggleDarkMode()
 
 // ============ 设置抽屉 ============
 const showSettingDrawer = ref(false)
-const openSetting = () => {
+const openSetting = async () => {
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先点击右侧头像登录管理员账号！')
     showLoginDialog.value = true
+    return
+  }
+  // 设置抽屉里是博客全局配置，只有管理员能打开
+  // 若 isAdmin 还未确定（后端 is_admin 未返回），先拉一次 /user/me
+  let canOpen = userStore.isAdmin
+  if (!canOpen && userStore.isAdminFromBackend === null) {
+    await userStore.refreshProfile()
+    canOpen = userStore.isAdmin
+  }
+  if (!canOpen) {
+    ElMessage.warning('权限不足：只有管理员可以修改博客设置！')
     return
   }
   showSettingDrawer.value = true
@@ -154,8 +165,15 @@ const handleConfigUpdate = (newConfig) => {
 }
 
 // ============ 路由跳转 ============
-const handleWriteClick = () => {
-  if (!userStore.isAdmin) {
+const handleWriteClick = async () => {
+  // 写作按钮：只有管理员可以点击
+  let canWrite = userStore.isAdmin
+  if (!canWrite && userStore.isLoggedIn && userStore.isAdminFromBackend === null) {
+    // isAdmin 未确定时先拉一次后端
+    await userStore.refreshProfile()
+    canWrite = userStore.isAdmin
+  }
+  if (!canWrite) {
     ElMessage.warning('权限不足：只有管理员可以发布或编辑文章！')
     if (!userStore.isLoggedIn) showLoginDialog.value = true
     return
