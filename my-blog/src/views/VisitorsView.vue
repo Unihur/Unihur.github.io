@@ -140,8 +140,13 @@ onMounted(fetchVisitors)
         </el-table-column>
         <el-table-column label="称号" width="180">
           <template #default="scope">
+            <!-- 管理员账号：固定显示红色"管理员"标签 -->
+            <span v-if="scope.row.username === ADMIN_USERNAME" class="admin-title-badge">
+              管理员
+            </span>
+            <!-- 普通用户：显示自定义称号或"未设置" -->
             <span
-              v-if="scope.row.title"
+              v-else-if="scope.row.title"
               class="user-title-badge"
               :style="{
                 color: scope.row.title_color || '#f56c6c',
@@ -153,9 +158,14 @@ onMounted(fetchVisitors)
             <span v-else style="color: #ccc; font-size: 0.85rem">未设置</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" align="right">
+        <el-table-column label="操作" width="220" align="center">
           <template #default="scope">
-            <el-button size="small" @click="openTitleDialog(scope.row)">
+            <!-- 管理员账号不显示编辑称号按钮 -->
+            <el-button
+              v-if="scope.row.username !== ADMIN_USERNAME"
+              size="small"
+              @click="openTitleDialog(scope.row)"
+            >
               <el-icon><Edit /></el-icon> 编辑称号
             </el-button>
             <el-button type="danger" size="small" @click="deleteVisitorHandler(scope.row.id)">
@@ -230,6 +240,16 @@ onMounted(fetchVisitors)
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
+}
+/* 管理员固定称号：红色 */
+.admin-title-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid #f56c6c;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #f56c6c;
 }
 
 .title-form-item {

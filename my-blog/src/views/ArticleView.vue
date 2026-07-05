@@ -12,7 +12,8 @@ import {
   View,
   UserFilled,
   Delete,
-  PictureRounded
+  PictureRounded,
+  ArrowDownBold
 } from '@element-plus/icons-vue'
 
 import { md, extractToc } from '@/utils/markdown'
@@ -612,11 +613,13 @@ const navigateTo = (slug) => {
                 <a href="#" @click.prevent="scrollToAnchor(item.id)">{{ item.text }}</a>
               </li>
             </ul>
-            <!-- 跳转到评论区按钮 -->
+            <!-- 跳转到评论区：向下箭头，hover 显示提示 -->
             <div class="toc-comment-btn-wrapper">
-              <el-button round size="small" class="toc-comment-btn" @click="scrollToComments">
-                💬 前往评论区
-              </el-button>
+              <el-tooltip content="前往评论区" placement="bottom">
+                <el-icon class="toc-comment-arrow" @click="scrollToComments">
+                  <ArrowDownBold />
+                </el-icon>
+              </el-tooltip>
             </div>
           </div>
         </el-col>
@@ -1286,7 +1289,7 @@ html.dark .toc-list a:hover {
   color: #66b1ff;
 }
 
-/* 跳转评论区按钮 */
+/* 跳转评论区箭头 */
 .toc-comment-btn-wrapper {
   display: flex;
   justify-content: center;
@@ -1297,17 +1300,18 @@ html.dark .toc-list a:hover {
 html.dark .toc-comment-btn-wrapper {
   border-top-color: rgba(255, 255, 255, 0.1);
 }
-.toc-comment-btn {
-  background: linear-gradient(135deg, #ff79c6, #ff9a9e);
-  border: none;
-  color: #fff;
-  font-weight: bold;
+.toc-comment-arrow {
+  font-size: 1.4rem;
+  color: #999;
+  cursor: pointer;
   transition: all 0.3s;
+  padding: 4px;
+  border-radius: 50%;
 }
-.toc-comment-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 121, 198, 0.4);
-  color: #fff;
+.toc-comment-arrow:hover {
+  color: #ff79c6;
+  transform: translateY(3px);
+  background: rgba(255, 121, 198, 0.1);
 }
 
 .article-main-card {
