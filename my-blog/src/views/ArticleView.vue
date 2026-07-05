@@ -190,10 +190,16 @@ const handleLike = async () => {
   }
 }
 
-// ===== TOC 生成：用 nextTick 等 DOM 更新完再读取，替代原 setTimeout(300) =====
+// ===== TOC 生成：等 DOM 更新完再读取标题 =====
 async function generateTOC() {
+  // 第一次 nextTick：等 renderedHtml 赋值后的 DOM 刷新
   await nextTick()
-  const container = document.querySelector('.markdown-body')
+  let container = document.querySelector('.markdown-body')
+  // 兜底：若容器仍未渲染（例如 isLoading 刚切换的边缘情况），再等一帧
+  if (!container) {
+    await nextTick()
+    container = document.querySelector('.markdown-body')
+  }
   tocList.value = extractToc(container)
 }
 
@@ -306,8 +312,8 @@ const showReplyBox = (commentId) => {
 
 // ===== 拉取文章详情 =====
 const fetchArticle = async (slug) => {
+  isLoading.value = true
   try {
-    isLoading.value = true
     const res = await getArticle(slug)
 
     // 兼容新旧两版 API：{ article, prev, next } 或直接数据
@@ -324,8 +330,12 @@ const fetchArticle = async (slug) => {
       renderedHtml.value = md.render(article.value.content || '*无内容*')
       document.title = `${article.value.title} - UniHur's Blog`
 
-      // 清空旧目录，等 DOM 更新后重新生成
+      // 清空旧目录
       tocList.value = []
+
+      // 关键：先把 isLoading 置 false，让 v-else-if="article" 分支渲染出 .markdown-body，
+      // 再调 generateTOC（内部 await nextTick 等 DOM 刷新后读取标题）
+      isLoading.value = false
       await generateTOC()
 
       // 后端访问该文章时浏览量已自增；这里同步拉取全站列表用于侧栏总浏览量
