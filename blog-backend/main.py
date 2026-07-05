@@ -119,39 +119,13 @@ def login(data: LoginData, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="密码错误")
 
     token = jwt.encode({"username": user.username, "id": user.id}, SECRET_KEY, algorithm="HS256")
+    # is_admin：管理员用户名等于 ADMIN_USER（默认 unihur）
+    is_admin = (user.username == ADMIN_USER)
     return {
-        "token": token, 
+        "token": token,
         "username": user.username,
         "avatar": user.avatar,
-        "config": {
-            "theme_style": user.theme_style,
-            "banner_mode": user.banner_mode,
-            "is_dark": user.is_dark
-        }
-    }
-    if not data.username or not data.password:
-        raise HTTPException(status_code=400, detail="账号和密码不能为空")
-        
-    user = db.query(User).filter(User.username == data.username).first()
-    
-    # 【核心逻辑】如果没有该账号，直接创建（即自动注册）
-    if not user:
-        new_user = User(username=data.username, password=data.password)
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        user = new_user
-    else:
-        # 如果有该账号，验证密码
-        if user.password != data.password:
-            raise HTTPException(status_code=401, detail="密码错误")
-
-    # 签发 Token 并返回用户绑定的配置
-    token = jwt.encode({"username": user.username, "id": user.id}, SECRET_KEY, algorithm="HS256")
-    return {
-        "token": token, 
-        "username": user.username,
-        "avatar": user.avatar,
+        "is_admin": is_admin,
         "config": {
             "theme_style": user.theme_style,
             "banner_mode": user.banner_mode,
@@ -824,21 +798,27 @@ def increment_visitor_count(db: Session = Depends(get_db)):
 # ============ 新增：校验账号存活状态 ============
 @app.get("/api/user/me")
 def check_user_status(token: str = Header(...), db: Session = Depends(get_db)):
+    # token 解析失败时由 FastAPI 自动抛 401（Header(...) 未提供）
+    # 或 jwt.decode 抛异常时手动抛 401
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user = db.query(models.User).filter(models.User.id == payload.get("id")).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="账号已被注销")
-        
-        # 👇 修改返回数据，把 config 带上
-        return {
-            "status": "ok", 
-            "config": {
-                "theme_style": user.theme_style,
-                "banner_mode": user.banner_mode,
-                "is_dark": user.is_dark
-            }
-        }
-    except:
+    except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="登录失效")
+
+    user = db.query(models.User).filter(models.User.id == payload.get("id")).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="账号已被注销")
+
+    # 返回前端需要的信息：is_admin / username / avatar / config
+    return {
+        "status": "ok",
+        "username": user.username,
+        "avatar": user.avatar,
+        "is_admin": (user.username == ADMIN_USER),
+        "config": {
+            "theme_style": user.theme_style,
+            "banner_mode": user.banner_mode,
+            "is_dark": user.is_dark
+        }
+    }
 

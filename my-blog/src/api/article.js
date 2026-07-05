@@ -1,9 +1,9 @@
 // 文章 CRUD + 互动接口
 import request from './request'
 
-/** 列表（主页用） */
+/** 列表（主页用）；后端默认 limit=10，这里传一个足够大的值避免截断 */
 export function listArticles() {
-  return request.get('/articles')
+  return request.get('/articles', { params: { limit: 1000 } })
 }
 
 /** 单篇详情；兼容新旧两版返回结构（{ article, prev, next } 或直接数据） */

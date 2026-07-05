@@ -28,12 +28,13 @@ export default defineConfig(({ mode }) => {
       })
     ],
     server: {
-      // 开发环境代理：把 /api 转发到真实后端，前端代码全部使用相对路径 /api
+      // 开发环境代理：把 /api 转发到真实后端。
+      // 注意：后端所有路由都带 /api 前缀（如 /api/login），
+      // 所以不做 rewrite，保持 /api 原样转发到 https://unihur.xyz/api/xxx
       proxy: {
         '/api': {
           target: env.VITE_API_TARGET || 'https://unihur.xyz',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          changeOrigin: true
         }
       }
     }

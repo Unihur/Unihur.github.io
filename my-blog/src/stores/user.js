@@ -93,7 +93,15 @@ export const useUserStore = defineStore('user', () => {
       const res = await getMe()
       const data = res.data || {}
       if (typeof data.is_admin === 'boolean') isAdminFromBackend.value = data.is_admin
-      // 兼容后端把配置放在 data.config 里的返回格式
+      // 后端现在返回 username / avatar，同步到本地（纠正 localStorage 中可能过期的值）
+      if (data.username) {
+        username.value = data.username
+        localStorage.setItem(LS.username, data.username)
+      }
+      if (data.avatar !== undefined) {
+        avatar.value = data.avatar || ''
+        localStorage.setItem(LS.avatar, data.avatar || '')
+      }
       return data
     } catch (error) {
       if (error.response?.status === 401) {
