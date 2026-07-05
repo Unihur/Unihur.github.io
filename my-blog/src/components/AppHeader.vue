@@ -579,14 +579,46 @@ const handleVisitorClick = () => {
   border-radius: 50px;
   padding: 10px 30px;
   margin: 0;
+  /* 不透明底色：滚动时内容不再从导航栏后透出。
+     保留 backdrop-filter 让导航栏边缘与背景过渡仍然自然。 */
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 html.dark .navbar {
+  background: rgba(30, 30, 30, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* 液态玻璃/清透水晶模式下，导航栏也需要不透明底色，
+   否则液态样式会把 background 改成近透明，内容又会透出来 */
+html.liquid-glass .navbar,
+html.liquid-glass-clear .navbar {
+  background: rgba(255, 255, 255, 0.92);
+}
+html.dark.liquid-glass .navbar,
+html.dark.liquid-glass-clear .navbar {
+  background: rgba(20, 20, 20, 0.92);
+}
+
+/* 主题色模式下，让导航栏底色跟随主题色（不透明） */
+html.theme-color-blue:not(.dark) .navbar {
+  background: rgba(230, 247, 255, 0.95);
+}
+html.theme-color-pink:not(.dark) .navbar {
+  background: rgba(255, 240, 246, 0.95);
+}
+html.theme-color-green:not(.dark) .navbar {
+  background: rgba(240, 249, 235, 0.95);
+}
+html.theme-color-purple:not(.dark) .navbar {
+  background: rgba(243, 232, 255, 0.95);
+}
+html.theme-color-orange:not(.dark) .navbar {
+  background: rgba(255, 243, 230, 0.95);
 }
 
 .nav-links {
