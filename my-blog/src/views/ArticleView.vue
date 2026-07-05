@@ -397,15 +397,9 @@ const handleStorage = (e) => {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   document.addEventListener('click', handleOutsideClick)
   window.addEventListener('storage', handleStorage)
-
-  // 已登录但 isAdminFromBackend 未知时，主动拉一次 /user/me，
-  // 确保评论区的管理员工具（置顶/删除）能正确显示
-  if (userStore.isLoggedIn && userStore.isAdminFromBackend === null) {
-    await userStore.refreshProfile()
-  }
 
   fetchArticle(route.params.slug)
   loadComments(route.params.slug)
