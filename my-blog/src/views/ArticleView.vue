@@ -613,14 +613,13 @@ const navigateTo = (slug) => {
                 <a href="#" @click.prevent="scrollToAnchor(item.id)">{{ item.text }}</a>
               </li>
             </ul>
-            <!-- 跳转到评论区：向下箭头，hover 显示提示 -->
-            <div class="toc-comment-btn-wrapper">
-              <el-tooltip content="前往评论区" placement="bottom">
-                <el-icon class="toc-comment-arrow" @click="scrollToComments">
-                  <ArrowDownBold />
-                </el-icon>
-              </el-tooltip>
-            </div>
+          </div>
+          <!-- 跳转到评论区箭头：放在目录矩形外面，吸顶时跟随目录一起固定；
+               用原生 title 属性提示（浏览器实现，滚动时气泡跟随元素） -->
+          <div v-if="tocList.length > 0" class="toc-comment-btn-wrapper">
+            <el-icon class="toc-comment-arrow" title="前往评论区" @click="scrollToComments">
+              <ArrowDownBold />
+            </el-icon>
           </div>
         </el-col>
 
@@ -1289,16 +1288,11 @@ html.dark .toc-list a:hover {
   color: #66b1ff;
 }
 
-/* 跳转评论区箭头 */
+/* 跳转评论区箭头（独立于 .toc-box，放在其下方） */
 .toc-comment-btn-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 15px;
-  padding-top: 12px;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
-}
-html.dark .toc-comment-btn-wrapper {
-  border-top-color: rgba(255, 255, 255, 0.1);
+  margin-top: 12px;
 }
 .toc-comment-arrow {
   font-size: 1.4rem;
