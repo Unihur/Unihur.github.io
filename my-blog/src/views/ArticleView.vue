@@ -614,8 +614,10 @@ const navigateTo = (slug) => {
               </li>
             </ul>
             <!-- 跳转到评论区箭头：在目录矩形内部底部，随 .toc-box 一起 sticky 吸顶 -->
+            <!-- :teleported="false" 让 tooltip 留在 sticky 容器内，不挂到 body，
+                 避免滚动时气泡框不跟随触发器的问题 -->
             <div class="toc-comment-btn-wrapper">
-              <el-tooltip content="前往评论区" placement="bottom">
+              <el-tooltip content="前往评论区" placement="bottom" :teleported="false">
                 <el-icon class="toc-comment-arrow" @click="scrollToComments">
                   <ArrowDownBold />
                 </el-icon>
@@ -1296,6 +1298,8 @@ html.dark .toc-list a:hover {
   margin-top: 15px;
   padding-top: 12px;
   border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  position: relative; /* 确保作为 tooltip 的定位上下文 */
+  z-index: 1; /* 高于液态玻璃的 ::before/::after 反光层 */
 }
 html.dark .toc-comment-btn-wrapper {
   border-top-color: rgba(255, 255, 255, 0.1);
