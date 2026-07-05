@@ -46,6 +46,24 @@ os.makedirs("uploads/images", exist_ok=True)
 
 # 1. 自动创建数据库表 (如果在硬盘里没找到 blog.db，会自动建一个)
 models.Base.metadata.create_all(bind=engine)
+
+# 1.5 轻量级迁移：为旧数据库补充新增列（SQLite 不支持 IF NOT EXISTS for ADD COLUMN，
+#     所以先查现有列，缺了再补）
+def _auto_migrate():
+    import sqlite3
+    conn = sqlite3.connect("blog.db")
+    cursor = conn.cursor()
+    # 查出 users 表现有的列名
+    cursor.execute("PRAGMA table_info(users)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    for col_name, col_type in [("title", "VARCHAR(100)"), ("title_color", "VARCHAR(20)")]:
+        if col_name not in existing_cols:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+    conn.commit()
+    conn.close()
+
+_auto_migrate()
+
 app = FastAPI(title="UniHur Blog API")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
@@ -534,11 +552,15 @@ def get_comments(article_slug: str, token: Optional[str] = Header(None), db: Ses
     for c in comments:
         author_name = c.author
         avatar = ""
+        author_title = ""
+        author_title_color = ""
         if c.author_id:
             user = db.query(models.User).filter(models.User.id == c.author_id).first()
             if user:
                 author_name = user.username
                 avatar = user.avatar
+                author_title = getattr(user, 'title', None) or ""
+                author_title_color = getattr(user, 'title_color', None) or ""
                 
         res.append({
             "id": c.id, 
@@ -548,6 +570,8 @@ def get_comments(article_slug: str, token: Optional[str] = Header(None), db: Ses
             "is_pinned": getattr(c, 'is_pinned', False), # 防止旧库没有这列报错
             "author": author_name, 
             "avatar": avatar,
+            "author_title": author_title,
+            "author_title_color": author_title_color,
             "content": c.content, 
             "time": c.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             # 返回当前用户对该条评论的状态
@@ -732,9 +756,38 @@ def get_visitors(token: str = Header(...), db: Session = Depends(get_db)):
     if payload["username"] != "unihur":
         raise HTTPException(status_code=403, detail="无权限")
         
-    users = db.query(models.User).filter(models.User.username != "unihur").all()
-    # 返回列表中带上 is_approved 状态
-    return [{"id": u.id, "username": u.username, "avatar": u.avatar, "is_approved": u.is_approved} for u in users]
+    users = db.query(models.User).all()  # 包含管理员自己，方便管理员也能看到/设置自己的称号
+    result = []
+    for u in users:
+        result.append({
+            "id": u.id,
+            "username": u.username,
+            "avatar": u.avatar,
+            "is_approved": u.is_approved,
+            "title": getattr(u, 'title', None) or "",
+            "title_color": getattr(u, 'title_color', None) or ""
+        })
+    return result
+
+# ============ 新增：设置用户自定义称号 ============
+class TitleUpdate(BaseModel):
+    title: Optional[str] = None        # 传空字符串或 null 表示清除称号
+    title_color: Optional[str] = None  # 如 "#f56c6c"
+
+@app.put("/api/admin/visitors/{user_id}/title")
+def set_visitor_title(user_id: int, data: TitleUpdate, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload["username"] != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    user.title = (data.title or "").strip() or None
+    user.title_color = (data.title_color or "").strip() or None
+    db.commit()
+    return {"status": "success", "title": user.title or "", "title_color": user.title_color or ""}
 
 @app.put("/api/admin/visitors/{user_id}/approve")
 def approve_visitor(user_id: int, token: str = Header(...), db: Session = Depends(get_db)):

@@ -68,6 +68,10 @@ class User(Base):
     is_dark = Column(Boolean, default=False)
     is_approved = Column(Boolean, default=False) 
 
+    # 自定义称号 + 称号颜色（管理员在访客管理页设置）
+    title = Column(String(100), nullable=True)        # 为空表示无称号
+    title_color = Column(String(20), nullable=True)    # 如 "#f56c6c"
+
 class CommentLike(Base):
     __tablename__ = "comment_likes"
     id = Column(Integer, primary_key=True, index=True)

@@ -211,6 +211,15 @@ const scrollToAnchor = (id) => {
   }
 }
 
+// 跳转到评论区
+const scrollToComments = () => {
+  const target = document.querySelector('.comments-section')
+  if (target) {
+    const top = target.offsetTop - 80
+    window.scrollTo({ top, behavior: 'smooth' })
+  }
+}
+
 // ===== 分享（兼容 HTTP / HTTPS）=====
 const handleShare = async () => {
   const url = window.location.href
@@ -603,6 +612,12 @@ const navigateTo = (slug) => {
                 <a href="#" @click.prevent="scrollToAnchor(item.id)">{{ item.text }}</a>
               </li>
             </ul>
+            <!-- 跳转到评论区按钮 -->
+            <div class="toc-comment-btn-wrapper">
+              <el-button round size="small" class="toc-comment-btn" @click="scrollToComments">
+                💬 前往评论区
+              </el-button>
+            </div>
           </div>
         </el-col>
 
@@ -773,7 +788,18 @@ const navigateTo = (slug) => {
                         :class="{ 'admin-name': comment.author === ADMIN_USERNAME }"
                         >{{ comment.author }}</span
                       >
-                      <span v-if="comment.author === ADMIN_USERNAME" class="admin-badge"
+                      <!-- 自定义称号：优先显示后端返回的 author_title；
+                           没有称号但作者是管理员时，回退显示默认"管理员" -->
+                      <span
+                        v-if="comment.author_title"
+                        class="user-title-badge"
+                        :style="{
+                          color: comment.author_title_color || '#f56c6c',
+                          borderColor: comment.author_title_color || '#f56c6c'
+                        }"
+                        >{{ comment.author_title }}</span
+                      >
+                      <span v-else-if="comment.author === ADMIN_USERNAME" class="admin-badge"
                         >管理员</span
                       >
                     </div>
@@ -921,7 +947,16 @@ const navigateTo = (slug) => {
                                 :class="{ 'admin-name': child.author === ADMIN_USERNAME }"
                                 >{{ child.author }}</span
                               >
-                              <span v-if="child.author === ADMIN_USERNAME" class="admin-badge"
+                              <span
+                                v-if="child.author_title"
+                                class="user-title-badge"
+                                :style="{
+                                  color: child.author_title_color || '#f56c6c',
+                                  borderColor: child.author_title_color || '#f56c6c'
+                                }"
+                                >{{ child.author_title }}</span
+                              >
+                              <span v-else-if="child.author === ADMIN_USERNAME" class="admin-badge"
                                 >管理员</span
                               >
                             </div>
@@ -1251,6 +1286,30 @@ html.dark .toc-list a:hover {
   color: #66b1ff;
 }
 
+/* 跳转评论区按钮 */
+.toc-comment-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+html.dark .toc-comment-btn-wrapper {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+.toc-comment-btn {
+  background: linear-gradient(135deg, #ff79c6, #ff9a9e);
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+.toc-comment-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 121, 198, 0.4);
+  color: #fff;
+}
+
 .article-main-card {
   padding: 0 !important;
   margin-top: 0 !important;
@@ -1496,6 +1555,16 @@ html.dark .markdown-body :deep(pre) {
   padding: 0 4px;
   border-radius: 4px;
   font-size: 11px;
+  transform: scale(0.9);
+  transform-origin: left;
+}
+/* 自定义用户称号徽章（颜色由内联 style 控制） */
+.user-title-badge {
+  padding: 0 4px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
   transform: scale(0.9);
   transform-origin: left;
 }

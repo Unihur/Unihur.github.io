@@ -15,3 +15,11 @@ export function approveVisitor(id) {
 export function deleteVisitor(id) {
   return request.delete(`/admin/visitors/${id}`)
 }
+
+/** 设置用户自定义称号 + 颜色 */
+export function setVisitorTitle(id, title, titleColor) {
+  return request.put(`/admin/visitors/${id}/title`, {
+    title: title || '',
+    title_color: titleColor || ''
+  })
+}
