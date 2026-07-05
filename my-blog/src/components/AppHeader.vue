@@ -374,10 +374,42 @@ const handleVisitorClick = () => {
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="banner">横幅图模式</el-dropdown-item>
-              <el-dropdown-item command="fullscreen">填充屏幕</el-dropdown-item>
-              <el-dropdown-item command="background">背景图片模式</el-dropdown-item>
-              <el-dropdown-item command="hidden">隐藏</el-dropdown-item>
+              <el-dropdown-item
+                command="banner"
+                style="display: flex; justify-content: space-between; align-items: center"
+              >
+                <span>横幅图模式</span>
+                <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
+                  ><Check
+                /></el-icon>
+              </el-dropdown-item>
+              <el-dropdown-item
+                command="fullscreen"
+                style="display: flex; justify-content: space-between; align-items: center"
+              >
+                <span>填充屏幕</span>
+                <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
+                  ><Check
+                /></el-icon>
+              </el-dropdown-item>
+              <el-dropdown-item
+                command="background"
+                style="display: flex; justify-content: space-between; align-items: center"
+              >
+                <span>背景图片模式</span>
+                <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
+                  ><Check
+                /></el-icon>
+              </el-dropdown-item>
+              <el-dropdown-item
+                command="hidden"
+                style="display: flex; justify-content: space-between; align-items: center"
+              >
+                <span>隐藏</span>
+                <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
+                  ><Check
+                /></el-icon>
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

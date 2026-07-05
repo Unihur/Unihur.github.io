@@ -1214,6 +1214,12 @@ html.dark .wave4 {
   position: sticky;
   top: 80px;
 }
+/* 修复：液态玻璃/清透水晶模式下 .glass-box 被加了 position: relative，
+   选择器特异性高于 .toc-box，会覆盖 sticky。这里用同等特异性夺回 sticky */
+html.liquid-glass .toc-box,
+html.liquid-glass-clear .toc-box {
+  position: sticky;
+}
 .toc-box h3 {
   margin-top: 0;
   border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
