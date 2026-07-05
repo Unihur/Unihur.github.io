@@ -169,6 +169,8 @@ const handleVisitorClick = () => {
 </script>
 
 <template>
+  <!-- 遮挡条：覆盖导航栏上方 15px 空隙，滚动时内容穿过这里会被挡住 -->
+  <div class="nav-top-mask"></div>
   <div class="nav-container">
     <nav class="glass-box navbar">
       <div class="nav-links">
@@ -558,6 +560,21 @@ const handleVisitorClick = () => {
 </template>
 
 <style scoped>
+/* 遮挡条：与 body 背景同色，覆盖导航栏上方的 15px 空隙，
+   让滚动内容经过该区域时直接消失，不再从导航栏上方"钻出来" */
+.nav-top-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 15px;
+  background-color: #f4f4f5; /* 与 body 日间背景一致 */
+  z-index: 998; /* 低于导航栏(999)，但高于页面内容 */
+}
+html.dark .nav-top-mask {
+  background-color: #1a1525; /* 与 body 夜间背景一致 */
+}
+
 .nav-container {
   position: fixed;
   top: 15px;
