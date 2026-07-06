@@ -34,11 +34,11 @@ export const useUserStore = defineStore('user', () => {
 
   // ===== getters =====
   const isLoggedIn = computed(() => !!token.value)
-  // isAdmin 优先使用后端判定；后端未给定时回退到环境变量配置的管理员用户名
+  // 管理员判定：账号名为 unihur（唯一管理员）。
+  // 不依赖后端 is_admin 字段，避免后端未返回时回退逻辑出问题。
   const isAdmin = computed(() => {
     if (!isLoggedIn.value) return false
-    if (typeof isAdminFromBackend.value === 'boolean') return isAdminFromBackend
-    return ADMIN_USERNAME ? username.value === ADMIN_USERNAME : false
+    return username.value === ADMIN_USERNAME
   })
 
   // ===== actions =====
