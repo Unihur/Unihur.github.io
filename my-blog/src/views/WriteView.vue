@@ -363,11 +363,12 @@ const handlePublish = async () => {
             />
           </div>
 
-          <div class="setting-item toggle-row">
+          <!-- 隐藏/置顶仅管理员可见，非管理员无权操作 -->
+          <div v-if="userStore.isAdmin" class="setting-item toggle-row">
             <span>隐藏 (设为草稿)</span>
             <el-switch v-model="article.isHidden" />
           </div>
-          <div class="setting-item toggle-row">
+          <div v-if="userStore.isAdmin" class="setting-item toggle-row">
             <span>置顶文章</span>
             <el-switch v-model="article.isPinned" />
           </div>
