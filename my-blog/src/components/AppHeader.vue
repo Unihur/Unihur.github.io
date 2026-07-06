@@ -228,14 +228,7 @@ const handleVisitorClick = () => {
             </el-tooltip>
           </div>
           <template #dropdown>
-            <el-dropdown-menu
-              style="
-                width: 260px;
-                padding: 15px;
-                border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-              "
-            >
+            <el-dropdown-menu class="avatar-menu">
               <!-- 顶部头像 + 昵称 -->
               <div
                 style="
@@ -687,6 +680,46 @@ html.dark .divider {
 
 <!-- 全局样式：头像下拉的二级子菜单（el-dropdown 弹层 teleport 到 body，scoped 不生效） -->
 <style>
+/* ===== 关键：让 popper 和 dropdown-menu 不裁剪溢出的子面板 ===== */
+.avatar-dropdown-popper {
+  overflow: visible !important;
+}
+.avatar-dropdown-popper .el-popper-content {
+  overflow: visible !important;
+}
+.avatar-dropdown-popper .avatar-menu {
+  overflow: visible !important;
+  width: 260px;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  /* 默认日间白底 */
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+/* 夜间模式 */
+html.dark .avatar-dropdown-popper .avatar-menu {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+/* 6 种主题色跟随 */
+html.theme-color-blue:not(.dark) .avatar-dropdown-popper .avatar-menu {
+  background: rgba(230, 247, 255, 0.95) !important;
+}
+html.theme-color-pink:not(.dark) .avatar-dropdown-popper .avatar-menu {
+  background: rgba(255, 240, 246, 0.95) !important;
+}
+html.theme-color-green:not(.dark) .avatar-dropdown-popper .avatar-menu {
+  background: rgba(240, 249, 235, 0.95) !important;
+}
+html.theme-color-purple:not(.dark) .avatar-dropdown-popper .avatar-menu {
+  background: rgba(243, 232, 255, 0.95) !important;
+}
+html.theme-color-orange:not(.dark) .avatar-dropdown-popper .avatar-menu {
+  background: rgba(255, 243, 230, 0.95) !important;
+}
+
+/* ===== 二级子菜单结构 ===== */
 .avatar-dropdown-popper .submenu-list {
   display: flex;
   flex-direction: column;
@@ -755,6 +788,22 @@ html.dark .avatar-dropdown-popper .submenu-label {
 html.dark .avatar-dropdown-popper .submenu-panel {
   background: rgba(30, 30, 30, 0.98);
   border-color: rgba(255, 255, 255, 0.08);
+}
+/* 子面板也跟随主题色 */
+html.theme-color-blue:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(230, 247, 255, 0.98);
+}
+html.theme-color-pink:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(255, 240, 246, 0.98);
+}
+html.theme-color-green:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(240, 249, 235, 0.98);
+}
+html.theme-color-purple:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(243, 232, 255, 0.98);
+}
+html.theme-color-orange:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(255, 243, 230, 0.98);
 }
 
 /* 子面板标题（材质/颜色） */
