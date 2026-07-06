@@ -1,6 +1,6 @@
 <script setup>
-// 写作 / 编辑文章页（仅管理员）
-// - 新建：调用 POST /articles
+// 写作 / 编辑文章页（管理员或被授权用户）
+// - 新建：调用 POST /articles（管理员直接发布，普通用户待审核）
 // - 编辑：根据 query.slug 读取后端数据回填，调用 PUT /articles/:slug
 // - 删除：DELETE /articles/:slug
 // - 支持 .md 文件导入、Markdown 预览、封面上传 / 从历史图库选择
@@ -10,6 +10,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 
 import { md } from '@/utils/markdown'
+import { useUserStore } from '@/stores/user'
 
 import { getArticle, createArticle, updateArticle, deleteArticle } from '@/api/article'
 import { listCategories } from '@/api/category'
@@ -17,6 +18,7 @@ import { uploadImage, listImages, deleteImage } from '@/api/upload'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const isEditMode = ref(false)
 const originalSlug = ref('')
 
@@ -26,6 +28,7 @@ const article = reactive({
   slug: '',
   content: '',
   intro: '',
+  author_name: '', // 作者显示名，默认填充当前登录用户名
   tags: [],
   category: '',
   publishTime: new Date(),
@@ -54,9 +57,13 @@ onMounted(async () => {
       article.cover = data.cover || ''
       article.isHidden = data.isHidden || false
       article.isPinned = data.isPinned || false
+      article.author_name = data.author_name || userStore.username || ''
     } catch (error) {
       ElMessage.error('读取旧文章数据失败！')
     }
+  } else {
+    // 新建模式：默认填入当前登录用户名作为作者
+    article.author_name = userStore.username || ''
   }
 })
 
@@ -193,11 +200,18 @@ const handlePublish = async () => {
       pubRes = await createArticle(article)
     }
     if (pubRes.data.status === 'success') {
-      ElMessage.success(isEditMode.value ? '🎉 文章更新成功！' : '🎉 文章发布成功！')
+      // 管理员直接发布；普通用户待审核，给不同提示
+      const isPublished = pubRes.data.is_published
+      if (isEditMode.value) {
+        ElMessage.success(isPublished ? '🎉 文章更新成功！' : '✅ 文章已更新，等待管理员审核！')
+      } else {
+        ElMessage.success(isPublished ? '🎉 文章发布成功！' : '✅ 文章已提交，等待管理员审核！')
+      }
       if (isEditMode.value) originalSlug.value = article.slug
       setTimeout(() => {
-        router.push(isEditMode.value ? `/post/${article.slug}` : '/')
-      }, 1000)
+        // 待审核的文章不能直接跳详情页（详情页只显示已发布的），跳回首页
+        router.push(isPublished && isEditMode.value ? `/post/${article.slug}` : '/')
+      }, 1200)
     }
   } catch (error) {
     console.error('保存失败:', error)
@@ -285,6 +299,11 @@ const handlePublish = async () => {
         </div>
 
         <div class="glass-box panel-section settings-section">
+          <div class="setting-item">
+            <div class="label">作者</div>
+            <el-input v-model="article.author_name" placeholder="输入作者名字" clearable />
+          </div>
+
           <div class="setting-item">
             <div class="label">简介</div>
             <el-input

@@ -648,6 +648,9 @@ const navigateTo = (slug) => {
                   <el-icon><View /></el-icon>
                   <span>浏览: {{ article.views || 0 }}</span>
                 </div>
+                <div class="meta-item author">
+                  <span>✍️ 作者: {{ article.author_name || '账号已注销' }}</span>
+                </div>
               </div>
 
               <div

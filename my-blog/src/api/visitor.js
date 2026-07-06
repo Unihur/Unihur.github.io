@@ -23,3 +23,8 @@ export function setVisitorTitle(id, title, titleColor) {
     title_color: titleColor || ''
   })
 }
+
+/** 设置用户写作权限 */
+export function setVisitorCanWrite(id, canWrite) {
+  return request.put(`/admin/visitors/${id}/can-write`, { can_write: canWrite })
+}

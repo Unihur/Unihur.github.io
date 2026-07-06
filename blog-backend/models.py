@@ -29,6 +29,11 @@ class Article(Base):
     shares = Column(Integer, default=0)
     views = Column(Integer, default=0)
 
+    # 作者信息 + 审核状态
+    author_id = Column(Integer, nullable=True)       # 发布者用户 id（管理员或被授权用户）
+    author_name = Column(String(100), nullable=True) # 作者显示名（手动填写，账号删除后仍保留）
+    is_published = Column(Boolean, default=False)    # 是否已审核发布（管理员发布直接 True，普通用户待审核）
+
 class SiteSetting(Base):
     __tablename__ = "site_settings"
     id = Column(Integer, primary_key=True, index=True)
@@ -71,6 +76,9 @@ class User(Base):
     # 自定义称号 + 称号颜色（管理员在访客管理页设置）
     title = Column(String(100), nullable=True)        # 为空表示无称号
     title_color = Column(String(20), nullable=True)    # 如 "#f56c6c"
+
+    # 写作权限：管理员默认 True，普通用户默认 False（管理员在访客管理页授权）
+    can_write = Column(Boolean, default=False)
 
 class CommentLike(Base):
     __tablename__ = "comment_likes"

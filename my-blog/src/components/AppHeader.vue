@@ -154,9 +154,9 @@ const handleConfigUpdate = (newConfig) => {
 
 // ============ 路由跳转 ============
 const handleWriteClick = () => {
-  // 写作按钮：只有管理员可以点击，非管理员仅提示不登出
-  if (!userStore.isAdmin) {
-    ElMessage.warning('暂无权限：仅管理员可以发布或编辑文章！')
+  // 写作按钮：管理员或有写作权限的用户可点击，否则仅提示不登出
+  if (!userStore.canWriteArticles) {
+    ElMessage.warning('暂无权限：仅管理员或被授权用户可以发布或编辑文章！')
     return
   }
   router.push('/write')

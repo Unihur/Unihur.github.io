@@ -35,3 +35,20 @@ export function likeArticle(slug) {
 export function shareArticle(slug) {
   return request.post(`/articles/${slug}/share`)
 }
+
+// ===== 文章审核（管理员）=====
+
+/** 获取待审核文章列表 */
+export function listPendingArticles() {
+  return request.get('/admin/pending-articles')
+}
+
+/** 审核通过：发布文章 */
+export function publishArticle(articleId) {
+  return request.put(`/admin/articles/${articleId}/publish`, {})
+}
+
+/** 审核拒绝：删除文章 */
+export function rejectArticle(articleId) {
+  return request.delete(`/admin/articles/${articleId}`)
+}

@@ -53,12 +53,24 @@ def _auto_migrate():
     import sqlite3
     conn = sqlite3.connect("blog.db")
     cursor = conn.cursor()
-    # 查出 users 表现有的列名
+
+    # users 表
     cursor.execute("PRAGMA table_info(users)")
     existing_cols = {row[1] for row in cursor.fetchall()}
-    for col_name, col_type in [("title", "VARCHAR(100)"), ("title_color", "VARCHAR(20)")]:
+    for col_name, col_type in [("title", "VARCHAR(100)"), ("title_color", "VARCHAR(20)"), ("can_write", "BOOLEAN")]:
         if col_name not in existing_cols:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            # SQLite 的 BOOLEAN 实际存为 INTEGER，default 0 即 False
+            default_val = "0" if col_type == "BOOLEAN" else "NULL"
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type} DEFAULT {default_val}")
+
+    # articles 表
+    cursor.execute("PRAGMA table_info(articles)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    for col_name, col_type in [("author_id", "INTEGER"), ("author_name", "VARCHAR(100)"), ("is_published", "BOOLEAN")]:
+        if col_name not in existing_cols:
+            default_val = "0" if col_type == "BOOLEAN" else "NULL"
+            cursor.execute(f"ALTER TABLE articles ADD COLUMN {col_name} {col_type} DEFAULT {default_val}")
+
     conn.commit()
     conn.close()
 
@@ -88,6 +100,7 @@ class ArticleCreate(BaseModel):
     isHidden: bool = False
     isPinned: bool = False
     cover: Optional[str] = None
+    author_name: Optional[str] = None  # 作者显示名（写作页填写）
 
 class ArticleResponse(ArticleCreate):
     id: int
@@ -139,11 +152,14 @@ def login(data: LoginData, db: Session = Depends(get_db)):
     token = jwt.encode({"username": user.username, "id": user.id}, SECRET_KEY, algorithm="HS256")
     # is_admin：管理员用户名等于 ADMIN_USER（默认 unihur）
     is_admin = (user.username == ADMIN_USER)
+    # can_write：管理员默认可写；普通用户看 can_write 字段
+    can_write = is_admin or bool(getattr(user, 'can_write', False))
     return {
         "token": token,
         "username": user.username,
         "avatar": user.avatar,
         "is_admin": is_admin,
+        "can_write": can_write,
         "config": {
             "theme_style": user.theme_style,
             "banner_mode": user.banner_mode,
@@ -222,6 +238,40 @@ def verify_admin(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="令牌已过期，请重新登录")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="无效的令牌")
+    return payload
+
+# =========== 新增：检查可写作用户（管理员或被授权用户） ===========
+def verify_writer(authorization: str = Header(None)):
+    """验证当前用户有写作权限（管理员或 can_write=True），返回 payload"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="未登录或令牌缺失")
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="令牌已过期，请重新登录")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="无效的令牌")
+
+    username = payload.get("username")
+    is_admin = (username == ADMIN_USER)
+    if not is_admin:
+        # 非管理员：检查 can_write 字段
+        user = None
+        if payload.get("id"):
+            user = models_db_session_query_user_by_id(payload["id"])
+        if not user or not bool(getattr(user, 'can_write', False)):
+            raise HTTPException(status_code=403, detail="无权限：你没有写作权限")
+    return payload
+
+# 辅助：按 id 查用户（避免在依赖函数里直接依赖 db）
+def models_db_session_query_user_by_id(user_id):
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        return db.query(models.User).filter(models.User.id == user_id).first()
+    finally:
+        db.close()
 
 # ===== 路由 API =====
 
@@ -305,13 +355,15 @@ def read_root():
 
 # 【新增】发布文章 (存入数据库)
 @app.post("/api/articles", response_model=dict)
-def create_article(article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
+def create_article(article: ArticleCreate, db: Session = Depends(get_db), payload: dict = Depends(verify_writer)):
     # 检查 slug 是否已存在，防止 URL 重复
     db_article = db.query(models.Article).filter(models.Article.slug == article.slug).first()
     if db_article:
         raise HTTPException(status_code=400, detail="Slug 已经被使用了，请换一个!")
 
-    # 把前端传来的 Pydantic 模型转换为 SQLAlchemy 的数据库对象
+    # 判断发布者身份：管理员直接发布，普通用户待审核
+    is_admin = (payload.get("username") == ADMIN_USER)
+
     new_article = models.Article(
         title=article.title,
         slug=article.slug,
@@ -320,36 +372,42 @@ def create_article(article: ArticleCreate, db: Session = Depends(get_db), _token
         tags=article.tags,
         category=article.category,
         cover=article.cover,
-        is_hidden=article.isHidden, # 注意 Python 用下划线命名
+        is_hidden=article.isHidden,
         is_pinned=article.isPinned,
-        publish_time=article.publishTime
+        publish_time=article.publishTime,
+        author_id=payload.get("id"),
+        author_name=article.author_name or payload.get("username") or "未知",
+        is_published=is_admin  # 管理员直接发布，普通用户待审核
     )
-    
-    # 存入数据库的三步曲：添加、提交、刷新
+
     db.add(new_article)
     db.commit()
     db.refresh(new_article)
-    
+
     return {
-        "status": "success", 
-        "message": "文章已永久保存至数据库!",
-        "article_id": new_article.id
+        "status": "success",
+        "message": "文章已提交！" if not is_admin else "文章已永久保存至数据库!",
+        "article_id": new_article.id,
+        "is_published": is_admin
     }
 
 # 【新增】更新已有文章
 @app.put("/api/articles/{slug}", response_model=dict)
-def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db), _token: str = Depends(verify_admin)):
+def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_db), payload: dict = Depends(verify_writer)):
     db_article = db.query(models.Article).filter(models.Article.slug == slug).first()
     if not db_article:
         raise HTTPException(status_code=404, detail="文章不存在，无法更新！")
 
-    # 如果改了 URL 别名，且新别名被别的文章占用了，要报错
+    # 权限：管理员可改任何文章；普通用户只能改自己的，且改完变回待审核
+    is_admin = (payload.get("username") == ADMIN_USER)
+    if not is_admin and db_article.author_id != payload.get("id"):
+        raise HTTPException(status_code=403, detail="无权限：只能编辑自己的文章")
+
     if article.slug != slug:
         conflict = db.query(models.Article).filter(models.Article.slug == article.slug).first()
         if conflict:
             raise HTTPException(status_code=400, detail="新 Slug 已经被使用了，请换一个!")
 
-    # 把传过来的新数据覆盖到数据库旧对象上
     db_article.title = article.title
     db_article.slug = article.slug
     db_article.content = article.content
@@ -358,21 +416,29 @@ def update_article(slug: str, article: ArticleCreate, db: Session = Depends(get_
     db_article.category = article.category
     db_article.cover = article.cover
     db_article.is_hidden = article.isHidden
-    db_article.is_pinned = article.isPinned
+    db_article.is_pinned = article.isPinned if is_admin else False  # 普通用户不能置顶
     db_article.publish_time = article.publishTime
+    db_article.author_name = article.author_name or payload.get("username") or "未知"
+    # 普通用户编辑后重新进入待审核
+    if not is_admin:
+        db_article.is_published = False
 
     db.commit()
     return {
-        "status": "success", 
-        "message": "文章已成功更新！"
+        "status": "success",
+        "message": "文章已成功更新！" if is_admin else "文章已更新，等待管理员审核！",
+        "is_published": bool(db_article.is_published)
     }
 
 # 【新增】获取文章列表 (供首页调用)
 @app.get("/api/articles", response_model=List[ArticleResponse])
 def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    # 👇 1. 修复排序逻辑：优先按照置顶(is_pinned)降序排列，然后再按时间倒序
-    articles = db.query(models.Article).filter(models.Article.is_hidden == False).order_by(models.Article.is_pinned.desc(), models.Article.publish_time.desc()).offset(skip).limit(limit).all()
-    
+    # 首页只显示已审核发布 且 未隐藏的文章
+    articles = db.query(models.Article).filter(
+        models.Article.is_hidden == False,
+        getattr(models.Article, 'is_published', True) == True
+    ).order_by(models.Article.is_pinned.desc(), models.Article.publish_time.desc()).offset(skip).limit(limit).all()
+
     result = []
     for a in articles:
         result.append({
@@ -390,7 +456,8 @@ def get_articles(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
             "created_at": a.created_at,
             "likes": a.likes,
             "shares": a.shares,
-            "views": a.views
+            "views": a.views,
+            "author_name": getattr(a, 'author_name', None) or "账号已注销"
         })
     return result
 
@@ -447,16 +514,18 @@ def get_article(slug: str, db: Session = Depends(get_db)):
         article.views += 1
     db.commit() # 保存浏览量
 
-    # 查找上一篇 (发布时间比当前文章早的第一篇)
+    # 查找上一篇 (发布时间比当前文章早的第一篇，且已发布)
     prev_article = db.query(models.Article).filter(
-        models.Article.publish_time < article.publish_time, 
-        models.Article.is_hidden == False
+        models.Article.publish_time < article.publish_time,
+        models.Article.is_hidden == False,
+        getattr(models.Article, 'is_published', True) == True
     ).order_by(models.Article.publish_time.desc()).first()
-    
-    # 查找下一篇 (发布时间比当前文章晚的第一篇)
+
+    # 查找下一篇 (发布时间比当前文章晚的第一篇，且已发布)
     next_article = db.query(models.Article).filter(
-        models.Article.publish_time > article.publish_time, 
-        models.Article.is_hidden == False
+        models.Article.publish_time > article.publish_time,
+        models.Article.is_hidden == False,
+        getattr(models.Article, 'is_published', True) == True
     ).order_by(models.Article.publish_time.asc()).first()
     
     return {
@@ -471,10 +540,11 @@ def get_article(slug: str, db: Session = Depends(get_db)):
             "tags": article.tags,
             "category": article.category,
             "publishTime": article.publish_time,
-            "cover": article.cover,  
-            "likes": article.likes,   
+            "cover": article.cover,
+            "likes": article.likes,
             "shares": article.shares,
-            "views": article.views  
+            "views": article.views,
+            "author_name": getattr(article, 'author_name', None) or "账号已注销"
         },
         "prev": {"title": prev_article.title, "slug": prev_article.slug} if prev_article else None,
         "next": {"title": next_article.title, "slug": next_article.slug} if next_article else None
@@ -688,6 +758,67 @@ def delete_article(slug: str, db: Session = Depends(get_db), _token: str = Depen
     
     return {"status": "success", "message": "文章已成功删除"}
 
+# =========== 文章审核 API（管理员）===========
+# 待审核文章列表
+@app.get("/api/admin/pending-articles")
+def get_pending_articles(token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload.get("username") != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+
+    articles = db.query(models.Article).filter(
+        getattr(models.Article, 'is_published', True) == False,
+        models.Article.is_hidden == False
+    ).order_by(models.Article.created_at.desc()).all()
+
+    result = []
+    for a in articles:
+        result.append({
+            "id": a.id,
+            "title": a.title,
+            "slug": a.slug,
+            "content": a.content,
+            "intro": a.intro,
+            "tags": a.tags,
+            "category": a.category,
+            "publishTime": a.publish_time,
+            "cover": a.cover,
+            "created_at": a.created_at,
+            "author_name": getattr(a, 'author_name', None) or "未知",
+            "author_id": getattr(a, 'author_id', None)
+        })
+    return result
+
+# 审核通过：发布文章
+@app.put("/api/admin/articles/{article_id}/publish")
+def publish_article(article_id: int, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload.get("username") != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    article.is_published = True
+    db.commit()
+    return {"status": "success", "message": "文章已审核通过并发布"}
+
+# 审核拒绝：删除文章
+@app.delete("/api/admin/articles/{article_id}")
+def reject_article(article_id: int, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload.get("username") != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="文章不存在")
+
+    db.delete(article)
+    db.commit()
+    return {"status": "success", "message": "文章已被拒绝并删除"}
+
 # =========== 分类管理 API ===========
 class CategoryCreate(BaseModel):
     name: str
@@ -765,7 +896,8 @@ def get_visitors(token: str = Header(...), db: Session = Depends(get_db)):
             "avatar": u.avatar,
             "is_approved": u.is_approved,
             "title": getattr(u, 'title', None) or "",
-            "title_color": getattr(u, 'title_color', None) or ""
+            "title_color": getattr(u, 'title_color', None) or "",
+            "can_write": bool(getattr(u, 'can_write', False))
         })
     return result
 
@@ -788,6 +920,28 @@ def set_visitor_title(user_id: int, data: TitleUpdate, token: str = Header(...),
     user.title_color = (data.title_color or "").strip() or None
     db.commit()
     return {"status": "success", "title": user.title or "", "title_color": user.title_color or ""}
+
+# ============ 新增：设置用户写作权限 ============
+class CanWriteUpdate(BaseModel):
+    can_write: bool
+
+@app.put("/api/admin/visitors/{user_id}/can-write")
+def set_visitor_can_write(user_id: int, data: CanWriteUpdate, token: str = Header(...), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    if payload["username"] != "unihur":
+        raise HTTPException(status_code=403, detail="无权限")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 管理员本身恒为可写，不允许通过此接口关闭
+    if user.username == ADMIN_USER:
+        raise HTTPException(status_code=400, detail="管理员写作权限不可修改")
+
+    user.can_write = data.can_write
+    db.commit()
+    return {"status": "success", "can_write": user.can_write}
 
 @app.put("/api/admin/visitors/{user_id}/approve")
 def approve_visitor(user_id: int, token: str = Header(...), db: Session = Depends(get_db)):
@@ -862,12 +1016,14 @@ def check_user_status(token: str = Header(...), db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="账号已被注销")
 
-    # 返回前端需要的信息：is_admin / username / avatar / config
+    # 返回前端需要的信息：is_admin / can_write / username / avatar / config
+    is_admin = (user.username == ADMIN_USER)
     return {
         "status": "ok",
         "username": user.username,
         "avatar": user.avatar,
-        "is_admin": (user.username == ADMIN_USER),
+        "is_admin": is_admin,
+        "can_write": is_admin or bool(getattr(user, 'can_write', False)),
         "config": {
             "theme_style": user.theme_style,
             "banner_mode": user.banner_mode,

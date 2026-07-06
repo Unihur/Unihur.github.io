@@ -31,6 +31,8 @@ export const useUserStore = defineStore('user', () => {
   const avatar = ref(localStorage.getItem(LS.avatar) || '')
   // is_admin 字段由后端 /user/me 返回；未提供则为 null
   const isAdminFromBackend = ref(null)
+  // can_write：管理员默认可写；普通用户由后端授权
+  const canWrite = ref(false)
 
   // ===== getters =====
   const isLoggedIn = computed(() => !!token.value)
@@ -40,6 +42,8 @@ export const useUserStore = defineStore('user', () => {
     if (!isLoggedIn.value) return false
     return username.value === ADMIN_USERNAME
   })
+  // 写作权限：管理员恒为 true，普通用户看 canWrite
+  const canWriteArticles = computed(() => isLoggedIn.value && (isAdmin.value || canWrite.value))
 
   // ===== actions =====
   /** 应用登录返回结果到状态 + localStorage */
@@ -49,6 +53,7 @@ export const useUserStore = defineStore('user', () => {
     username.value = data.username || ''
     avatar.value = data.avatar || ''
     isAdminFromBackend.value = typeof data.is_admin === 'boolean' ? data.is_admin : null
+    canWrite.value = !!data.can_write
 
     if (token.value) localStorage.setItem(LS.token, token.value)
     if (username.value) localStorage.setItem(LS.username, username.value)
@@ -81,6 +86,7 @@ export const useUserStore = defineStore('user', () => {
     username.value = ''
     avatar.value = ''
     isAdminFromBackend.value = null
+    canWrite.value = false
     localStorage.removeItem(LS.token)
     localStorage.removeItem(LS.username)
     localStorage.removeItem(LS.avatar)
@@ -93,6 +99,7 @@ export const useUserStore = defineStore('user', () => {
       const res = await getMe()
       const data = res.data || {}
       if (typeof data.is_admin === 'boolean') isAdminFromBackend.value = data.is_admin
+      if (typeof data.can_write === 'boolean') canWrite.value = data.can_write
       // 后端现在返回 username / avatar，同步到本地（纠正 localStorage 中可能过期的值）
       if (data.username) {
         username.value = data.username
@@ -143,9 +150,11 @@ export const useUserStore = defineStore('user', () => {
     username,
     avatar,
     isAdminFromBackend,
+    canWrite,
     // getters
     isLoggedIn,
     isAdmin,
+    canWriteArticles,
     // actions
     login,
     applyLoginResponse,

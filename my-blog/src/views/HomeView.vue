@@ -373,7 +373,8 @@ onMounted(() => {
               <div class="post-meta">
                 <div style="margin-bottom: 5px">
                   <span>📅 {{ formatDate(item.publishTime) }}</span> |
-                  <span>📝 字数: {{ item.content?.length || 0 }}</span>
+                  <span>📝 字数: {{ item.content?.length || 0 }}</span> |
+                  <span>✍️ 作者: {{ item.author_name || '账号已注销' }}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px">
                   <span style="display: flex; align-items: center; gap: 3px">

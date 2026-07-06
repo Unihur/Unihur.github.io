@@ -9,7 +9,7 @@ const VisitorsView = () => import('@/views/VisitorsView.vue')
 
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
-  { path: '/write', name: 'Write', component: WriteView, meta: { requiresAdmin: true } },
+  { path: '/write', name: 'Write', component: WriteView, meta: { requiresWriter: true } },
   { path: '/post/:slug', name: 'Article', component: ArticleView },
   { path: '/visitors', name: 'Visitors', component: VisitorsView, meta: { requiresAdmin: true } }
 ]
@@ -25,27 +25,33 @@ const router = createRouter({
 // 全局守卫：进入 admin 路由前确保已登录，且 isAdmin
 // 注意：isAdmin 由后端 /user/me 同步注入；首次进入时如果没有缓存，会先重定向登录
 router.beforeEach(async (to) => {
-  if (!to.meta.requiresAdmin) return true
+  if (!to.meta.requiresAdmin && !to.meta.requiresWriter) return true
 
   const userStore = useUserStore()
 
   // 未登录直接拒绝
   if (!userStore.isLoggedIn) {
-    ElMessageSafe('请先登录管理员账号')
+    ElMessageSafe('请先登录账号')
     return { path: '/' }
   }
 
-  // 如果 isAdmin 还没拿到（首次刷新），尝试拉一次 /user/me
-  let isAdmin = userStore.isAdmin
-  if (!isAdmin) {
+  // 首次刷新时拉取一次个人信息，确保 canWrite / isAdmin 已同步
+  if (userStore.isAdminFromBackend === null && !userStore.canWrite) {
     await userStore.refreshProfile()
-    isAdmin = userStore.isAdmin
   }
 
-  if (!isAdmin) {
+  // 管理员路由：必须 isAdmin
+  if (to.meta.requiresAdmin && !userStore.isAdmin) {
     ElMessageSafe('权限不足：仅管理员可访问该页面')
     return { path: '/' }
   }
+
+  // 写作路由：管理员或有写作权限
+  if (to.meta.requiresWriter && !userStore.canWriteArticles) {
+    ElMessageSafe('权限不足：你没有写作权限')
+    return { path: '/' }
+  }
+
   return true
 })
 
