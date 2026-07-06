@@ -65,10 +65,10 @@ my-blog/
 │   │   ├── markdown.js   #   共享 md 实例 + extractToc
 │   │   └── format.js     #   formatDate / formatDuration
 │   ├── views/            # 页面视图（路由懒加载）
-│   │   ├── HomeView.vue
-│   │   ├── ArticleView.vue
-│   │   ├── WriteView.vue
-│   │   └── VisitorsView.vue
+│   │   ├── HomeView.vue      # 首页：Banner+文章列表+分类/标签筛选
+│   │   ├── ArticleView.vue   # 文章页：Markdown渲染+TOC目录(含跳转评论区)+评论
+│   │   ├── WriteView.vue     # 写作页（管理员）：Markdown编辑+封面+图库
+│   │   └── VisitorsView.vue  # 访客管理（管理员）：审核+称号编辑
 │   ├── components/       # 展示组件
 │   │   ├── AppHeader.vue     # 顶部导航栏 + 登录弹窗 + 设置抽屉
 │   │   ├── ProfileCard.vue   # 个人资料卡片
@@ -155,10 +155,41 @@ const siteStore = useSiteStore()
 |------|------|---------|
 | `VITE_API_BASE_URL` | 后端 API 基础路径 | `/api`（走 vite 代理） |
 | `VITE_API_TARGET` | 开发代理转发的真实后端 | `https://unihur.xyz` |
-| `VITE_ADMIN_USERNAME` | 前端回退用的管理员用户名 | `unihur` |
+| `VITE_ADMIN_USERNAME` | 唯一管理员用户名（权限判定依据） | `unihur` |
 | `VITE_SITE_NAME` | 站点默认名称 | `UniHur` |
 
 > 开发代理**不做 rewrite**：前端请求 `/api/articles`，代理转发到 `https://unihur.xyz/api/articles`（后端路由都带 `/api` 前缀）。
+
+## 管理员权限约定（重要）
+
+本项目**只有一个管理员账号**，账号名为 `unihur`（由 `VITE_ADMIN_USERNAME` 环境变量配置）。
+
+### 判定规则
+
+```js
+// stores/user.js
+const isAdmin = computed(() => {
+  if (!isLoggedIn.value) return false
+  return username.value === ADMIN_USERNAME  // 直接比较用户名
+})
+```
+
+- **不依赖后端 `is_admin` 字段**，避免后端未返回时出现判定异常
+- 非管理员（用户名 ≠ `unihur`）的 `isAdmin` 永远为 `false`
+
+### 权限控制清单
+
+| 功能 | 控制方式 | 非管理员行为 |
+|------|----------|-------------|
+| 导航栏「写作」按钮 | `handleWriteClick` 检查 `isAdmin` | 弹"暂无权限"提示，不跳转，**不登出** |
+| 导航栏「设置」按钮 | `openSetting` 检查 `isAdmin` | 弹"暂无权限"提示，不开抽屉，**不登出** |
+| 导航栏「访客管理」 | `v-if="userStore.isAdmin"` | **不显示** |
+| 评论区置顶/删除 | `v-if="userStore.isAdmin"` | **不显示** |
+| 评论区编辑文章按钮 | `v-if="userStore.isAdmin"` | **不显示** |
+| 路由 `/write`、`/visitors` | `meta.requiresAdmin` + 路由守卫 | 重定向到首页 |
+| 访客管理页管理员行操作列 | `v-if="scope.row.username !== ADMIN_USERNAME"` | 显示"—"，无编辑称号/删除按钮 |
+
+> **注意**：写作/设置按钮的权限检查在前端完成，**不发请求到后端**，避免触发 401 拦截器导致非管理员被意外登出。
 
 ## 代码风格约定
 
@@ -185,7 +216,7 @@ const siteStore = useSiteStore()
 | `article.deleteArticle` | `DELETE /api/articles/:slug` | 管理员 |
 | `article.likeArticle` | `POST /api/articles/:slug/like` | - |
 | `article.shareArticle` | `POST /api/articles/:slug/share` | - |
-| `comment.listComments` | `GET /api/comments/:slug` | 带 token 返回 userAction |
+| `comment.listComments` | `GET /api/comments/:slug` | 带 token 返回 userAction、author_title、author_title_color |
 | `comment.createComment` | `POST /api/comments` | - |
 | `comment.deleteComment` | `DELETE /api/comments/:id` | 管理员或作者 |
 | `comment.pinComment` | `POST /api/comments/:id/pin` | 管理员 |
@@ -193,7 +224,12 @@ const siteStore = useSiteStore()
 | `category.*` | `GET/POST/PUT/DELETE /api/categories` | 管理员可写 |
 | `settings.getPublicSettings` | `GET /api/settings` | 无需登录 |
 | `settings.savePublicSettings` | `POST /api/settings` | - |
-| `visitor.*` | `/api/admin/visitors/*` | 管理员 |
+| `settings.getSiteVisitorCount` | `GET /api/site/visitor-count` | 无需登录 |
+| `settings.incrementSiteVisitorCount` | `POST /api/site/visitor-count/increment` | 无需登录 |
+| `visitor.listVisitors` | `GET /api/admin/visitors` | 管理员；返回 title/title_color（含管理员自己） |
+| `visitor.approveVisitor` | `PUT /api/admin/visitors/:id/approve` | 管理员 |
+| `visitor.deleteVisitor` | `DELETE /api/admin/visitors/:id` | 管理员（前端禁删管理员行） |
+| `visitor.setVisitorTitle` | `PUT /api/admin/visitors/:id/title` | 管理员；设置自定义称号+颜色 |
 | `upload.*` | `/api/upload/image`、`/api/images` | 管理员 |
 
 ## 已知技术债（未来优化方向）
@@ -205,6 +241,26 @@ const siteStore = useSiteStore()
 | 文章列表无真分页 | 当前 `limit: 1000` 一次性加载 | 中 |
 | markdown XSS | `v-html` 渲染未 sanitize，建议加 DOMPurify | 中 |
 | 后端密码错误返回 401 | 与 token 失效 401 混淆，建议改 400 | 低 |
+
+## 功能特性补充说明
+
+### 文章页 TOC 目录
+
+- 位于左侧栏，`position: sticky; top: 80px` 吸顶
+- 液态玻璃/清透水晶模式下需额外规则保持 sticky（见 `ArticleView.vue` 样式）
+- 目录底部有"前往评论区"箭头按钮（`el-tooltip` + `:teleported="false"` 确保吸顶时 tooltip 跟随）
+
+### 自定义称号系统
+
+- 管理员在访客管理页为每个用户设置自定义称号 + 颜色
+- 颜色提供 8 种预设：红/蓝/绿/紫/橙/粉/青/金
+- 评论区和访客管理页展示称号；管理员账号固定显示红色"管理员"标签
+- 后端 `User` 模型新增 `title` / `title_color` 字段，启动时自动迁移
+
+### 评论管理员标识
+
+- 评论作者显示逻辑：有自定义称号 → 显示称号（用 `author_title_color` 着色）；无称号但作者是管理员 → 回退显示默认"管理员"
+- 管理员评论作者名变红色（`.admin-name`）
 
 ## 后端开发
 
@@ -222,7 +278,7 @@ source .venv/bin/activate
 nohup uvicorn main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
 ```
 
-**改了数据库字段**才需要 `rm blog.db` 重建，否则不要删（会丢数据）。
+**数据库迁移**：`main.py` 启动时执行 `_auto_migrate()`，自动检测并补充新增列。改了数据库字段**不需要** `rm blog.db`，自动迁移会处理；只有改了字段类型或删除字段时才需手动重建。
 
 ## 开发流程检查清单
 

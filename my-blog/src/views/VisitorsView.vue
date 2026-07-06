@@ -160,17 +160,16 @@ onMounted(fetchVisitors)
         </el-table-column>
         <el-table-column label="操作" width="220" align="center">
           <template #default="scope">
-            <!-- 管理员账号不显示编辑称号按钮 -->
-            <el-button
-              v-if="scope.row.username !== ADMIN_USERNAME"
-              size="small"
-              @click="openTitleDialog(scope.row)"
-            >
-              <el-icon><Edit /></el-icon> 编辑称号
-            </el-button>
-            <el-button type="danger" size="small" @click="deleteVisitorHandler(scope.row.id)">
-              删除用户
-            </el-button>
+            <!-- 管理员账号：整列不显示任何操作（管理员不可被删除） -->
+            <template v-if="scope.row.username !== ADMIN_USERNAME">
+              <el-button size="small" @click="openTitleDialog(scope.row)">
+                <el-icon><Edit /></el-icon> 编辑称号
+              </el-button>
+              <el-button type="danger" size="small" @click="deleteVisitorHandler(scope.row.id)">
+                删除用户
+              </el-button>
+            </template>
+            <span v-else style="color: #ccc; font-size: 0.85rem">—</span>
           </template>
         </el-table-column>
       </el-table>
