@@ -24,7 +24,8 @@ import {
   User,
   Check,
   Clock,
-  Warning
+  Warning,
+  ArrowRight
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -200,232 +201,13 @@ const handleVisitorClick = () => {
       </div>
 
       <div class="nav-icons">
-        <el-tooltip content="设置" placement="bottom">
-          <el-icon class="icon-btn" @click="openSetting"><Setting /></el-icon>
-        </el-tooltip>
-
-        <el-dropdown trigger="click" @command="handleThemeCommand">
-          <span class="el-dropdown-link">
-            <el-tooltip content="主题与材质设置" placement="bottom">
-              <el-icon class="icon-btn"><Brush /></el-icon>
-            </el-tooltip>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item
-                command="glass_default"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>毛玻璃</span>
-                <el-icon v-if="siteStore.glassType === 'default'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="glass_liquid"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>流光液态玻璃</span>
-                <el-icon v-if="siteStore.glassType === 'liquid'" color="#67C23A"><Check /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="glass_liquid_clear"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>清透水晶</span>
-                <el-icon v-if="siteStore.glassType === 'liquid_clear'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-
-              <el-divider style="margin: 4px 0" />
-
-              <el-dropdown-item
-                command="color_white"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span
-                  ><span
-                    style="
-                      display: inline-block;
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      background: #ffffff;
-                      border: 1px solid #ddd;
-                      margin-right: 8px;
-                    "
-                  ></span
-                  >经典白</span
-                >
-                <el-icon v-if="siteStore.themeColor === 'white'" color="#67C23A"><Check /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="color_blue"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span
-                  ><span
-                    style="
-                      display: inline-block;
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      background: #e6f7ff;
-                      margin-right: 8px;
-                    "
-                  ></span
-                  >天空蓝</span
-                >
-                <el-icon v-if="siteStore.themeColor === 'blue'" color="#67C23A"><Check /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="color_pink"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span
-                  ><span
-                    style="
-                      display: inline-block;
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      background: #fff0f6;
-                      margin-right: 8px;
-                    "
-                  ></span
-                  >樱花粉</span
-                >
-                <el-icon v-if="siteStore.themeColor === 'pink'" color="#67C23A"><Check /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="color_green"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span
-                  ><span
-                    style="
-                      display: inline-block;
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      background: #f0f9eb;
-                      margin-right: 8px;
-                    "
-                  ></span
-                  >薄荷绿</span
-                >
-                <el-icon v-if="siteStore.themeColor === 'green'" color="#67C23A"><Check /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="color_purple"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span
-                  ><span
-                    style="
-                      display: inline-block;
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      background: #f3e8ff;
-                      border: 1px solid #d9b8f1;
-                      margin-right: 8px;
-                    "
-                  ></span
-                  >薰衣紫</span
-                >
-                <el-icon v-if="siteStore.themeColor === 'purple'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="color_orange"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span
-                  ><span
-                    style="
-                      display: inline-block;
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      background: #fff3e6;
-                      border: 1px solid #f3d19e;
-                      margin-right: 8px;
-                    "
-                  ></span
-                  >暖阳橙</span
-                >
-                <el-icon v-if="siteStore.themeColor === 'orange'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-
-        <el-dropdown trigger="click" @command="changeBannerMode">
-          <span class="el-dropdown-link">
-            <el-tooltip content="Banner设置" placement="bottom">
-              <el-icon class="icon-btn"><Picture /></el-icon>
-            </el-tooltip>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item
-                command="banner"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>横幅图模式</span>
-                <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="fullscreen"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>填充屏幕</span>
-                <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="background"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>背景图片模式</span>
-                <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-              <el-dropdown-item
-                command="hidden"
-                style="display: flex; justify-content: space-between; align-items: center"
-              >
-                <span>隐藏</span>
-                <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
-                  ><Check
-                /></el-icon>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-
-        <el-tooltip :content="siteStore.isDark ? '日间模式' : '夜间模式'" placement="bottom">
-          <el-icon class="icon-btn" @click="toggleDarkMode">
-            <component :is="siteStore.isDark ? Sunny : Moon" />
-          </el-icon>
-        </el-tooltip>
-
-        <!-- 登录头像 -->
-        <div class="divider"></div>
+        <!-- 登录头像（含设置/主题/Banner/日夜模式的二级悬浮子菜单） -->
         <el-dropdown
           :disabled="!userStore.isLoggedIn"
           trigger="hover"
           :hide-on-click="false"
           placement="bottom-end"
+          popper-class="avatar-dropdown-popper"
         >
           <div
             class="avatar-wrapper"
@@ -454,6 +236,7 @@ const handleVisitorClick = () => {
                 box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
               "
             >
+              <!-- 顶部头像 + 昵称 -->
               <div
                 style="
                   display: flex;
@@ -482,6 +265,7 @@ const handleVisitorClick = () => {
 
               <el-divider style="margin: 10px 0" />
 
+              <!-- 修改昵称 -->
               <div style="margin: 10px 0">
                 <div style="font-size: 0.8rem; color: #999; margin-bottom: 6px">修改昵称</div>
                 <el-input v-model="newUsernameInput" placeholder="输入新名字" size="default">
@@ -489,6 +273,201 @@ const handleVisitorClick = () => {
                     <el-button style="color: #409eff" @click="updateUsername">保存</el-button>
                   </template>
                 </el-input>
+              </div>
+
+              <el-divider style="margin: 10px 0" />
+
+              <!-- ====== 二级悬浮菜单：设置/主题/Banner/日夜 ====== -->
+              <div class="submenu-list">
+                <!-- 设置 -->
+                <div class="submenu-row" @click="openSetting">
+                  <el-icon class="submenu-icon"><Setting /></el-icon>
+                  <span class="submenu-label">设置</span>
+                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                </div>
+
+                <!-- 主题与材质 -->
+                <div class="submenu-row">
+                  <el-icon class="submenu-icon"><Brush /></el-icon>
+                  <span class="submenu-label">主题与材质设置</span>
+                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                  <!-- 子面板 -->
+                  <div class="submenu-panel">
+                    <div class="submenu-panel-title">材质</div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.glassType === 'default' }"
+                      @click="handleThemeCommand('glass_default')"
+                    >
+                      <span>毛玻璃</span>
+                      <el-icon v-if="siteStore.glassType === 'default'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.glassType === 'liquid' }"
+                      @click="handleThemeCommand('glass_liquid')"
+                    >
+                      <span>流光液态玻璃</span>
+                      <el-icon v-if="siteStore.glassType === 'liquid'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.glassType === 'liquid_clear' }"
+                      @click="handleThemeCommand('glass_liquid_clear')"
+                    >
+                      <span>清透水晶</span>
+                      <el-icon v-if="siteStore.glassType === 'liquid_clear'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+
+                    <div class="submenu-panel-divider"></div>
+
+                    <div class="submenu-panel-title">颜色</div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'white' }"
+                      @click="handleThemeCommand('color_white')"
+                    >
+                      <span
+                        ><span
+                          class="color-dot"
+                          style="background: #ffffff; border: 1px solid #ddd"
+                        ></span
+                        >经典白</span
+                      >
+                      <el-icon v-if="siteStore.themeColor === 'white'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'blue' }"
+                      @click="handleThemeCommand('color_blue')"
+                    >
+                      <span><span class="color-dot" style="background: #e6f7ff"></span>天空蓝</span>
+                      <el-icon v-if="siteStore.themeColor === 'blue'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'pink' }"
+                      @click="handleThemeCommand('color_pink')"
+                    >
+                      <span><span class="color-dot" style="background: #fff0f6"></span>樱花粉</span>
+                      <el-icon v-if="siteStore.themeColor === 'pink'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'green' }"
+                      @click="handleThemeCommand('color_green')"
+                    >
+                      <span><span class="color-dot" style="background: #f0f9eb"></span>薄荷绿</span>
+                      <el-icon v-if="siteStore.themeColor === 'green'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'purple' }"
+                      @click="handleThemeCommand('color_purple')"
+                    >
+                      <span
+                        ><span
+                          class="color-dot"
+                          style="background: #f3e8ff; border: 1px solid #d9b8f1"
+                        ></span
+                        >薰衣紫</span
+                      >
+                      <el-icon v-if="siteStore.themeColor === 'purple'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'orange' }"
+                      @click="handleThemeCommand('color_orange')"
+                    >
+                      <span
+                        ><span
+                          class="color-dot"
+                          style="background: #fff3e6; border: 1px solid #f3d19e"
+                        ></span
+                        >暖阳橙</span
+                      >
+                      <el-icon v-if="siteStore.themeColor === 'orange'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Banner 设置 -->
+                <div class="submenu-row">
+                  <el-icon class="submenu-icon"><Picture /></el-icon>
+                  <span class="submenu-label">Banner 设置</span>
+                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                  <div class="submenu-panel">
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'banner' }"
+                      @click="changeBannerMode('banner')"
+                    >
+                      <span>横幅图模式</span>
+                      <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'fullscreen' }"
+                      @click="changeBannerMode('fullscreen')"
+                    >
+                      <span>填充屏幕</span>
+                      <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'background' }"
+                      @click="changeBannerMode('background')"
+                    >
+                      <span>背景图片模式</span>
+                      <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'hidden' }"
+                      @click="changeBannerMode('hidden')"
+                    >
+                      <span>隐藏</span>
+                      <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 日夜模式 -->
+                <div class="submenu-row" @click="toggleDarkMode">
+                  <el-icon class="submenu-icon">
+                    <component :is="siteStore.isDark ? Sunny : Moon" />
+                  </el-icon>
+                  <span class="submenu-label">{{
+                    siteStore.isDark ? '日间模式' : '夜间模式'
+                  }}</span>
+                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                </div>
               </div>
 
               <el-divider style="margin: 10px 0" />
@@ -703,5 +682,126 @@ html.dark .divider {
   .nav-links span {
     font-size: 0.9rem;
   }
+}
+</style>
+
+<!-- 全局样式：头像下拉的二级子菜单（el-dropdown 弹层 teleport 到 body，scoped 不生效） -->
+<style>
+.avatar-dropdown-popper .submenu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 一级菜单行 */
+.avatar-dropdown-popper .submenu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+.avatar-dropdown-popper .submenu-row:hover {
+  background: rgba(64, 158, 255, 0.08);
+}
+.avatar-dropdown-popper .submenu-icon {
+  font-size: 1.1rem;
+  color: #666;
+}
+.avatar-dropdown-popper .submenu-label {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #333;
+}
+.avatar-dropdown-popper .submenu-arrow {
+  font-size: 0.8rem;
+  color: #ccc;
+  transition: color 0.2s;
+}
+.avatar-dropdown-popper .submenu-row:hover .submenu-arrow {
+  color: #409eff;
+}
+
+/* 夜间模式适配 */
+html.dark .avatar-dropdown-popper .submenu-icon {
+  color: #ccc;
+}
+html.dark .avatar-dropdown-popper .submenu-label {
+  color: #eee;
+}
+
+/* 二级子面板：默认隐藏，hover 一级行时显示 */
+.avatar-dropdown-popper .submenu-panel {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  z-index: 10000;
+  flex-direction: column;
+  gap: 2px;
+}
+.avatar-dropdown-popper .submenu-row:hover .submenu-panel {
+  display: flex;
+}
+html.dark .avatar-dropdown-popper .submenu-panel {
+  background: rgba(30, 30, 30, 0.98);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 子面板标题（材质/颜色） */
+.avatar-dropdown-popper .submenu-panel-title {
+  font-size: 0.75rem;
+  color: #999;
+  padding: 4px 12px;
+  font-weight: bold;
+}
+.avatar-dropdown-popper .submenu-panel-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 4px 0;
+}
+html.dark .avatar-dropdown-popper .submenu-panel-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 子面板选项 */
+.avatar-dropdown-popper .submenu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #333;
+  transition: background 0.2s;
+}
+.avatar-dropdown-popper .submenu-item:hover {
+  background: rgba(64, 158, 255, 0.1);
+}
+.avatar-dropdown-popper .submenu-item.active {
+  color: #409eff;
+  font-weight: bold;
+}
+html.dark .avatar-dropdown-popper .submenu-item {
+  color: #ddd;
+}
+
+/* 颜色小圆点 */
+.avatar-dropdown-popper .color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
 }
 </style>
