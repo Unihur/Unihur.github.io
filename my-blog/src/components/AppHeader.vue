@@ -277,194 +277,179 @@ const handleVisitorClick = () => {
                 <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
               </div>
 
-              <!-- 主题与材质：hover 行右侧弹出子面板 -->
-              <el-popover
-                placement="right-start"
-                trigger="hover"
-                :show-arrow="false"
-                :offset="0"
-                popper-class="submenu-popper"
-              >
-                <template #reference>
-                  <div class="submenu-row">
-                    <el-icon class="submenu-icon"><Brush /></el-icon>
-                    <span class="submenu-label">主题与材质设置</span>
-                    <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
-                  </div>
-                </template>
-                <div class="submenu-panel-content">
-                  <div class="submenu-section-title">材质</div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.glassType === 'default' }"
-                    @click="handleThemeCommand('glass_default')"
-                  >
-                    <span>毛玻璃</span>
-                    <el-icon v-if="siteStore.glassType === 'default'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.glassType === 'liquid' }"
-                    @click="handleThemeCommand('glass_liquid')"
-                  >
-                    <span>流光液态玻璃</span>
-                    <el-icon v-if="siteStore.glassType === 'liquid'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.glassType === 'liquid_clear' }"
-                    @click="handleThemeCommand('glass_liquid_clear')"
-                  >
-                    <span>清透水晶</span>
-                    <el-icon v-if="siteStore.glassType === 'liquid_clear'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div class="submenu-section-divider"></div>
-                  <div class="submenu-section-title">颜色</div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.themeColor === 'white' }"
-                    @click="handleThemeCommand('color_white')"
-                  >
-                    <span
-                      ><span
-                        class="color-dot"
-                        style="background: #fff; border: 1px solid #ddd"
-                      ></span
-                      >经典白</span
+              <!-- 主题与材质：hover 行右侧弹出子面板（纯 CSS hover） -->
+              <div class="submenu-row has-sub">
+                <el-icon class="submenu-icon"><Brush /></el-icon>
+                <span class="submenu-label">主题与材质设置</span>
+                <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                <!-- 子面板 -->
+                <div class="submenu-panel">
+                  <div class="submenu-panel-content">
+                    <div class="submenu-section-title">材质</div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.glassType === 'default' }"
+                      @click="handleThemeCommand('glass_default')"
                     >
-                    <el-icon v-if="siteStore.themeColor === 'white'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.themeColor === 'blue' }"
-                    @click="handleThemeCommand('color_blue')"
-                  >
-                    <span><span class="color-dot" style="background: #e6f7ff"></span>天空蓝</span>
-                    <el-icon v-if="siteStore.themeColor === 'blue'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.themeColor === 'pink' }"
-                    @click="handleThemeCommand('color_pink')"
-                  >
-                    <span><span class="color-dot" style="background: #fff0f6"></span>樱花粉</span>
-                    <el-icon v-if="siteStore.themeColor === 'pink'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.themeColor === 'green' }"
-                    @click="handleThemeCommand('color_green')"
-                  >
-                    <span><span class="color-dot" style="background: #f0f9eb"></span>薄荷绿</span>
-                    <el-icon v-if="siteStore.themeColor === 'green'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.themeColor === 'purple' }"
-                    @click="handleThemeCommand('color_purple')"
-                  >
-                    <span
-                      ><span
-                        class="color-dot"
-                        style="background: #f3e8ff; border: 1px solid #d9b8f1"
-                      ></span
-                      >薰衣紫</span
+                      <span>毛玻璃</span>
+                      <el-icon v-if="siteStore.glassType === 'default'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.glassType === 'liquid' }"
+                      @click="handleThemeCommand('glass_liquid')"
                     >
-                    <el-icon v-if="siteStore.themeColor === 'purple'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.themeColor === 'orange' }"
-                    @click="handleThemeCommand('color_orange')"
-                  >
-                    <span
-                      ><span
-                        class="color-dot"
-                        style="background: #fff3e6; border: 1px solid #f3d19e"
-                      ></span
-                      >暖阳橙</span
+                      <span>流光液态玻璃</span>
+                      <el-icon v-if="siteStore.glassType === 'liquid'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.glassType === 'liquid_clear' }"
+                      @click="handleThemeCommand('glass_liquid_clear')"
                     >
-                    <el-icon v-if="siteStore.themeColor === 'orange'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
+                      <span>清透水晶</span>
+                      <el-icon v-if="siteStore.glassType === 'liquid_clear'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div class="submenu-section-divider"></div>
+                    <div class="submenu-section-title">颜色</div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'white' }"
+                      @click="handleThemeCommand('color_white')"
+                    >
+                      <span
+                        ><span
+                          class="color-dot"
+                          style="background: #fff; border: 1px solid #ddd"
+                        ></span
+                        >经典白</span
+                      >
+                      <el-icon v-if="siteStore.themeColor === 'white'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'blue' }"
+                      @click="handleThemeCommand('color_blue')"
+                    >
+                      <span><span class="color-dot" style="background: #e6f7ff"></span>天空蓝</span>
+                      <el-icon v-if="siteStore.themeColor === 'blue'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'pink' }"
+                      @click="handleThemeCommand('color_pink')"
+                    >
+                      <span><span class="color-dot" style="background: #fff0f6"></span>樱花粉</span>
+                      <el-icon v-if="siteStore.themeColor === 'pink'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'green' }"
+                      @click="handleThemeCommand('color_green')"
+                    >
+                      <span><span class="color-dot" style="background: #f0f9eb"></span>薄荷绿</span>
+                      <el-icon v-if="siteStore.themeColor === 'green'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'purple' }"
+                      @click="handleThemeCommand('color_purple')"
+                    >
+                      <span
+                        ><span
+                          class="color-dot"
+                          style="background: #f3e8ff; border: 1px solid #d9b8f1"
+                        ></span
+                        >薰衣紫</span
+                      >
+                      <el-icon v-if="siteStore.themeColor === 'purple'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.themeColor === 'orange' }"
+                      @click="handleThemeCommand('color_orange')"
+                    >
+                      <span
+                        ><span
+                          class="color-dot"
+                          style="background: #fff3e6; border: 1px solid #f3d19e"
+                        ></span
+                        >暖阳橙</span
+                      >
+                      <el-icon v-if="siteStore.themeColor === 'orange'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
                   </div>
                 </div>
-              </el-popover>
+              </div>
 
-              <!-- Banner 设置：hover 行右侧弹出子面板 -->
-              <el-popover
-                placement="right-start"
-                trigger="hover"
-                :show-arrow="false"
-                :offset="0"
-                popper-class="submenu-popper"
-              >
-                <template #reference>
-                  <div class="submenu-row">
-                    <el-icon class="submenu-icon"><Picture /></el-icon>
-                    <span class="submenu-label">Banner 设置</span>
-                    <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
-                  </div>
-                </template>
-                <div class="submenu-panel-content">
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.bannerMode === 'banner' }"
-                    @click="changeBannerMode('banner')"
-                  >
-                    <span>横幅图模式</span>
-                    <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.bannerMode === 'fullscreen' }"
-                    @click="changeBannerMode('fullscreen')"
-                  >
-                    <span>填充屏幕</span>
-                    <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.bannerMode === 'background' }"
-                    @click="changeBannerMode('background')"
-                  >
-                    <span>背景图片模式</span>
-                    <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
-                  </div>
-                  <div
-                    class="submenu-item"
-                    :class="{ active: siteStore.bannerMode === 'hidden' }"
-                    @click="changeBannerMode('hidden')"
-                  >
-                    <span>隐藏</span>
-                    <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
-                      ><Check
-                    /></el-icon>
+              <!-- Banner 设置：hover 行右侧弹出子面板（纯 CSS hover） -->
+              <div class="submenu-row has-sub">
+                <el-icon class="submenu-icon"><Picture /></el-icon>
+                <span class="submenu-label">Banner 设置</span>
+                <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                <div class="submenu-panel">
+                  <div class="submenu-panel-content">
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'banner' }"
+                      @click="changeBannerMode('banner')"
+                    >
+                      <span>横幅图模式</span>
+                      <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'fullscreen' }"
+                      @click="changeBannerMode('fullscreen')"
+                    >
+                      <span>填充屏幕</span>
+                      <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'background' }"
+                      @click="changeBannerMode('background')"
+                    >
+                      <span>背景图片模式</span>
+                      <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
+                    <div
+                      class="submenu-item"
+                      :class="{ active: siteStore.bannerMode === 'hidden' }"
+                      @click="changeBannerMode('hidden')"
+                    >
+                      <span>隐藏</span>
+                      <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
+                        ><Check
+                      /></el-icon>
+                    </div>
                   </div>
                 </div>
-              </el-popover>
+              </div>
 
               <!-- 日夜模式（点击直接切换） -->
               <div class="submenu-row" @click="toggleDarkMode">
@@ -749,35 +734,6 @@ html.dark.liquid-glass-clear .avatar-dropdown-popper.el-popper {
   padding: 15px;
 }
 
-/* 液态玻璃：子面板 */
-html.liquid-glass .submenu-popper,
-html.liquid-glass-clear .submenu-popper {
-  background: rgba(255, 255, 255, 0.04) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px double rgba(51, 51, 51, 0.08) !important;
-  box-shadow:
-    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
-    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
-    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
-    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
-    inset 0 0 2px rgba(0, 0, 0, 0.8),
-    0 4px 8px rgba(0, 0, 0, 0.2) !important;
-  filter: brightness(0.95);
-}
-html.dark.liquid-glass .submenu-popper,
-html.dark.liquid-glass-clear .submenu-popper {
-  background: rgba(0, 0, 0, 0.2) !important;
-  border: 1px double rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.1),
-    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.1),
-    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.05),
-    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.05),
-    inset 0 0 2px rgba(0, 0, 0, 0.9),
-    0 8px 16px rgba(0, 0, 0, 0.5) !important;
-}
-
 /* ===== 菜单结构 ===== */
 .avatar-dropdown-popper .submenu-list {
   display: flex;
@@ -828,65 +784,105 @@ html.dark .avatar-dropdown-popper .submenu-label {
   color: #eee;
 }
 
-/* el-popover 子面板内容容器（右侧弹出的独立面板） */
-/* 隐藏时直接 display:none，防止 popper 定位重置到左上角导致闪动 */
-.submenu-popper[data-popper-reference-hidden] {
-  display: none !important;
+/* ===== 子面板：纯 CSS hover，position: absolute 溢出到行右侧 ===== */
+/* has-sub 行作为子面板的定位上下文 */
+.avatar-dropdown-popper .submenu-row.has-sub {
+  position: relative;
 }
-.submenu-popper {
-  padding: 8px !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
-  background: rgba(255, 255, 255, 0.98) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  min-width: 180px;
+/* 子面板默认隐藏 */
+.avatar-dropdown-popper .submenu-panel {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -8px;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  z-index: 10000;
 }
-html.dark .submenu-popper {
-  background: rgba(30, 30, 30, 0.98) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+/* hover 行时显示子面板 */
+.avatar-dropdown-popper .submenu-row.has-sub:hover .submenu-panel {
+  display: block;
 }
-/* 主题色跟随 */
-html.theme-color-blue:not(.dark) .submenu-popper {
-  background: rgba(230, 247, 255, 0.98) !important;
+/* 夜间模式 */
+html.dark .avatar-dropdown-popper .submenu-panel {
+  background: rgba(30, 30, 30, 0.98);
+  border-color: rgba(255, 255, 255, 0.08);
 }
-html.theme-color-pink:not(.dark) .submenu-popper {
-  background: rgba(255, 240, 246, 0.98) !important;
+/* 6 种主题色跟随 */
+html.theme-color-blue:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(230, 247, 255, 0.98);
 }
-html.theme-color-green:not(.dark) .submenu-popper {
-  background: rgba(240, 249, 235, 0.98) !important;
+html.theme-color-pink:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(255, 240, 246, 0.98);
 }
-html.theme-color-purple:not(.dark) .submenu-popper {
-  background: rgba(243, 232, 255, 0.98) !important;
+html.theme-color-green:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(240, 249, 235, 0.98);
 }
-html.theme-color-orange:not(.dark) .submenu-popper {
-  background: rgba(255, 243, 230, 0.98) !important;
+html.theme-color-purple:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(243, 232, 255, 0.98);
+}
+html.theme-color-orange:not(.dark) .avatar-dropdown-popper .submenu-panel {
+  background: rgba(255, 243, 230, 0.98);
+}
+
+/* 液态玻璃：子面板 */
+html.liquid-glass .avatar-dropdown-popper .submenu-panel,
+html.liquid-glass-clear .avatar-dropdown-popper .submenu-panel {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px double rgba(51, 51, 51, 0.08);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(0, 0, 0, 0.8),
+    0 4px 8px rgba(0, 0, 0, 0.2);
+  filter: brightness(0.95);
+}
+html.dark.liquid-glass .avatar-dropdown-popper .submenu-panel,
+html.dark.liquid-glass-clear .avatar-dropdown-popper .submenu-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px double rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset 0 0 2px rgba(0, 0, 0, 0.9),
+    0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 /* 子面板内容 */
-.submenu-panel-content {
+.avatar-dropdown-popper .submenu-panel-content {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
 /* 分组标题 */
-.submenu-popper .submenu-section-title {
+.avatar-dropdown-popper .submenu-section-title {
   font-size: 0.75rem;
   color: #999;
   padding: 4px 12px;
   font-weight: bold;
 }
-.submenu-popper .submenu-section-divider {
+.avatar-dropdown-popper .submenu-section-divider {
   height: 1px;
   background: rgba(0, 0, 0, 0.08);
   margin: 4px 0;
 }
-html.dark .submenu-popper .submenu-section-divider {
+html.dark .avatar-dropdown-popper .submenu-section-divider {
   background: rgba(255, 255, 255, 0.08);
 }
 
 /* 子选项 */
-.submenu-popper .submenu-item {
+.avatar-dropdown-popper .submenu-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -897,19 +893,19 @@ html.dark .submenu-popper .submenu-section-divider {
   color: #333;
   transition: background 0.2s;
 }
-.submenu-popper .submenu-item:hover {
+.avatar-dropdown-popper .submenu-item:hover {
   background: rgba(64, 158, 255, 0.1);
 }
-.submenu-popper .submenu-item.active {
+.avatar-dropdown-popper .submenu-item.active {
   color: #409eff;
   font-weight: bold;
 }
-html.dark .submenu-popper .submenu-item {
+html.dark .avatar-dropdown-popper .submenu-item {
   color: #ddd;
 }
 
 /* 颜色小圆点 */
-.submenu-popper .color-dot {
+.avatar-dropdown-popper .color-dot {
   display: inline-block;
   width: 12px;
   height: 12px;
