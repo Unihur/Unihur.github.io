@@ -127,18 +127,6 @@ const updateUsername = async () => {
 }
 
 // ============ 主题/Banner 下拉指令 ============
-// 主 dropdown 可见性 + 子面板可见性：子面板 hover 时阻止主 dropdown 收起
-const dropdownVisible = ref(false)
-const themePopoverVisible = ref(false)
-const bannerPopoverVisible = ref(false)
-
-function onDropdownVisibleChange(val) {
-  // 如果主菜单要关闭，但子面板正在显示，则强制保持打开
-  if (!val && (themePopoverVisible.value || bannerPopoverVisible.value)) {
-    dropdownVisible.value = true
-  }
-}
-
 const handleThemeCommand = (command) => {
   if (command.startsWith('glass_')) {
     siteStore.setTheme({ glass: command.substring(6) })
@@ -214,309 +202,287 @@ const handleVisitorClick = () => {
 
       <div class="nav-icons">
         <!-- 登录头像（含设置/主题/Banner/日夜模式的二级悬浮子菜单） -->
-        <!-- trigger=click + v-model:visible：点击头像打开菜单；
-             当子面板 hover 时通过 forceOpen 阻止主菜单收起 -->
-        <el-dropdown
-          v-model:visible="dropdownVisible"
+        <!-- 全部用 el-popover：主菜单 hover 触发，子面板 hover 嵌套，层级一致 -->
+        <el-popover
           :disabled="!userStore.isLoggedIn"
-          trigger="click"
-          :hide-on-click="false"
           placement="bottom-end"
+          :width="280"
+          trigger="hover"
+          :show-arrow="false"
+          :offset="8"
           popper-class="avatar-dropdown-popper"
-          @visible-change="onDropdownVisibleChange"
         >
-          <div
-            class="avatar-wrapper"
-            style="display: flex; align-items: center; cursor: pointer; outline: none"
-            @click="handleLoginClick"
-          >
-            <el-tooltip
-              :content="userStore.isLoggedIn ? '' : '点击登录'"
-              placement="bottom"
-              :disabled="userStore.isLoggedIn"
+          <template #reference>
+            <div
+              class="avatar-wrapper"
+              style="display: flex; align-items: center; cursor: pointer; outline: none"
+              @click="handleLoginClick"
             >
-              <el-avatar
-                :size="36"
-                :src="userStore.avatar || ''"
-                :icon="userStore.avatar ? '' : UserFilled"
-                class="login-avatar"
-              />
-            </el-tooltip>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <!-- 顶部头像 + 昵称 -->
-              <div
-                style="
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  margin-bottom: 15px;
-                "
+              <el-tooltip
+                :content="userStore.isLoggedIn ? '' : '点击登录'"
+                placement="bottom"
+                :disabled="userStore.isLoggedIn"
               >
-                <el-upload
-                  action=""
-                  :http-request="handleAvatarUpload"
-                  :show-file-list="false"
-                  accept="image/png, image/jpeg, image/gif"
-                >
-                  <el-tooltip content="点击上传新头像" placement="right">
-                    <el-avatar
-                      :size="56"
-                      :src="userStore.avatar || ''"
-                      :icon="userStore.avatar ? '' : UserFilled"
-                      style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer"
-                    />
-                  </el-tooltip>
-                </el-upload>
-                <h3 style="margin: 0; font-size: 1.1rem; color: #333">{{ userStore.username }}</h3>
-              </div>
-
-              <el-divider style="margin: 10px 0" />
-
-              <!-- 修改昵称 -->
-              <div style="margin: 10px 0">
-                <div style="font-size: 0.8rem; color: #999; margin-bottom: 6px">修改昵称</div>
-                <el-input v-model="newUsernameInput" placeholder="输入新名字" size="default">
-                  <template #append>
-                    <el-button style="color: #409eff" @click="updateUsername">保存</el-button>
-                  </template>
-                </el-input>
-              </div>
-
-              <el-divider style="margin: 10px 0" />
-
-              <!-- ====== 功能菜单：设置/主题/Banner/日夜 ====== -->
-              <div class="submenu-list">
-                <!-- 设置 -->
-                <div class="submenu-row" @click="openSetting">
-                  <el-icon class="submenu-icon"><Setting /></el-icon>
-                  <span class="submenu-label">设置</span>
-                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
-                </div>
-
-                <!-- 主题与材质：hover 行右侧弹出独立子面板（el-popover） -->
-                <!-- @mousedown.stop 阻止子面板的点击事件冒泡到 document，
-                     避免主 dropdown 误判为"点击外部"而收起 -->
-                <el-popover
-                  placement="right-start"
-                  trigger="hover"
-                  :show-arrow="false"
-                  :offset="0"
-                  :popper-options="{ strategy: 'fixed' }"
-                  popper-class="submenu-popper"
-                  @show="themePopoverVisible = true"
-                  @hide="themePopoverVisible = false"
-                >
-                  <template #reference>
-                    <div class="submenu-row">
-                      <el-icon class="submenu-icon"><Brush /></el-icon>
-                      <span class="submenu-label">主题与材质设置</span>
-                      <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
-                    </div>
-                  </template>
-                  <div class="submenu-panel-content">
-                    <div class="submenu-section-title">材质</div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.glassType === 'default' }"
-                      @click="handleThemeCommand('glass_default')"
-                    >
-                      <span>毛玻璃</span>
-                      <el-icon v-if="siteStore.glassType === 'default'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.glassType === 'liquid' }"
-                      @click="handleThemeCommand('glass_liquid')"
-                    >
-                      <span>流光液态玻璃</span>
-                      <el-icon v-if="siteStore.glassType === 'liquid'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.glassType === 'liquid_clear' }"
-                      @click="handleThemeCommand('glass_liquid_clear')"
-                    >
-                      <span>清透水晶</span>
-                      <el-icon v-if="siteStore.glassType === 'liquid_clear'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div class="submenu-section-divider"></div>
-                    <div class="submenu-section-title">颜色</div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.themeColor === 'white' }"
-                      @click="handleThemeCommand('color_white')"
-                    >
-                      <span
-                        ><span
-                          class="color-dot"
-                          style="background: #fff; border: 1px solid #ddd"
-                        ></span
-                        >经典白</span
-                      >
-                      <el-icon v-if="siteStore.themeColor === 'white'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.themeColor === 'blue' }"
-                      @click="handleThemeCommand('color_blue')"
-                    >
-                      <span><span class="color-dot" style="background: #e6f7ff"></span>天空蓝</span>
-                      <el-icon v-if="siteStore.themeColor === 'blue'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.themeColor === 'pink' }"
-                      @click="handleThemeCommand('color_pink')"
-                    >
-                      <span><span class="color-dot" style="background: #fff0f6"></span>樱花粉</span>
-                      <el-icon v-if="siteStore.themeColor === 'pink'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.themeColor === 'green' }"
-                      @click="handleThemeCommand('color_green')"
-                    >
-                      <span><span class="color-dot" style="background: #f0f9eb"></span>薄荷绿</span>
-                      <el-icon v-if="siteStore.themeColor === 'green'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.themeColor === 'purple' }"
-                      @click="handleThemeCommand('color_purple')"
-                    >
-                      <span
-                        ><span
-                          class="color-dot"
-                          style="background: #f3e8ff; border: 1px solid #d9b8f1"
-                        ></span
-                        >薰衣紫</span
-                      >
-                      <el-icon v-if="siteStore.themeColor === 'purple'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.themeColor === 'orange' }"
-                      @click="handleThemeCommand('color_orange')"
-                    >
-                      <span
-                        ><span
-                          class="color-dot"
-                          style="background: #fff3e6; border: 1px solid #f3d19e"
-                        ></span
-                        >暖阳橙</span
-                      >
-                      <el-icon v-if="siteStore.themeColor === 'orange'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                  </div>
-                </el-popover>
-
-                <!-- Banner 设置：hover 行右侧弹出独立子面板 -->
-                <el-popover
-                  placement="right-start"
-                  trigger="hover"
-                  :show-arrow="false"
-                  :offset="0"
-                  :popper-options="{ strategy: 'fixed' }"
-                  popper-class="submenu-popper"
-                  @show="bannerPopoverVisible = true"
-                  @hide="bannerPopoverVisible = false"
-                >
-                  <template #reference>
-                    <div class="submenu-row">
-                      <el-icon class="submenu-icon"><Picture /></el-icon>
-                      <span class="submenu-label">Banner 设置</span>
-                      <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
-                    </div>
-                  </template>
-                  <div class="submenu-panel-content">
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.bannerMode === 'banner' }"
-                      @click="changeBannerMode('banner')"
-                    >
-                      <span>横幅图模式</span>
-                      <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.bannerMode === 'fullscreen' }"
-                      @click="changeBannerMode('fullscreen')"
-                    >
-                      <span>填充屏幕</span>
-                      <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.bannerMode === 'background' }"
-                      @click="changeBannerMode('background')"
-                    >
-                      <span>背景图片模式</span>
-                      <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                    <div
-                      class="submenu-item"
-                      :class="{ active: siteStore.bannerMode === 'hidden' }"
-                      @click="changeBannerMode('hidden')"
-                    >
-                      <span>隐藏</span>
-                      <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
-                        ><Check
-                      /></el-icon>
-                    </div>
-                  </div>
-                </el-popover>
-
-                <!-- 日夜模式（点击直接切换） -->
-                <div class="submenu-row" @click="toggleDarkMode">
-                  <el-icon class="submenu-icon">
-                    <component :is="siteStore.isDark ? Sunny : Moon" />
-                  </el-icon>
-                  <span class="submenu-label">{{
-                    siteStore.isDark ? '日间模式' : '夜间模式'
-                  }}</span>
-                  <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
-                </div>
-              </div>
-
-              <el-divider style="margin: 10px 0" />
-
-              <el-button
-                type="danger"
-                plain
-                style="width: 100%; border-radius: 8px"
-                @click="logout"
-              >
-                退出登录
-              </el-button>
-            </el-dropdown-menu>
+                <el-avatar
+                  :size="36"
+                  :src="userStore.avatar || ''"
+                  :icon="userStore.avatar ? '' : UserFilled"
+                  class="login-avatar"
+                />
+              </el-tooltip>
+            </div>
           </template>
-        </el-dropdown>
+          <!-- 主菜单内容 -->
+          <div class="avatar-menu-content">
+            <!-- 顶部头像 + 昵称 -->
+            <div class="avatar-menu-header">
+              <el-upload
+                action=""
+                :http-request="handleAvatarUpload"
+                :show-file-list="false"
+                accept="image/png, image/jpeg, image/gif"
+              >
+                <el-tooltip content="点击上传新头像" placement="right">
+                  <el-avatar
+                    :size="56"
+                    :src="userStore.avatar || ''"
+                    :icon="userStore.avatar ? '' : UserFilled"
+                    style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer"
+                  />
+                </el-tooltip>
+              </el-upload>
+              <h3 style="margin: 0; font-size: 1.1rem; color: #333">{{ userStore.username }}</h3>
+            </div>
+
+            <el-divider style="margin: 10px 0" />
+
+            <!-- 修改昵称 -->
+            <div style="margin: 10px 0">
+              <div style="font-size: 0.8rem; color: #999; margin-bottom: 6px">修改昵称</div>
+              <el-input v-model="newUsernameInput" placeholder="输入新名字" size="default">
+                <template #append>
+                  <el-button style="color: #409eff" @click="updateUsername">保存</el-button>
+                </template>
+              </el-input>
+            </div>
+
+            <el-divider style="margin: 10px 0" />
+
+            <!-- ====== 功能菜单：设置/主题/Banner/日夜 ====== -->
+            <div class="submenu-list">
+              <!-- 设置 -->
+              <div class="submenu-row" @click="openSetting">
+                <el-icon class="submenu-icon"><Setting /></el-icon>
+                <span class="submenu-label">设置</span>
+                <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+              </div>
+
+              <!-- 主题与材质：hover 行右侧弹出子面板 -->
+              <el-popover
+                placement="right-start"
+                trigger="hover"
+                :show-arrow="false"
+                :offset="0"
+                popper-class="submenu-popper"
+              >
+                <template #reference>
+                  <div class="submenu-row">
+                    <el-icon class="submenu-icon"><Brush /></el-icon>
+                    <span class="submenu-label">主题与材质设置</span>
+                    <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                  </div>
+                </template>
+                <div class="submenu-panel-content">
+                  <div class="submenu-section-title">材质</div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.glassType === 'default' }"
+                    @click="handleThemeCommand('glass_default')"
+                  >
+                    <span>毛玻璃</span>
+                    <el-icon v-if="siteStore.glassType === 'default'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.glassType === 'liquid' }"
+                    @click="handleThemeCommand('glass_liquid')"
+                  >
+                    <span>流光液态玻璃</span>
+                    <el-icon v-if="siteStore.glassType === 'liquid'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.glassType === 'liquid_clear' }"
+                    @click="handleThemeCommand('glass_liquid_clear')"
+                  >
+                    <span>清透水晶</span>
+                    <el-icon v-if="siteStore.glassType === 'liquid_clear'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div class="submenu-section-divider"></div>
+                  <div class="submenu-section-title">颜色</div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.themeColor === 'white' }"
+                    @click="handleThemeCommand('color_white')"
+                  >
+                    <span
+                      ><span
+                        class="color-dot"
+                        style="background: #fff; border: 1px solid #ddd"
+                      ></span
+                      >经典白</span
+                    >
+                    <el-icon v-if="siteStore.themeColor === 'white'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.themeColor === 'blue' }"
+                    @click="handleThemeCommand('color_blue')"
+                  >
+                    <span><span class="color-dot" style="background: #e6f7ff"></span>天空蓝</span>
+                    <el-icon v-if="siteStore.themeColor === 'blue'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.themeColor === 'pink' }"
+                    @click="handleThemeCommand('color_pink')"
+                  >
+                    <span><span class="color-dot" style="background: #fff0f6"></span>樱花粉</span>
+                    <el-icon v-if="siteStore.themeColor === 'pink'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.themeColor === 'green' }"
+                    @click="handleThemeCommand('color_green')"
+                  >
+                    <span><span class="color-dot" style="background: #f0f9eb"></span>薄荷绿</span>
+                    <el-icon v-if="siteStore.themeColor === 'green'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.themeColor === 'purple' }"
+                    @click="handleThemeCommand('color_purple')"
+                  >
+                    <span
+                      ><span
+                        class="color-dot"
+                        style="background: #f3e8ff; border: 1px solid #d9b8f1"
+                      ></span
+                      >薰衣紫</span
+                    >
+                    <el-icon v-if="siteStore.themeColor === 'purple'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.themeColor === 'orange' }"
+                    @click="handleThemeCommand('color_orange')"
+                  >
+                    <span
+                      ><span
+                        class="color-dot"
+                        style="background: #fff3e6; border: 1px solid #f3d19e"
+                      ></span
+                      >暖阳橙</span
+                    >
+                    <el-icon v-if="siteStore.themeColor === 'orange'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                </div>
+              </el-popover>
+
+              <!-- Banner 设置：hover 行右侧弹出子面板 -->
+              <el-popover
+                placement="right-start"
+                trigger="hover"
+                :show-arrow="false"
+                :offset="0"
+                popper-class="submenu-popper"
+              >
+                <template #reference>
+                  <div class="submenu-row">
+                    <el-icon class="submenu-icon"><Picture /></el-icon>
+                    <span class="submenu-label">Banner 设置</span>
+                    <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                  </div>
+                </template>
+                <div class="submenu-panel-content">
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.bannerMode === 'banner' }"
+                    @click="changeBannerMode('banner')"
+                  >
+                    <span>横幅图模式</span>
+                    <el-icon v-if="siteStore.bannerMode === 'banner'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.bannerMode === 'fullscreen' }"
+                    @click="changeBannerMode('fullscreen')"
+                  >
+                    <span>填充屏幕</span>
+                    <el-icon v-if="siteStore.bannerMode === 'fullscreen'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.bannerMode === 'background' }"
+                    @click="changeBannerMode('background')"
+                  >
+                    <span>背景图片模式</span>
+                    <el-icon v-if="siteStore.bannerMode === 'background'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                  <div
+                    class="submenu-item"
+                    :class="{ active: siteStore.bannerMode === 'hidden' }"
+                    @click="changeBannerMode('hidden')"
+                  >
+                    <span>隐藏</span>
+                    <el-icon v-if="siteStore.bannerMode === 'hidden'" color="#67C23A"
+                      ><Check
+                    /></el-icon>
+                  </div>
+                </div>
+              </el-popover>
+
+              <!-- 日夜模式（点击直接切换） -->
+              <div class="submenu-row" @click="toggleDarkMode">
+                <el-icon class="submenu-icon">
+                  <component :is="siteStore.isDark ? Sunny : Moon" />
+                </el-icon>
+                <span class="submenu-label">{{ siteStore.isDark ? '日间模式' : '夜间模式' }}</span>
+                <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+              </div>
+            </div>
+
+            <el-divider style="margin: 10px 0" />
+
+            <el-button type="danger" plain style="width: 100%; border-radius: 8px" @click="logout">
+              退出登录
+            </el-button>
+          </div>
+        </el-popover>
       </div>
     </nav>
   </div>
@@ -719,41 +685,39 @@ html.dark .divider {
 }
 </style>
 
-<!-- 全局样式：头像下拉菜单（el-dropdown 弹层 teleport 到 body，scoped 不生效） -->
+<!-- 全局样式：头像下拉菜单（el-popover 弹层 teleport 到 body，scoped 不生效） -->
 <style>
-/* ===== 弹窗背景跟随主题色 ===== */
-.avatar-dropdown-popper .el-dropdown-menu {
-  width: 260px;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+/* ===== 主弹窗 popper 本身 ===== */
+.avatar-dropdown-popper.el-popper {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
   background: rgba(255, 255, 255, 0.95) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
-html.dark .avatar-dropdown-popper .el-dropdown-menu {
+html.dark .avatar-dropdown-popper.el-popper {
   background: rgba(30, 30, 30, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
-html.theme-color-blue:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
+html.theme-color-blue:not(.dark) .avatar-dropdown-popper.el-popper {
   background: rgba(230, 247, 255, 0.95) !important;
 }
-html.theme-color-pink:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
+html.theme-color-pink:not(.dark) .avatar-dropdown-popper.el-popper {
   background: rgba(255, 240, 246, 0.95) !important;
 }
-html.theme-color-green:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
+html.theme-color-green:not(.dark) .avatar-dropdown-popper.el-popper {
   background: rgba(240, 249, 235, 0.95) !important;
 }
-html.theme-color-purple:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
+html.theme-color-purple:not(.dark) .avatar-dropdown-popper.el-popper {
   background: rgba(243, 232, 255, 0.95) !important;
 }
-html.theme-color-orange:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
+html.theme-color-orange:not(.dark) .avatar-dropdown-popper.el-popper {
   background: rgba(255, 243, 230, 0.95) !important;
 }
 
-/* ===== 液态玻璃材质适配（主弹窗 + 子面板）===== */
 /* 液态玻璃：主弹窗 */
-html.liquid-glass .avatar-dropdown-popper .el-dropdown-menu,
-html.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
+html.liquid-glass .avatar-dropdown-popper.el-popper,
+html.liquid-glass-clear .avatar-dropdown-popper.el-popper {
   background: rgba(255, 255, 255, 0.04) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -767,8 +731,8 @@ html.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
     0 4px 8px rgba(0, 0, 0, 0.2) !important;
   filter: brightness(0.95);
 }
-html.dark.liquid-glass .avatar-dropdown-popper .el-dropdown-menu,
-html.dark.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
+html.dark.liquid-glass .avatar-dropdown-popper.el-popper,
+html.dark.liquid-glass-clear .avatar-dropdown-popper.el-popper {
   background: rgba(0, 0, 0, 0.2) !important;
   border: 1px double rgba(255, 255, 255, 0.08) !important;
   box-shadow:
@@ -778,6 +742,11 @@ html.dark.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
     inset -6px 6px 1px -6px rgba(255, 255, 255, 0.05),
     inset 0 0 2px rgba(0, 0, 0, 0.9),
     0 8px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ===== 弹窗内容容器 ===== */
+.avatar-dropdown-popper .avatar-menu-content {
+  padding: 15px;
 }
 
 /* 液态玻璃：子面板 */

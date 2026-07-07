@@ -96,6 +96,7 @@ export const useSiteStore = defineStore('site', () => {
     isDark.value = !isDark.value
     localStorage.setItem(LS.isDark, String(isDark.value))
     applyThemeConfig()
+    // 同时同步到用户配置和全站公开设置
     syncDarkToBackend()
   }
 
@@ -104,7 +105,7 @@ export const useSiteStore = defineStore('site', () => {
     syncDarkToBackend()
   }
 
-  /** 把材质+颜色组合成 theme_style 同步到后端 */
+  /** 把材质+颜色组合成 theme_style 同步到后端用户配置 */
   function syncThemeStyleToBackend() {
     const userStore = useUserStore()
     if (!userStore.isLoggedIn) return
@@ -114,8 +115,16 @@ export const useSiteStore = defineStore('site', () => {
     })
   }
 
-  /** 把夜间模式 + Banner 同步到后端公开设置 */
+  /** 把夜间模式 + Banner 同步到后端（用户配置 + 全站公开设置） */
   function syncDarkToBackend() {
+    const userStore = useUserStore()
+    // 同步到用户个人配置
+    if (userStore.isLoggedIn) {
+      updateUser({ is_dark: isDark.value, banner_mode: bannerMode.value }).catch(() => {
+        /* 静默处理 */
+      })
+    }
+    // 同步到全站公开设置
     savePublicSettings({ banner_mode: bannerMode.value, is_dark: isDark.value })
   }
 
