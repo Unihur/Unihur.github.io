@@ -202,9 +202,10 @@ const handleVisitorClick = () => {
 
       <div class="nav-icons">
         <!-- 登录头像（含设置/主题/Banner/日夜模式的二级悬浮子菜单） -->
+        <!-- trigger=click：点击头像打开菜单，避免 hover 模式下鼠标移到子面板时主菜单收起 -->
         <el-dropdown
           :disabled="!userStore.isLoggedIn"
-          trigger="hover"
+          trigger="click"
           :hide-on-click="false"
           placement="bottom-end"
           popper-class="avatar-dropdown-popper"
@@ -724,6 +725,65 @@ html.theme-color-purple:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
 }
 html.theme-color-orange:not(.dark) .avatar-dropdown-popper .el-dropdown-menu {
   background: rgba(255, 243, 230, 0.95) !important;
+}
+
+/* ===== 液态玻璃材质适配（主弹窗 + 子面板）===== */
+/* 液态玻璃：主弹窗 */
+html.liquid-glass .avatar-dropdown-popper .el-dropdown-menu,
+html.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px double rgba(51, 51, 51, 0.08) !important;
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(0, 0, 0, 0.8),
+    0 4px 8px rgba(0, 0, 0, 0.2) !important;
+  filter: brightness(0.95);
+}
+html.dark.liquid-glass .avatar-dropdown-popper .el-dropdown-menu,
+html.dark.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px double rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset 0 0 2px rgba(0, 0, 0, 0.9),
+    0 8px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 液态玻璃：子面板 */
+html.liquid-glass .submenu-popper.el-popover.el-popper,
+html.liquid-glass-clear .submenu-popper.el-popover.el-popper {
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px double rgba(51, 51, 51, 0.08) !important;
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.9),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.55),
+    inset 0 0 2px rgba(0, 0, 0, 0.8),
+    0 4px 8px rgba(0, 0, 0, 0.2) !important;
+  filter: brightness(0.95);
+}
+html.dark.liquid-glass .submenu-popper.el-popover.el-popper,
+html.dark.liquid-glass-clear .submenu-popper.el-popover.el-popper {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px double rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    inset 2px -2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset -2px 2px 1px -1px rgba(255, 255, 255, 0.1),
+    inset 6px -6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset -6px 6px 1px -6px rgba(255, 255, 255, 0.05),
+    inset 0 0 2px rgba(0, 0, 0, 0.9),
+    0 8px 16px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* ===== 菜单结构 ===== */
