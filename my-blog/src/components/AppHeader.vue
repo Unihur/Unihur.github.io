@@ -127,6 +127,18 @@ const updateUsername = async () => {
 }
 
 // ============ 主题/Banner 下拉指令 ============
+// 主 dropdown 可见性 + 子面板可见性：子面板 hover 时阻止主 dropdown 收起
+const dropdownVisible = ref(false)
+const themePopoverVisible = ref(false)
+const bannerPopoverVisible = ref(false)
+
+function onDropdownVisibleChange(val) {
+  // 如果主菜单要关闭，但子面板正在显示，则强制保持打开
+  if (!val && (themePopoverVisible.value || bannerPopoverVisible.value)) {
+    dropdownVisible.value = true
+  }
+}
+
 const handleThemeCommand = (command) => {
   if (command.startsWith('glass_')) {
     siteStore.setTheme({ glass: command.substring(6) })
@@ -202,13 +214,16 @@ const handleVisitorClick = () => {
 
       <div class="nav-icons">
         <!-- 登录头像（含设置/主题/Banner/日夜模式的二级悬浮子菜单） -->
-        <!-- trigger=click：点击头像打开菜单，避免 hover 模式下鼠标移到子面板时主菜单收起 -->
+        <!-- trigger=click + v-model:visible：点击头像打开菜单；
+             当子面板 hover 时通过 forceOpen 阻止主菜单收起 -->
         <el-dropdown
+          v-model:visible="dropdownVisible"
           :disabled="!userStore.isLoggedIn"
           trigger="click"
           :hide-on-click="false"
           placement="bottom-end"
           popper-class="avatar-dropdown-popper"
+          @visible-change="onDropdownVisibleChange"
         >
           <div
             class="avatar-wrapper"
@@ -281,12 +296,17 @@ const handleVisitorClick = () => {
                 </div>
 
                 <!-- 主题与材质：hover 行右侧弹出独立子面板（el-popover） -->
+                <!-- @mousedown.stop 阻止子面板的点击事件冒泡到 document，
+                     避免主 dropdown 误判为"点击外部"而收起 -->
                 <el-popover
                   placement="right-start"
                   trigger="hover"
                   :show-arrow="false"
                   :offset="0"
+                  :popper-options="{ strategy: 'fixed' }"
                   popper-class="submenu-popper"
+                  @show="themePopoverVisible = true"
+                  @hide="themePopoverVisible = false"
                 >
                   <template #reference>
                     <div class="submenu-row">
@@ -416,7 +436,10 @@ const handleVisitorClick = () => {
                   trigger="hover"
                   :show-arrow="false"
                   :offset="0"
+                  :popper-options="{ strategy: 'fixed' }"
                   popper-class="submenu-popper"
+                  @show="bannerPopoverVisible = true"
+                  @hide="bannerPopoverVisible = false"
                 >
                   <template #reference>
                     <div class="submenu-row">
@@ -758,8 +781,8 @@ html.dark.liquid-glass-clear .avatar-dropdown-popper .el-dropdown-menu {
 }
 
 /* 液态玻璃：子面板 */
-html.liquid-glass .submenu-popper.el-popover.el-popper,
-html.liquid-glass-clear .submenu-popper.el-popover.el-popper {
+html.liquid-glass .submenu-popper,
+html.liquid-glass-clear .submenu-popper {
   background: rgba(255, 255, 255, 0.04) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -773,8 +796,8 @@ html.liquid-glass-clear .submenu-popper.el-popover.el-popper {
     0 4px 8px rgba(0, 0, 0, 0.2) !important;
   filter: brightness(0.95);
 }
-html.dark.liquid-glass .submenu-popper.el-popover.el-popper,
-html.dark.liquid-glass-clear .submenu-popper.el-popover.el-popper {
+html.dark.liquid-glass .submenu-popper,
+html.dark.liquid-glass-clear .submenu-popper {
   background: rgba(0, 0, 0, 0.2) !important;
   border: 1px double rgba(255, 255, 255, 0.08) !important;
   box-shadow:
@@ -837,7 +860,11 @@ html.dark .avatar-dropdown-popper .submenu-label {
 }
 
 /* el-popover 子面板内容容器（右侧弹出的独立面板） */
-.submenu-popper.el-popover.el-popper {
+/* 隐藏时直接 display:none，防止 popper 定位重置到左上角导致闪动 */
+.submenu-popper[data-popper-reference-hidden] {
+  display: none !important;
+}
+.submenu-popper {
   padding: 8px !important;
   border-radius: 10px !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
@@ -845,24 +872,24 @@ html.dark .avatar-dropdown-popper .submenu-label {
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
   min-width: 180px;
 }
-html.dark .submenu-popper.el-popover.el-popper {
+html.dark .submenu-popper {
   background: rgba(30, 30, 30, 0.98) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 /* 主题色跟随 */
-html.theme-color-blue:not(.dark) .submenu-popper.el-popover.el-popper {
+html.theme-color-blue:not(.dark) .submenu-popper {
   background: rgba(230, 247, 255, 0.98) !important;
 }
-html.theme-color-pink:not(.dark) .submenu-popper.el-popover.el-popper {
+html.theme-color-pink:not(.dark) .submenu-popper {
   background: rgba(255, 240, 246, 0.98) !important;
 }
-html.theme-color-green:not(.dark) .submenu-popper.el-popover.el-popper {
+html.theme-color-green:not(.dark) .submenu-popper {
   background: rgba(240, 249, 235, 0.98) !important;
 }
-html.theme-color-purple:not(.dark) .submenu-popper.el-popover.el-popper {
+html.theme-color-purple:not(.dark) .submenu-popper {
   background: rgba(243, 232, 255, 0.98) !important;
 }
-html.theme-color-orange:not(.dark) .submenu-popper.el-popover.el-popper {
+html.theme-color-orange:not(.dark) .submenu-popper {
   background: rgba(255, 243, 230, 0.98) !important;
 }
 

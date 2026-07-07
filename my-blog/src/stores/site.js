@@ -4,6 +4,8 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 import { getPublicSettings, savePublicSettings } from '../api/settings'
+import { updateUser } from '../api/auth'
+import { useUserStore } from './user'
 
 const LS = {
   glassType: 'glass-type',
@@ -86,17 +88,34 @@ export const useSiteStore = defineStore('site', () => {
       localStorage.setItem(LS.themeColor, color)
     }
     applyThemeConfig()
+    // 同步到后端用户配置（theme_style 格式："glassType|color"）
+    syncThemeStyleToBackend()
   }
 
   function toggleDarkMode() {
     isDark.value = !isDark.value
     localStorage.setItem(LS.isDark, String(isDark.value))
     applyThemeConfig()
-    savePublicSettings({ banner_mode: bannerMode.value, is_dark: isDark.value })
+    syncDarkToBackend()
   }
 
   function changeBannerMode(mode) {
     bannerMode.value = mode
+    syncDarkToBackend()
+  }
+
+  /** 把材质+颜色组合成 theme_style 同步到后端 */
+  function syncThemeStyleToBackend() {
+    const userStore = useUserStore()
+    if (!userStore.isLoggedIn) return
+    const combined = `${glassType.value}|${themeColor.value}`
+    updateUser({ theme_style: combined }).catch(() => {
+      /* 同步失败静默处理 */
+    })
+  }
+
+  /** 把夜间模式 + Banner 同步到后端公开设置 */
+  function syncDarkToBackend() {
     savePublicSettings({ banner_mode: bannerMode.value, is_dark: isDark.value })
   }
 
@@ -111,6 +130,18 @@ export const useSiteStore = defineStore('site', () => {
     if (config.is_dark !== undefined) {
       isDark.value = !!config.is_dark
       localStorage.setItem(LS.isDark, String(isDark.value))
+    }
+    // 解析 theme_style："glassType|color" 格式
+    if (config.theme_style && typeof config.theme_style === 'string') {
+      const parts = config.theme_style.split('|')
+      if (parts[0]) {
+        glassType.value = parts[0]
+        localStorage.setItem(LS.glassType, parts[0])
+      }
+      if (parts[1]) {
+        themeColor.value = parts[1]
+        localStorage.setItem(LS.themeColor, parts[1])
+      }
     }
     applyThemeConfig()
   }
