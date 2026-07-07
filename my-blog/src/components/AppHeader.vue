@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 // 顶部导航栏：
 // - 路由导航项 + 管理员额外项
 // - 设置 / 主题材质 / Banner / 日夜切换 图标
@@ -124,12 +124,6 @@ const updateUsername = async () => {
   } catch (err) {
     ElMessage.error(err.response?.data?.detail || '修改失败')
   }
-}
-
-// ============ 主题/Banner 子菜单展开状态（accordion 风格）============
-const expandedSubmenu = ref('') // 'theme' 或 'banner' 或 ''
-const toggleSubmenu = (key) => {
-  expandedSubmenu.value = expandedSubmenu.value === key ? '' : key
 }
 
 // ============ 主题/Banner 下拉指令 ============
@@ -276,7 +270,7 @@ const handleVisitorClick = () => {
 
               <el-divider style="margin: 10px 0" />
 
-              <!-- ====== 功能菜单：设置/主题/Banner/日夜（accordion 展开）====== -->
+              <!-- ====== 功能菜单：设置/主题/Banner/日夜 ====== -->
               <div class="submenu-list">
                 <!-- 设置 -->
                 <div class="submenu-row" @click="openSetting">
@@ -285,17 +279,22 @@ const handleVisitorClick = () => {
                   <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
                 </div>
 
-                <!-- 主题与材质（点击展开/收起） -->
-                <div class="submenu-row" @click="toggleSubmenu('theme')">
-                  <el-icon class="submenu-icon"><Brush /></el-icon>
-                  <span class="submenu-label">主题与材质设置</span>
-                  <el-icon class="submenu-arrow" :class="{ rotated: expandedSubmenu === 'theme' }"
-                    ><ArrowRight
-                  /></el-icon>
-                </div>
-                <!-- 主题子选项：在菜单内部展开 -->
-                <transition name="expand">
-                  <div v-show="expandedSubmenu === 'theme'" class="submenu-expand">
+                <!-- 主题与材质：hover 行右侧弹出独立子面板（el-popover） -->
+                <el-popover
+                  placement="right-start"
+                  trigger="hover"
+                  :show-arrow="false"
+                  :offset="0"
+                  popper-class="submenu-popper"
+                >
+                  <template #reference>
+                    <div class="submenu-row">
+                      <el-icon class="submenu-icon"><Brush /></el-icon>
+                      <span class="submenu-label">主题与材质设置</span>
+                      <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                    </div>
+                  </template>
+                  <div class="submenu-panel-content">
                     <div class="submenu-section-title">材质</div>
                     <div
                       class="submenu-item"
@@ -327,9 +326,7 @@ const handleVisitorClick = () => {
                         ><Check
                       /></el-icon>
                     </div>
-
                     <div class="submenu-section-divider"></div>
-
                     <div class="submenu-section-title">颜色</div>
                     <div
                       class="submenu-item"
@@ -410,18 +407,24 @@ const handleVisitorClick = () => {
                       /></el-icon>
                     </div>
                   </div>
-                </transition>
+                </el-popover>
 
-                <!-- Banner 设置（点击展开/收起） -->
-                <div class="submenu-row" @click="toggleSubmenu('banner')">
-                  <el-icon class="submenu-icon"><Picture /></el-icon>
-                  <span class="submenu-label">Banner 设置</span>
-                  <el-icon class="submenu-arrow" :class="{ rotated: expandedSubmenu === 'banner' }"
-                    ><ArrowRight
-                  /></el-icon>
-                </div>
-                <transition name="expand">
-                  <div v-show="expandedSubmenu === 'banner'" class="submenu-expand">
+                <!-- Banner 设置：hover 行右侧弹出独立子面板 -->
+                <el-popover
+                  placement="right-start"
+                  trigger="hover"
+                  :show-arrow="false"
+                  :offset="0"
+                  popper-class="submenu-popper"
+                >
+                  <template #reference>
+                    <div class="submenu-row">
+                      <el-icon class="submenu-icon"><Picture /></el-icon>
+                      <span class="submenu-label">Banner 设置</span>
+                      <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                    </div>
+                  </template>
+                  <div class="submenu-panel-content">
                     <div
                       class="submenu-item"
                       :class="{ active: siteStore.bannerMode === 'banner' }"
@@ -463,7 +466,7 @@ const handleVisitorClick = () => {
                       /></el-icon>
                     </div>
                   </div>
-                </transition>
+                </el-popover>
 
                 <!-- 日夜模式（点击直接切换） -->
                 <div class="submenu-row" @click="toggleDarkMode">
@@ -773,49 +776,61 @@ html.dark .avatar-dropdown-popper .submenu-label {
   color: #eee;
 }
 
-/* accordion 展开区域（在菜单内部向下展开，不溢出） */
-.avatar-dropdown-popper .submenu-expand {
-  padding: 4px 0 4px 28px;
+/* el-popover 子面板内容容器（右侧弹出的独立面板） */
+.submenu-popper.el-popover.el-popper {
+  padding: 8px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  min-width: 180px;
+}
+html.dark .submenu-popper.el-popover.el-popper {
+  background: rgba(30, 30, 30, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+/* 主题色跟随 */
+html.theme-color-blue:not(.dark) .submenu-popper.el-popover.el-popper {
+  background: rgba(230, 247, 255, 0.98) !important;
+}
+html.theme-color-pink:not(.dark) .submenu-popper.el-popover.el-popper {
+  background: rgba(255, 240, 246, 0.98) !important;
+}
+html.theme-color-green:not(.dark) .submenu-popper.el-popover.el-popper {
+  background: rgba(240, 249, 235, 0.98) !important;
+}
+html.theme-color-purple:not(.dark) .submenu-popper.el-popover.el-popper {
+  background: rgba(243, 232, 255, 0.98) !important;
+}
+html.theme-color-orange:not(.dark) .submenu-popper.el-popover.el-popper {
+  background: rgba(255, 243, 230, 0.98) !important;
+}
+
+/* 子面板内容 */
+.submenu-panel-content {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-/* 展开过渡动画 */
-.avatar-dropdown-popper .expand-enter-active,
-.avatar-dropdown-popper .expand-leave-active {
-  transition: all 0.25s ease;
-  overflow: hidden;
-}
-.avatar-dropdown-popper .expand-enter-from,
-.avatar-dropdown-popper .expand-leave-to {
-  opacity: 0;
-  max-height: 0;
-}
-.avatar-dropdown-popper .expand-enter-to,
-.avatar-dropdown-popper .expand-leave-from {
-  opacity: 1;
-  max-height: 500px;
-}
-
 /* 分组标题 */
-.avatar-dropdown-popper .submenu-section-title {
+.submenu-popper .submenu-section-title {
   font-size: 0.75rem;
   color: #999;
   padding: 4px 12px;
   font-weight: bold;
 }
-.avatar-dropdown-popper .submenu-section-divider {
+.submenu-popper .submenu-section-divider {
   height: 1px;
   background: rgba(0, 0, 0, 0.08);
   margin: 4px 0;
 }
-html.dark .avatar-dropdown-popper .submenu-section-divider {
+html.dark .submenu-popper .submenu-section-divider {
   background: rgba(255, 255, 255, 0.08);
 }
 
 /* 子选项 */
-.avatar-dropdown-popper .submenu-item {
+.submenu-popper .submenu-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -826,19 +841,19 @@ html.dark .avatar-dropdown-popper .submenu-section-divider {
   color: #333;
   transition: background 0.2s;
 }
-.avatar-dropdown-popper .submenu-item:hover {
+.submenu-popper .submenu-item:hover {
   background: rgba(64, 158, 255, 0.1);
 }
-.avatar-dropdown-popper .submenu-item.active {
+.submenu-popper .submenu-item.active {
   color: #409eff;
   font-weight: bold;
 }
-html.dark .avatar-dropdown-popper .submenu-item {
+html.dark .submenu-popper .submenu-item {
   color: #ddd;
 }
 
 /* 颜色小圆点 */
-.avatar-dropdown-popper .color-dot {
+.submenu-popper .color-dot {
   display: inline-block;
   width: 12px;
   height: 12px;
