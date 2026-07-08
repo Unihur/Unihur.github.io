@@ -183,9 +183,11 @@ const handleVisitorClick = () => {
         <span
           ><el-icon><Box /></el-icon>项目</span
         >
-        <span
-          ><el-icon><VideoPlay /></el-icon>娱乐</span
-        >
+        <router-link v-slot="{ navigate }" to="/entertainment" custom>
+          <span @click="navigate"
+            ><el-icon><VideoPlay /></el-icon>娱乐</span
+          >
+        </router-link>
         <span
           ><el-icon><ChatDotSquare /></el-icon>留言</span
         >

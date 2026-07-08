@@ -129,8 +129,8 @@ const userStore = useUserStore()
 const siteStore = useSiteStore()
 ```
 
-- `useUserStore`：登录态、用户信息、`isAdmin`（优先后端 `is_admin`，回退 `VITE_ADMIN_USERNAME`）
-- `useSiteStore`：站点配置、主题、Banner、夜间模式
+- `useUserStore`：登录态、用户信息、`isAdmin`（直接比较 `username === VITE_ADMIN_USERNAME`）、`canWrite`（写作权限）
+- `useSiteStore`：站点配置、主题材质+颜色、Banner、夜间模式；**主题/夜间/Banner 随账号保存**（调 `updateUser` 同步到后端用户配置）
 
 ### 3. 路由守卫
 

@@ -6,12 +6,14 @@ const HomeView = () => import('@/views/HomeView.vue')
 const WriteView = () => import('@/views/WriteView.vue')
 const ArticleView = () => import('@/views/ArticleView.vue')
 const VisitorsView = () => import('@/views/VisitorsView.vue')
+const EntertainmentView = () => import('@/views/EntertainmentView.vue')
 
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
   { path: '/write', name: 'Write', component: WriteView, meta: { requiresWriter: true } },
   { path: '/post/:slug', name: 'Article', component: ArticleView },
-  { path: '/visitors', name: 'Visitors', component: VisitorsView, meta: { requiresAdmin: true } }
+  { path: '/visitors', name: 'Visitors', component: VisitorsView, meta: { requiresAdmin: true } },
+  { path: '/entertainment', name: 'Entertainment', component: EntertainmentView }
 ]
 
 const router = createRouter({
