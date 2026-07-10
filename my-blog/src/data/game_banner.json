@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "max": 3,
+    "order": 1,
+    "game_id": 1,
+    "name": "游戏标题1",
+    "img_big": "1.png",
+    "img_1": "2.jpg",
+    "img_2": "1.png",
+    "img_3": "2.jpg",
+    "img_4": "1.png",
+    "tag": "标签1,标签2",
+    "des": "这里是游戏简介1",
+    "cost": 48,
+    "count": 0.95
+  },
+  {
+    "id": 2,
+    "max": 3,
+    "order": 2,
+    "game_id": 1,
+    "name": "游戏标题2",
+    "img_big": "2.jpg",
+    "img_1": "1.png",
+    "img_2": "2.jpg",
+    "img_3": "1.png",
+    "img_4": "2.jpg",
+    "tag": "标签1,标签3",
+    "des": "这里是游戏简介2",
+    "cost": 72,
+    "count": 1
+  },
+  {
+    "id": 3,
+    "max": 3,
+    "order": 3,
+    "game_id": 1,
+    "name": "游戏标题3",
+    "img_big": "1.png",
+    "img_1": "2.jpg",
+    "img_2": "2.jpg",
+    "img_3": "1.png",
+    "img_4": "1.png",
+    "tag": "标签1,标签4,标签5",
+    "des": "这里是游戏简介3",
+    "cost": 248,
+    "count": 0.8
+  }
+]
