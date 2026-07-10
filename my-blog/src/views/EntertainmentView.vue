@@ -1,13 +1,42 @@
 <script setup>
-// 娱乐页：仅保留首页 Banner + 单个全宽娱乐板块（待实装内容）
-// 删除左侧栏（个人信息/分类/标签）与音乐播放器；娱乐板块顶端对齐原音乐/个人信息板块最高点，
-// 宽度等于两者宽度之和（即主体内容区满宽）
+// 娱乐页：仅保留首页 Banner + 单个全宽娱乐板块
+// 娱乐板块顶端对齐原音乐/个人信息板块最高点，宽度等于两者宽度之和（主体内容区满宽）
+// 当前内容：顶部轮播图（暂用 banner 图片）+ 下方胶囊按钮（点击跳转对应顺序）+ 左右翻页箭头
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
-import { VideoPlay } from '@element-plus/icons-vue'
 
 const siteStore = useSiteStore()
 const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
+
+// ===== 娱乐轮播 =====
+const carouselRef = ref()
+const activeIndex = ref(0)
+const carouselHeight = ref('420px')
+
+// el-carousel change 事件参数：(newIndex, oldIndex)
+const handleCarouselChange = (newIndex) => {
+  activeIndex.value = newIndex
+}
+
+// 点击胶囊按钮：立刻跳转至对应顺序的图片
+const goToSlide = (index) => {
+  carouselRef.value?.setActiveItem(index)
+}
+
+// 响应式高度：移动端用较矮的高度
+const updateCarouselHeight = () => {
+  carouselHeight.value = window.innerWidth <= 768 ? '220px' : '420px'
+}
+
+onMounted(() => {
+  updateCarouselHeight()
+  window.addEventListener('resize', updateCarouselHeight)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateCarouselHeight)
+})
 </script>
 
 <template>
@@ -69,11 +98,34 @@ const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
       class="main-content-wrapper"
       :style="{ paddingTop: siteStore.contentPaddingTop, marginTop: siteStore.contentMarginTop }"
     >
-      <!-- TODO: 此处为娱乐内容区域，待后续实装具体内容 -->
       <div class="glass-box entertainment-block">
-        <el-icon class="placeholder-icon"><VideoPlay /></el-icon>
-        <h2 class="placeholder-title">娱乐</h2>
-        <p class="placeholder-desc">娱乐内容正在筹备中，敬请期待！</p>
+        <!-- 顶部轮播图（暂用 banner 图片资源） -->
+        <el-carousel
+          ref="carouselRef"
+          :interval="4000"
+          arrow="always"
+          indicator-position="none"
+          :height="carouselHeight"
+          @change="handleCarouselChange"
+        >
+          <el-carousel-item v-for="(img, index) in siteStore.bannerImages" :key="index">
+            <img :src="img" class="ent-carousel-img" alt="娱乐轮播图" />
+          </el-carousel-item>
+        </el-carousel>
+
+        <!-- 胶囊形状按钮：点击后轮播图立刻跳转至对应顺序的图片 -->
+        <div class="capsule-nav">
+          <el-button
+            v-for="(img, index) in siteStore.bannerImages"
+            :key="index"
+            round
+            size="small"
+            :type="activeIndex === index ? 'primary' : 'default'"
+            @click="goToSlide(index)"
+          >
+            {{ index + 1 }}
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -245,33 +297,23 @@ html.dark .wave4 {
     margin-top 0.5s ease;
 }
 
-/* 娱乐板块：满宽，顶端即主体内容区顶（原音乐/个人信息板块最高点） */
+/* 娱乐板块：满宽 glass-box，内部仅轮播图 + 胶囊按钮 */
 .entertainment-block {
   display: flex;
   flex-direction: column;
-  align-items: center;
+}
+.ent-carousel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.capsule-nav {
+  display: flex;
   justify-content: center;
-  min-height: 70vh;
-  text-align: center;
-}
-.placeholder-icon {
-  font-size: 4rem;
-  color: #409eff;
-  margin-bottom: 16px;
-}
-.placeholder-title {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin: 0 0 10px 0;
-  color: #333;
-}
-html.dark .placeholder-title {
-  color: #eee;
-}
-.placeholder-desc {
-  font-size: 1rem;
-  color: #999;
-  margin: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 @media screen and (max-width: 768px) {
