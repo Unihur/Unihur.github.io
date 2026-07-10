@@ -1,32 +1,51 @@
 <script setup>
 // 娱乐页：仅保留首页 Banner + 单个全宽娱乐板块
 // 娱乐板块顶端对齐原音乐/个人信息板块最高点，宽度等于两者宽度之和（主体内容区满宽）
-// 当前内容：顶部轮播图（暂用 banner 图片）+ 下方胶囊按钮（点击跳转对应顺序）+ 左右翻页箭头
-import { onMounted, onUnmounted, ref } from 'vue'
+// 轮播图每页：左侧 16:9 主图 + 右侧信息区（名字 / 2×2 缩略图 / 标签 / 价格右下角）
+// 左右翻页箭头置于图片外；下方胶囊指示器无数字、更小更紧凑
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
 
 const siteStore = useSiteStore()
 const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
 
-// ===== 娱乐轮播 =====
+// ===== 娱乐轮播数据：暂用 banner 图片，名字/标签/价格为占位，后续改读本地 JSON =====
+const slides = computed(() =>
+  siteStore.bannerImages.map((img, index) => ({
+    image: img,
+    name: `作品 ${index + 1}`,
+    tags: ['标签一', '标签二', '标签三'],
+    price: (index + 1) * 10
+  }))
+)
+
 const carouselRef = ref()
 const activeIndex = ref(0)
-const carouselHeight = ref('420px')
+const carouselHeight = ref('380px')
 
 // el-carousel change 事件参数：(newIndex, oldIndex)
 const handleCarouselChange = (newIndex) => {
   activeIndex.value = newIndex
 }
 
-// 点击胶囊按钮：立刻跳转至对应顺序的图片
+// 点击胶囊指示器：立刻跳转至对应顺序的图片
 const goToSlide = (index) => {
   carouselRef.value?.setActiveItem(index)
 }
 
-// 响应式高度：移动端用较矮的高度
+const prevSlide = () => {
+  carouselRef.value?.prev()
+}
+
+const nextSlide = () => {
+  carouselRef.value?.next()
+}
+
+// 响应式高度：移动端改为纵向布局，需更高
 const updateCarouselHeight = () => {
-  carouselHeight.value = window.innerWidth <= 768 ? '220px' : '420px'
+  carouselHeight.value = window.innerWidth <= 768 ? '460px' : '380px'
 }
 
 onMounted(() => {
@@ -99,32 +118,54 @@ onUnmounted(() => {
       :style="{ paddingTop: siteStore.contentPaddingTop, marginTop: siteStore.contentMarginTop }"
     >
       <div class="glass-box entertainment-block">
-        <!-- 顶部轮播图（暂用 banner 图片资源） -->
-        <el-carousel
-          ref="carouselRef"
-          :interval="4000"
-          arrow="always"
-          indicator-position="none"
-          :height="carouselHeight"
-          @change="handleCarouselChange"
-        >
-          <el-carousel-item v-for="(img, index) in siteStore.bannerImages" :key="index">
-            <img :src="img" class="ent-carousel-img" alt="娱乐轮播图" />
-          </el-carousel-item>
-        </el-carousel>
-
-        <!-- 胶囊形状按钮：点击后轮播图立刻跳转至对应顺序的图片 -->
-        <div class="capsule-nav">
-          <el-button
-            v-for="(img, index) in siteStore.bannerImages"
-            :key="index"
-            round
-            size="small"
-            :type="activeIndex === index ? 'primary' : 'default'"
-            @click="goToSlide(index)"
+        <!-- 轮播图：左箭头(图片外) + 轮播 + 右箭头(图片外) -->
+        <div class="carousel-row">
+          <el-button class="nav-arrow" circle :icon="ArrowLeft" @click="prevSlide" />
+          <el-carousel
+            ref="carouselRef"
+            :interval="4000"
+            arrow="never"
+            indicator-position="none"
+            :height="carouselHeight"
+            @change="handleCarouselChange"
           >
-            {{ index + 1 }}
-          </el-button>
+            <el-carousel-item v-for="(slide, index) in slides" :key="index">
+              <div class="slide-layout">
+                <!-- 左：16:9 主图 -->
+                <div class="main-image-area">
+                  <img :src="slide.image" class="main-img" :alt="slide.name" />
+                </div>
+                <!-- 右：信息区（名字 / 2×2 缩略图 / 标签 / 价格右下角） -->
+                <div class="info-area">
+                  <div class="slide-name">{{ slide.name }}</div>
+                  <div class="thumb-grid">
+                    <div v-for="i in 4" :key="i" class="thumb">
+                      <img :src="slide.image" class="thumb-img" :alt="`${slide.name} 缩略图${i}`" />
+                    </div>
+                  </div>
+                  <div class="slide-tags">
+                    <el-tag v-for="(tag, i) in slide.tags" :key="i" size="small" effect="plain">{{
+                      tag
+                    }}</el-tag>
+                  </div>
+                  <div class="slide-price">¥{{ slide.price }}</div>
+                </div>
+              </div>
+            </el-carousel-item>
+          </el-carousel>
+          <el-button class="nav-arrow" circle :icon="ArrowRight" @click="nextSlide" />
+        </div>
+
+        <!-- 胶囊指示器：无数字、更小更紧凑 -->
+        <div class="capsule-nav">
+          <button
+            v-for="(slide, index) in slides"
+            :key="index"
+            type="button"
+            class="capsule-dot"
+            :class="{ 'is-active': activeIndex === index }"
+            @click="goToSlide(index)"
+          ></button>
         </div>
       </div>
     </div>
@@ -297,23 +338,119 @@ html.dark .wave4 {
     margin-top 0.5s ease;
 }
 
-/* 娱乐板块：满宽 glass-box，内部仅轮播图 + 胶囊按钮 */
+/* 娱乐板块：满宽 glass-box */
 .entertainment-block {
   display: flex;
   flex-direction: column;
 }
-.ent-carousel-img {
+
+/* 轮播行：左右箭头(图片外) + 轮播 */
+.carousel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.carousel-row :deep(.el-carousel) {
+  flex: 1;
+  min-width: 0;
+}
+.nav-arrow {
+  flex-shrink: 0;
+}
+
+/* 单页布局：左主图 + 右信息区 */
+.slide-layout {
+  display: flex;
+  height: 100%;
+  gap: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+.main-image-area {
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.main-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
+
+/* 右侧信息区 */
+.info-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.slide-name {
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #333;
+}
+html.dark .slide-name {
+  color: #eee;
+}
+.thumb-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.thumb {
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.slide-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.slide-price {
+  margin-top: auto;
+  align-self: flex-end;
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: #f56c6c;
+}
+
+/* 胶囊指示器：无数字、更小、更紧凑 */
 .capsule-nav {
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
+  gap: 5px;
+  margin-top: 10px;
+}
+.capsule-dot {
+  width: 16px;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.capsule-dot:hover {
+  background: rgba(64, 158, 255, 0.5);
+}
+.capsule-dot.is-active {
+  width: 22px;
+  background: #409eff;
+}
+html.dark .capsule-dot {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 @media screen and (max-width: 768px) {
@@ -336,6 +473,15 @@ html.dark .wave4 {
   }
   .main-content-wrapper {
     padding: 20px 10px 20px 10px !important;
+  }
+  /* 移动端单页改为纵向布局，主图在上、信息区在下 */
+  .slide-layout {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .main-image-area {
+    width: 100%;
+    height: auto;
   }
 }
 </style>
