@@ -22,22 +22,38 @@ const handleImgError = (name) => {
   if (next < IMG_EXTENSIONS.length) imgExtIdx[name] = next
 }
 
+// 悬浮缩略图时左侧大图临时显示对应小图，移走恢复原大图（按 slide.id 隔离，避免多页串扰）
+const bigImgOverride = reactive({}) // slide.id -> 悬浮的小图资源名
+const bigImgName = (slide) => bigImgOverride[slide.id] || slide.img_big
+const onThumbEnter = (slide, name) => {
+  bigImgOverride[slide.id] = name
+}
+const onThumbLeave = (slide) => {
+  delete bigImgOverride[slide.id]
+}
+
 // 轮播数据：按 order 排序；拆分 tag、预计算折扣
 const slides = computed(() =>
   [...gameBannerData]
     .sort((a, b) => a.order - b.order)
-    .map((item) => ({
-      ...item,
-      thumbs: [item.img_1, item.img_2, item.img_3, item.img_4].filter(Boolean),
-      tags: item.tag
-        ? item.tag
-            .split(/[,，]/)
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : [],
-      discounted: item.count < 1,
-      discountPct: item.count < 1 ? Math.round((1 - item.count) * 100) : 0
-    }))
+    .map((item) => {
+      const isFree = !item.cost
+      const discounted = !isFree && item.count < 1
+      return {
+        ...item,
+        thumbs: [item.img_1, item.img_2, item.img_3, item.img_4].filter(Boolean),
+        tags: item.tag
+          ? item.tag
+              .split(/[,，]/)
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : [],
+        isFree,
+        discounted,
+        discountPct: discounted ? Math.round((1 - item.count) * 100) : 0,
+        currentPrice: isFree ? 0 : Math.round(item.cost * item.count)
+      }
+    })
 )
 
 // 胶囊数量 = max（允许实时修改），取首项 max，回退到 slides 长度
@@ -151,10 +167,10 @@ onUnmounted(() => {
                 <!-- 左：16:9 主图 -->
                 <div class="main-image-area">
                   <img
-                    :src="imgUrl(slide.img_big)"
+                    :src="imgUrl(bigImgName(slide))"
                     class="main-img"
                     :alt="slide.name"
-                    @error="handleImgError(slide.img_big)"
+                    @error="handleImgError(bigImgName(slide))"
                   />
                 </div>
                 <!-- 右：信息区 名字 / 2×2 缩略图 / 简介 / 标签 / 价格(右下角) -->
@@ -167,6 +183,8 @@ onUnmounted(() => {
                         class="thumb-img"
                         :alt="`${slide.name} 缩略图${i + 1}`"
                         @error="handleImgError(t)"
+                        @mouseenter="onThumbEnter(slide, t)"
+                        @mouseleave="onThumbLeave(slide)"
                       />
                     </div>
                   </div>
@@ -177,12 +195,13 @@ onUnmounted(() => {
                     }}</el-tag>
                   </div>
                   <div class="slide-price">
-                    <span v-if="slide.discounted" class="discount-tag"
-                      >-{{ slide.discountPct }}%</span
-                    >
-                    <span class="price-value" :class="{ 'is-discount': slide.discounted }"
-                      >¥{{ slide.cost }}</span
-                    >
+                    <span v-if="slide.isFree" class="price-value is-free">免费</span>
+                    <template v-else-if="slide.discounted">
+                      <span class="discount-tag">-{{ slide.discountPct }}%</span>
+                      <span class="origin-price">¥{{ slide.cost }}</span>
+                      <span class="price-value is-discount">¥{{ slide.currentPrice }}</span>
+                    </template>
+                    <span v-else class="price-value">¥{{ slide.cost }}</span>
                   </div>
                 </div>
               </div>
@@ -486,10 +505,19 @@ html.dark .slide-price {
   color: #67c23a;
   font-size: 0.85rem;
 }
+.origin-price {
+  color: #999;
+  text-decoration: line-through;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
 .price-value {
   color: #fff;
 }
 .price-value.is-discount {
+  color: #67c23a;
+}
+.price-value.is-free {
   color: #67c23a;
 }
 
