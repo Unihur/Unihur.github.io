@@ -3,7 +3,7 @@
 // 轮播数据来自 src/data/game_banner.json（Vite HMR，支持实时修改）
 // 每页：左侧 16:9 主图 + 右侧信息区（名字 / 2×2 缩略图 / 简介 / 标签 / 价格右下角）
 // 左右翻页箭头置于图片外；下方胶囊指示器数量 = JSON 的 max，居中
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
@@ -12,8 +12,15 @@ import gameBannerData from '@/data/game_banner.json'
 const siteStore = useSiteStore()
 const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
 
-// 图片资源统一在 /game_banner/ 下（public/game_banner，构建后落到 dist/game_banner）
-const imgUrl = (name) => `/game_banner/${name}`
+// 图片资源在 /game_banner/ 下（public/game_banner，构建落到 dist/game_banner）
+// JSON 只填资源名（不带扩展名），这里按 png→jpg→jpeg→webp 顺序自动匹配实际文件
+const IMG_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp']
+const imgExtIdx = reactive({}) // 资源名 -> 当前尝试的扩展名下标
+const imgUrl = (name) => `/game_banner/${name}.${IMG_EXTENSIONS[imgExtIdx[name] || 0]}`
+const handleImgError = (name) => {
+  const next = (imgExtIdx[name] || 0) + 1
+  if (next < IMG_EXTENSIONS.length) imgExtIdx[name] = next
+}
 
 // 轮播数据：按 order 排序；拆分 tag、预计算折扣
 const slides = computed(() =>
@@ -143,7 +150,12 @@ onUnmounted(() => {
               <div class="slide-layout">
                 <!-- 左：16:9 主图 -->
                 <div class="main-image-area">
-                  <img :src="imgUrl(slide.img_big)" class="main-img" :alt="slide.name" />
+                  <img
+                    :src="imgUrl(slide.img_big)"
+                    class="main-img"
+                    :alt="slide.name"
+                    @error="handleImgError(slide.img_big)"
+                  />
                 </div>
                 <!-- 右：信息区 名字 / 2×2 缩略图 / 简介 / 标签 / 价格(右下角) -->
                 <div class="info-area">
@@ -154,6 +166,7 @@ onUnmounted(() => {
                         :src="imgUrl(t)"
                         class="thumb-img"
                         :alt="`${slide.name} 缩略图${i + 1}`"
+                        @error="handleImgError(t)"
                       />
                     </div>
                   </div>
