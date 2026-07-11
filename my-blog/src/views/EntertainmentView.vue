@@ -470,11 +470,7 @@ html.dark .slide-name {
   font-size: 0.85rem;
   color: #666;
   line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  word-break: break-word;
 }
 html.dark .slide-des {
   color: #aaa;
