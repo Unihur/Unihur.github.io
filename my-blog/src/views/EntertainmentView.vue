@@ -5,7 +5,7 @@
 // 左右翻页箭头置于图片外；下方胶囊指示器数量 = JSON 的 max，居中
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, ArrowRight, Refresh, Search } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Refresh, Search, View } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useUserStore } from '@/stores/user'
 import { useTypewriter } from '@/composables/useTypewriter'
@@ -99,31 +99,116 @@ const goToSlide = (index) => {
 
 const prevSlide = () => carouselRef.value?.prev()
 const nextSlide = () => carouselRef.value?.next()
-const goToGame = (id) => router.push(`/game/${id}`)
-
-// ---- 本周热门 ----
-const hotGames = ref(
-  Array.from({ length: 8 }, (_, i) => ({
-    id: i + 1,
-    title: `游戏标题${i + 1}`,
-    likes: Math.floor(Math.random() * 9000) + 100
-  }))
-)
-const refreshHot = () => {
-  hotGames.value = hotGames.value.map((g) => ({
-    ...g,
-    likes: Math.floor(Math.random() * 9000) + 100
-  }))
+const goToGame = (id) => {
+  recordView(id)
+  router.push(`/game/${id}`)
 }
 
-// ---- 高分口碑榜 ----
-const highScoreGames = [
-  { id: 1, name: '游戏名称1' },
-  { id: 2, name: '游戏名称2' },
-  { id: 3, name: '游戏名称3' },
-  { id: 4, name: '游戏名称4' },
-  { id: 5, name: '游戏名称5' }
-]
+// ---- 周统计追踪（localStorage） ----
+const WEEKLY_VIEWS_KEY = 'game_weekly_views'
+const WEEKLY_FAVS_KEY = 'game_weekly_favs'
+
+function getWeekKey() {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1)
+  const monday = new Date(now.getFullYear(), now.getMonth(), diff)
+  const y = monday.getFullYear()
+  const m = String(monday.getMonth() + 1).padStart(2, '0')
+  const d = String(monday.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function loadWeeklyData(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveWeeklyData(key, data) {
+  localStorage.setItem(key, JSON.stringify(data))
+}
+
+function recordView(gameId) {
+  const weekKey = getWeekKey()
+  const data = loadWeeklyData(WEEKLY_VIEWS_KEY)
+  if (!data[weekKey]) data[weekKey] = {}
+  data[weekKey][gameId] = (data[weekKey][gameId] || 0) + 1
+  saveWeeklyData(WEEKLY_VIEWS_KEY, data)
+}
+
+function recordWeeklyFav(gameId) {
+  const weekKey = getWeekKey()
+  const data = loadWeeklyData(WEEKLY_FAVS_KEY)
+  if (!data[weekKey]) data[weekKey] = {}
+  data[weekKey][gameId] = (data[weekKey][gameId] || 0) + 1
+  saveWeeklyData(WEEKLY_FAVS_KEY, data)
+}
+
+function getAllTimeViews() {
+  const data = loadWeeklyData(WEEKLY_VIEWS_KEY)
+  const totals = {}
+  for (const week of Object.values(data)) {
+    for (const [gid, cnt] of Object.entries(week)) {
+      totals[gid] = (totals[gid] || 0) + cnt
+    }
+  }
+  return totals
+}
+
+// ---- 本周热门 ----
+const randomSeed = ref(Math.random())
+const refreshHot = () => {
+  randomSeed.value = Math.random()
+}
+
+const hotGames = computed(() => {
+  const weekKey = getWeekKey()
+  const viewsData = loadWeeklyData(WEEKLY_VIEWS_KEY)
+  const favsData = loadWeeklyData(WEEKLY_FAVS_KEY)
+  const weekViews = viewsData[weekKey] || {}
+  const weekFavs = favsData[weekKey] || {}
+
+  const allIds = new Set([...Object.keys(weekViews), ...Object.keys(weekFavs)])
+  const scored = []
+  for (const idStr of allIds) {
+    const gid = Number(idStr)
+    const repo = repoMap.value[gid]
+    if (!repo) continue
+    const total = (weekViews[idStr] || 0) + (weekFavs[idStr] || 0)
+    scored.push({ ...toDisplayItem(repo), hotScore: total })
+  }
+  scored.sort((a, b) => b.hotScore - a.hotScore)
+
+  if (scored.length > 0) {
+    return scored.slice(0, 8)
+  }
+  void randomSeed.value
+  const shuffled = [...allGames.value].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, 8)
+})
+
+// ---- 高分口碑榜：点进详情页最高 Top5 ----
+const highScoreGames = computed(() => {
+  const allViews = getAllTimeViews()
+  const scored = []
+  for (const [gidStr, cnt] of Object.entries(allViews)) {
+    const gid = Number(gidStr)
+    const repo = repoMap.value[gid]
+    if (!repo) continue
+    scored.push({ ...toDisplayItem(repo), viewCount: cnt })
+  }
+  scored.sort((a, b) => b.viewCount - a.viewCount)
+  if (scored.length >= 5) return scored.slice(0, 5)
+  // 不足 5 个时，用仓库中浏览量最高的补足（随机填充未浏览过的）
+  const existing = new Set(scored.map((g) => g.id))
+  const rest = [...allGames.value]
+    .filter((g) => !existing.has(g.id))
+    .sort(() => Math.random() - 0.5)
+  return [...scored, ...rest].slice(0, 5)
+})
 
 // ---- 关注系统（按账号保存到 localStorage） ----
 function formatGameDate(timeStr) {
@@ -150,7 +235,10 @@ function isFav(gameId) {
 function toggleFav(gameId) {
   const idx = favGameIds.value.indexOf(gameId)
   if (idx >= 0) favGameIds.value.splice(idx, 1)
-  else favGameIds.value.push(gameId)
+  else {
+    favGameIds.value.push(gameId)
+    recordWeeklyFav(gameId)
+  }
   saveFavs(favGameIds.value)
 }
 
@@ -365,11 +453,19 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="hot-grid">
-              <div v-for="g in hotGames" :key="g.id" class="hot-card">
-                <img src="/game_banner/2.png" class="hot-card-img" alt="game cover" />
+              <div v-for="g in hotGames" :key="g.id" class="hot-card" @click="goToGame(g.id)">
+                <img
+                  :src="imgUrl(g.img_big)"
+                  class="hot-card-img"
+                  :alt="g.name"
+                  @error="handleImgError(g.img_big)"
+                />
                 <div class="hot-card-bottom">
-                  <span class="hot-card-title">{{ g.title }}</span>
-                  <span class="hot-card-likes">{{ g.likes }}</span>
+                  <span class="hot-card-title">{{ g.name }}</span>
+                  <span class="hot-card-likes">
+                    <el-icon><View /></el-icon>
+                    {{ g.hotScore }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -382,10 +478,20 @@ onUnmounted(() => {
               <div class="section-head-right"><span class="label-top">Top5</span></div>
             </div>
             <div class="score-list">
-              <div v-for="g in highScoreGames" :key="g.id" class="score-item">
-                <img src="/game_banner/2.png" class="score-img" alt="game cover" />
+              <div
+                v-for="(g, i) in highScoreGames"
+                :key="g.id"
+                class="score-item"
+                @click="goToGame(g.id)"
+              >
+                <img
+                  :src="imgUrl(g.img_big)"
+                  class="score-img"
+                  :alt="g.name"
+                  @error="handleImgError(g.img_big)"
+                />
                 <span class="score-name">{{ g.name }}</span>
-                <span class="score-rank">TOP{{ g.id }}</span>
+                <span class="score-rank">TOP{{ i + 1 }}</span>
               </div>
             </div>
           </div>
@@ -490,6 +596,9 @@ onUnmounted(() => {
                       {{ tag }}
                     </el-tag>
                   </div>
+                </template>
+                <div class="gc-bottom-row">
+                  <span class="gc-time">{{ formatGameDate(g.time) }}</span>
                   <div class="game-card-price">
                     <span v-if="g.isFree" class="price-value is-free">免费</span>
                     <template v-else-if="g.discounted">
@@ -499,7 +608,7 @@ onUnmounted(() => {
                     </template>
                     <span v-else class="price-value">¥{{ g.cost }}</span>
                   </div>
-                </template>
+                </div>
               </div>
             </div>
           </div>
@@ -538,16 +647,18 @@ onUnmounted(() => {
                     {{ tag }}
                   </el-tag>
                 </div>
-                <div class="game-card-price list-price">
-                  <span v-if="g.isFree" class="price-value is-free">免费</span>
-                  <template v-else-if="g.discounted">
-                    <span class="discount-tag">-{{ g.discountPct }}%</span>
-                    <span class="origin-price">¥{{ g.cost }}</span>
-                    <span class="price-value is-discount">¥{{ g.currentPrice }}</span>
-                  </template>
-                  <span v-else class="price-value">¥{{ g.cost }}</span>
+                <div class="list-bottom-row">
+                  <span class="list-time">{{ formatGameDate(g.time) }}</span>
+                  <div class="game-card-price list-price">
+                    <span v-if="g.isFree" class="price-value is-free">免费</span>
+                    <template v-else-if="g.discounted">
+                      <span class="discount-tag">-{{ g.discountPct }}%</span>
+                      <span class="origin-price">¥{{ g.cost }}</span>
+                      <span class="price-value is-discount">¥{{ g.currentPrice }}</span>
+                    </template>
+                    <span v-else class="price-value">¥{{ g.cost }}</span>
+                  </div>
                 </div>
-                <div class="list-time">{{ formatGameDate(g.time) }}</div>
               </div>
             </div>
           </div>
@@ -862,8 +973,6 @@ html.dark .slide-price {
 
 /* 大/小卡片内售价 -- 复用轮播图售价样式，用 margin 推到底部右侧 */
 .game-card-price {
-  margin-top: auto;
-  align-self: flex-end;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
@@ -872,6 +981,7 @@ html.dark .slide-price {
   background: rgba(0, 0, 0, 0.75);
   font-size: 0.9rem;
   font-weight: bold;
+  flex-shrink: 0;
 }
 html.dark .game-card-price {
   background: rgba(0, 0, 0, 0.6);
@@ -946,13 +1056,15 @@ html.dark .list-name {
   flex-wrap: wrap;
   gap: 6px;
 }
+.list-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
 .list-time {
   font-size: 0.82rem;
   color: #909399;
-}
-.list-price {
-  margin-top: auto;
-  align-self: flex-end;
 }
 
 /* 胶囊指示器：居中、更小更紧凑、高度略高 */
@@ -1060,6 +1172,7 @@ html.dark .label-score {
   overflow: hidden;
   background: rgba(0, 0, 0, 0.03);
   transition: transform 0.2s;
+  cursor: pointer;
 }
 .hot-card:hover {
   transform: translateY(-2px);
@@ -1093,6 +1206,13 @@ html.dark .hot-card-title {
   color: #909399;
   flex-shrink: 0;
   margin-left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.8rem;
+}
+.hot-card-likes .el-icon {
+  font-size: 0.85rem;
 }
 
 /* ---- 高分口碑榜 ---- */
@@ -1109,6 +1229,7 @@ html.dark .hot-card-title {
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.02);
   transition: background 0.2s;
+  cursor: pointer;
 }
 .score-item:hover {
   background: rgba(64, 158, 255, 0.06);
@@ -1361,6 +1482,18 @@ html.dark .gc-des {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+.gc-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.gc-time {
+  font-size: 0.78rem;
+  color: #909399;
 }
 
 @media screen and (max-width: 768px) {
