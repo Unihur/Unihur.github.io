@@ -712,14 +712,17 @@ html.dark .divider {
   cursor: pointer;
   border: 2px solid transparent;
   transition:
-    border-color 0.3s,
-    transform 0.3s;
+    border-color 0.15s,
+    transform 0.15s;
   transform-origin: top center;
 }
 .login-avatar:hover,
 .login-avatar.avatar-zoomed {
-  transform: scale(2.2);
+  transform: scale(2.5);
   border-color: #409eff;
+  transition:
+    border-color 0.3s,
+    transform 0.3s;
 }
 
 .avatar-wrapper {

@@ -122,9 +122,6 @@ const highScoreGames = [
   { id: 5, name: '游戏名称5' }
 ]
 
-// 六个分类标签
-const gameTags = ['国产独游', '像素复古', '剧情叙事', '休闲治愈', '免费Demo', '肉鸽挑战']
-
 // ---- 关注系统（按账号保存到 localStorage） ----
 function loadFavs() {
   try {
@@ -198,12 +195,6 @@ const filteredGames = computed(() => {
 
   return games
 })
-
-// 点击标签按钮时同步筛选
-function selectTag(tag) {
-  selectedType.value = tag
-  selectedRelease.value = '最新'
-}
 
 // 响应式高度：移动端纵向布局需更高
 const updateCarouselHeight = () => {
@@ -351,19 +342,6 @@ onUnmounted(() => {
           ></button>
         </div>
 
-        <!-- 六标签按钮行 -->
-        <div class="game-tag-row">
-          <button
-            v-for="tag in gameTags"
-            :key="tag"
-            type="button"
-            class="game-tag-btn"
-            @click="selectTag(tag)"
-          >
-            {{ tag }}
-          </button>
-        </div>
-
         <!-- 本周热门 + 高分口碑榜 两栏 -->
         <div class="cols-row">
           <!-- 左侧 3/4：本周热门 -->
@@ -455,53 +433,103 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 游戏卡片：大卡片 / 小卡片 模式（grid） -->
-        <div
-          v-if="viewMode !== 'list'"
-          :class="['game-cards-grid', { 'grid-sm': viewMode === 'small' }]"
-        >
-          <div v-for="g in filteredGames" :key="g.id" class="game-card">
-            <!-- 封面 + 爱心 -->
-            <div class="game-card-cover">
-              <img
-                :src="imgUrl(g.img_big)"
-                class="gc-cover-img"
-                :alt="g.name"
-                @error="handleImgError(g.img_big)"
-              />
-              <button
-                type="button"
-                class="gc-fav-btn"
-                :title="isFav(g.id) ? '取消关注' : '关注'"
-                @click.stop="toggleFav(g.id)"
-              >
-                <svg
-                  class="gc-heart"
-                  :class="{ filled: isFav(g.id) }"
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
+        <!-- 游戏卡片：大卡片 / 小卡片 / 列表 过渡 -->
+        <Transition name="mode-fade" mode="out-in">
+          <div
+            v-if="viewMode !== 'list'"
+            :key="'grid'"
+            :class="['game-cards-grid', { 'grid-sm': viewMode === 'small' }]"
+          >
+            <div v-for="g in filteredGames" :key="g.id" class="game-card">
+              <!-- 封面 + 爱心 -->
+              <div class="game-card-cover">
+                <img
+                  :src="imgUrl(g.img_big)"
+                  class="gc-cover-img"
+                  :alt="g.name"
+                  @error="handleImgError(g.img_big)"
+                />
+                <button
+                  type="button"
+                  class="gc-fav-btn"
+                  :title="isFav(g.id) ? '取消关注' : '关注'"
+                  @click.stop="toggleFav(g.id)"
                 >
-                  <path
-                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                  <svg
+                    class="gc-heart"
+                    :class="{ filled: isFav(g.id) }"
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                  >
+                    <path
+                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
                        2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
                        C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42
                        22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                  />
-                </svg>
-              </button>
+                    />
+                  </svg>
+                </button>
+              </div>
+              <!-- 信息 -->
+              <div class="game-card-info">
+                <div class="gc-name">{{ g.name }}</div>
+                <template v-if="viewMode !== 'small'">
+                  <div class="gc-des">{{ g.des }}</div>
+                  <div class="gc-tags">
+                    <el-tag v-for="(tag, i) in g.tags" :key="i" size="small" effect="plain">
+                      {{ tag }}
+                    </el-tag>
+                  </div>
+                  <div class="game-card-price">
+                    <span v-if="g.isFree" class="price-value is-free">免费</span>
+                    <template v-else-if="g.discounted">
+                      <span class="discount-tag">-{{ g.discountPct }}%</span>
+                      <span class="origin-price">¥{{ g.cost }}</span>
+                      <span class="price-value is-discount">¥{{ g.currentPrice }}</span>
+                    </template>
+                    <span v-else class="price-value">¥{{ g.cost }}</span>
+                  </div>
+                </template>
+              </div>
             </div>
-            <!-- 信息 -->
-            <div class="game-card-info">
-              <div class="gc-name">{{ g.name }}</div>
-              <template v-if="viewMode !== 'small'">
-                <div class="gc-des">{{ g.des }}</div>
-                <div class="gc-tags">
+          </div>
+
+          <!-- 游戏卡片：列表模式 -->
+          <div v-else key="list" class="game-cards-list">
+            <div v-for="g in filteredGames" :key="g.id" class="list-card">
+              <div class="list-card-cover">
+                <img :src="imgUrl(g.img_big)" :alt="g.name" @error="handleImgError(g.img_big)" />
+                <button
+                  type="button"
+                  class="gc-fav-btn"
+                  :title="isFav(g.id) ? '取消关注' : '关注'"
+                  @click.stop="toggleFav(g.id)"
+                >
+                  <svg
+                    class="gc-heart"
+                    :class="{ filled: isFav(g.id) }"
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                  >
+                    <path
+                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                       2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
+                       C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42
+                       22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div class="list-card-info">
+                <div class="list-name">{{ g.name }}</div>
+                <div class="list-tags">
                   <el-tag v-for="(tag, i) in g.tags" :key="i" size="small" effect="plain">
                     {{ tag }}
                   </el-tag>
                 </div>
-                <div class="game-card-price">
+                <div class="game-card-price list-price">
                   <span v-if="g.isFree" class="price-value is-free">免费</span>
                   <template v-else-if="g.discounted">
                     <span class="discount-tag">-{{ g.discountPct }}%</span>
@@ -510,58 +538,11 @@ onUnmounted(() => {
                   </template>
                   <span v-else class="price-value">¥{{ g.cost }}</span>
                 </div>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- 游戏卡片：列表模式 -->
-        <div v-else class="game-cards-list">
-          <div v-for="g in filteredGames" :key="g.id" class="list-card">
-            <div class="list-card-cover">
-              <img :src="imgUrl(g.img_big)" :alt="g.name" @error="handleImgError(g.img_big)" />
-              <button
-                type="button"
-                class="gc-fav-btn"
-                :title="isFav(g.id) ? '取消关注' : '关注'"
-                @click.stop="toggleFav(g.id)"
-              >
-                <svg
-                  class="gc-heart"
-                  :class="{ filled: isFav(g.id) }"
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
-                >
-                  <path
-                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
-                       2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
-                       C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42
-                       22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div class="list-card-info">
-              <div class="list-name">{{ g.name }}</div>
-              <div class="list-tags">
-                <el-tag v-for="(tag, i) in g.tags" :key="i" size="small" effect="plain">
-                  {{ tag }}
-                </el-tag>
-              </div>
-              <div class="list-time">{{ g.time }}</div>
-              <div class="game-card-price list-price">
-                <span v-if="g.isFree" class="price-value is-free">免费</span>
-                <template v-else-if="g.discounted">
-                  <span class="discount-tag">-{{ g.discountPct }}%</span>
-                  <span class="origin-price">¥{{ g.cost }}</span>
-                  <span class="price-value is-discount">¥{{ g.currentPrice }}</span>
-                </template>
-                <span v-else class="price-value">¥{{ g.cost }}</span>
+                <div class="list-time">{{ g.time }}</div>
               </div>
             </div>
           </div>
-        </div>
+        </Transition>
       </div>
     </div>
   </div>
@@ -980,43 +961,11 @@ html.dark .capsule-dot {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* ---- 六标签按钮 ---- */
-.game-tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 28px;
-  padding: 0 8px;
-}
-.game-tag-btn {
-  padding: 5px 16px;
-  border: 1px solid #c0c4cc;
-  border-radius: 999px;
-  background: transparent;
-  color: #606266;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.25s;
-}
-.game-tag-btn:hover {
-  color: #409eff;
-  border-color: #409eff;
-}
-html.dark .game-tag-btn {
-  color: #c8c8c8;
-  border-color: #555;
-}
-html.dark .game-tag-btn:hover {
-  color: #409eff;
-  border-color: #409eff;
-}
-
 /* ---- 两栏布局 ---- */
 .cols-row {
   display: flex;
   gap: 20px;
-  margin-top: 20px;
+  margin-top: 32px;
   padding: 0 8px;
 }
 .hot-section {
@@ -1176,7 +1125,7 @@ html.dark .score-name {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: 48px;
   padding: 0 8px;
 }
 .search-input {
@@ -1273,6 +1222,20 @@ html.dark .view-btn {
   background-image:
     linear-gradient(#409eff, #409eff), linear-gradient(#409eff, #409eff),
     linear-gradient(#409eff, #409eff);
+}
+
+/* 视图模式切换过渡动画 */
+.mode-fade-enter-active,
+.mode-fade-leave-active {
+  transition: all 0.25s ease;
+}
+.mode-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.mode-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 /* ---- 游戏卡片网格 ---- */
