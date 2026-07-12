@@ -747,22 +747,16 @@ html.dark .wave4 {
 .slide-layout {
   display: flex;
   height: 100%;
-  gap: 12px;
+  gap: 0;
   padding: 10px;
   box-sizing: border-box;
-  border: 2px solid rgba(64, 158, 255, 0.2);
-  border-radius: 12px;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-.slide-layout:hover {
-  border-color: #409eff;
 }
 .main-image-area {
   height: 100%;
   aspect-ratio: 16 / 9;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 8px 0 0 8px;
   overflow: hidden;
 }
 .main-img {
@@ -779,6 +773,14 @@ html.dark .wave4 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0 8px 8px 0;
+  padding: 12px;
+}
+html.dark .info-area {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 .slide-name {
   font-size: 1.05rem;
@@ -829,7 +831,7 @@ html.dark .slide-des {
   padding: 4px 10px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.75);
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: bold;
 }
 html.dark .slide-price {
@@ -847,15 +849,15 @@ html.dark .slide-price {
 }
 .price-value {
   color: #fff;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
 }
 .price-value.is-discount {
   color: #67c23a;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
 }
 .price-value.is-free {
   color: #67c23a;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
 }
 
 /* 大/小卡片内售价 -- 复用轮播图售价样式，用 margin 推到底部右侧 */
@@ -868,7 +870,7 @@ html.dark .slide-price {
   padding: 4px 10px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.75);
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: bold;
 }
 html.dark .game-card-price {
@@ -1388,6 +1390,10 @@ html.dark .gc-des {
   .main-image-area {
     width: 100%;
     height: auto;
+    border-radius: 8px 8px 0 0;
+  }
+  .info-area {
+    border-radius: 0 0 8px 8px;
   }
   .cols-row {
     flex-direction: column;
