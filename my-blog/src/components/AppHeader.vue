@@ -227,10 +227,10 @@ const handleVisitorClick = () => {
           >
         </router-link>
         <span :ref="(el) => setNavRef(3, el)"
-          ><el-icon><Box /></el-icon>项目</span
+          ><el-icon><Box /></el-icon>壁纸</span
         >
         <span :ref="(el) => setNavRef(4, el)"
-          ><el-icon><ChatDotSquare /></el-icon>留言</span
+          ><el-icon><ChatDotSquare /></el-icon>项目</span
         >
         <span :ref="(el) => setNavRef(5, el)"
           ><el-icon><Guide /></el-icon>导航</span

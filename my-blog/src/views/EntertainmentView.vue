@@ -182,12 +182,12 @@ const hotGames = computed(() => {
   }
   scored.sort((a, b) => b.hotScore - a.hotScore)
 
-  if (scored.length > 0) {
-    return scored.slice(0, 8)
-  }
   void randomSeed.value
-  const shuffled = [...allGames.value].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, 8)
+  const existing = new Set(scored.map((g) => g.id))
+  const rest = [...allGames.value]
+    .filter((g) => !existing.has(g.id))
+    .sort(() => Math.random() - 0.5)
+  return [...scored, ...rest].slice(0, 8)
 })
 
 // ---- 高分口碑榜：点进详情页最高 Top5 ----
@@ -464,7 +464,7 @@ onUnmounted(() => {
                   <span class="hot-card-title">{{ g.name }}</span>
                   <span class="hot-card-likes">
                     <el-icon><View /></el-icon>
-                    {{ g.hotScore }}
+                    {{ g.hotScore || 0 }}
                   </span>
                 </div>
               </div>
