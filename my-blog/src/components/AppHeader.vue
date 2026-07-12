@@ -5,8 +5,8 @@
 // - 头像下拉（登录态展示昵称 + 上传头像 + 改名 + 退出）
 // - 登录弹窗（账号状态检测、记住账号密码）
 // 内置 SettingDrawer 组件
-import { reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, watch, computed, onMounted, nextTick } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import {
   Setting,
   Brush,
@@ -38,6 +38,47 @@ const userStore = useUserStore()
 const siteStore = useSiteStore()
 
 const router = useRouter()
+const route = useRoute()
+
+// ============ 导航胶囊滑动 ============
+const navLinksRef = ref(null)
+const navRefs = ref({})
+function setNavRef(index, el) {
+  navRefs.value[index] = el
+}
+
+const activeNavIndex = computed(() => {
+  const p = route.path
+  if (p === '/') return 0
+  if (p.startsWith('/entertainment')) return 2
+  if (p === '/visitors') return 6
+  return -1
+})
+
+const pillStyle = ref({ left: '0px', top: '0px', width: '0px', height: '0px', opacity: 0 })
+
+function updatePill() {
+  const container = navLinksRef.value
+  const idx = activeNavIndex.value
+  const el = navRefs.value[idx]
+  if (container && el) {
+    const cr = container.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    const paddingY = 6
+    pillStyle.value = {
+      left: er.left - cr.left + container.scrollLeft + 'px',
+      top: er.top - cr.top - paddingY + 'px',
+      width: er.width + 'px',
+      height: er.bottom - er.top + paddingY * 2 + 'px',
+      opacity: 1
+    }
+  } else {
+    pillStyle.value.opacity = 0
+  }
+}
+
+watch(activeNavIndex, () => nextTick(updatePill))
+onMounted(() => nextTick(updatePill))
 
 // ============ 登录弹窗状态 ============
 const showLoginDialog = ref(false)
@@ -171,30 +212,36 @@ const handleVisitorClick = () => {
 <template>
   <div class="nav-container">
     <nav class="glass-box navbar">
-      <div class="nav-links">
+      <div ref="navLinksRef" class="nav-links">
+        <div class="nav-pill" :style="pillStyle"></div>
         <router-link v-slot="{ navigate }" to="/" custom>
-          <span @click="navigate"
+          <span :ref="(el) => setNavRef(0, el)" @click="navigate"
             ><el-icon><HomeFilled /></el-icon>首页</span
           >
         </router-link>
-        <span
+        <span :ref="(el) => setNavRef(1, el)"
           ><el-icon><Box /></el-icon>项目</span
         >
         <router-link v-slot="{ navigate }" to="/entertainment" custom>
-          <span @click="navigate"
+          <span :ref="(el) => setNavRef(2, el)" @click="navigate"
             ><el-icon><VideoPlay /></el-icon>娱乐</span
           >
         </router-link>
-        <span
+        <span :ref="(el) => setNavRef(3, el)"
           ><el-icon><ChatDotSquare /></el-icon>留言</span
         >
-        <span
+        <span :ref="(el) => setNavRef(4, el)"
           ><el-icon><Guide /></el-icon>导航</span
         >
-        <span
+        <span :ref="(el) => setNavRef(5, el)"
           ><el-icon><InfoFilled /></el-icon>关于</span
         >
-        <span v-if="userStore.isAdmin" style="color: #f56c6c" @click="handleVisitorClick">
+        <span
+          v-if="userStore.isAdmin"
+          :ref="(el) => setNavRef(6, el)"
+          style="color: #f56c6c"
+          @click="handleVisitorClick"
+        >
           <el-icon><User /></el-icon>访客管理
         </span>
       </div>
@@ -204,11 +251,11 @@ const handleVisitorClick = () => {
         <!-- 全部用 el-popover：主菜单 hover 触发，子面板 hover 嵌套，层级一致 -->
         <el-popover
           :disabled="!userStore.isLoggedIn"
-          placement="bottom-end"
+          placement="bottom"
           :width="280"
           trigger="hover"
           :show-arrow="false"
-          :offset="8"
+          :offset="10"
           popper-class="avatar-dropdown-popper"
         >
           <template #reference>
@@ -600,8 +647,19 @@ html.theme-color-orange:not(.dark) .navbar {
 .nav-links {
   display: flex;
   gap: 20px;
+  position: relative;
+}
+.nav-pill {
+  position: absolute;
+  z-index: 0;
+  border-radius: 999px;
+  background: rgba(64, 158, 255, 0.15);
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .nav-links span {
+  position: relative;
+  z-index: 1;
   font-weight: bold;
   cursor: pointer;
   transition: color 0.3s;
@@ -654,7 +712,7 @@ html.dark .divider {
     transform 0.3s;
 }
 .login-avatar:hover {
-  transform: scale(1.1);
+  transform: scale(1.25);
   border-color: #409eff;
 }
 
