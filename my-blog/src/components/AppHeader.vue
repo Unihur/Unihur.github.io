@@ -718,7 +718,7 @@ html.dark .divider {
 }
 .login-avatar:hover,
 .login-avatar.avatar-zoomed {
-  transform: scale(2.5);
+  transform: scale(2.2);
   border-color: #409eff;
 }
 
