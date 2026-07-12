@@ -733,7 +733,7 @@ html.dark .wave4 {
 .carousel-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
 }
 .carousel-row :deep(.el-carousel) {
   flex: 1;
