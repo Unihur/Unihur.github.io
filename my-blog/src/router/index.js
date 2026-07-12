@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 // 路由懒加载：把视图拆成独立 chunk，避免首屏一次性加载所有页面
+const IndexView = () => import('@/views/IndexView.vue')
 const HomeView = () => import('@/views/HomeView.vue')
 const WriteView = () => import('@/views/WriteView.vue')
 const ArticleView = () => import('@/views/ArticleView.vue')
@@ -10,7 +11,8 @@ const EntertainmentView = () => import('@/views/EntertainmentView.vue')
 const GameDetailView = () => import('@/views/GameDetailView.vue')
 
 const routes = [
-  { path: '/', name: 'Home', component: HomeView },
+  { path: '/', name: 'Index', component: IndexView },
+  { path: '/blog', name: 'Blog', component: HomeView },
   { path: '/write', name: 'Write', component: WriteView, meta: { requiresWriter: true } },
   { path: '/post/:slug', name: 'Article', component: ArticleView },
   { path: '/visitors', name: 'Visitors', component: VisitorsView, meta: { requiresAdmin: true } },

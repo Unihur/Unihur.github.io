@@ -50,8 +50,9 @@ function setNavRef(index, el) {
 const activeNavIndex = computed(() => {
   const p = route.path
   if (p === '/') return 0
-  if (p.startsWith('/entertainment')) return 1
-  if (p === '/visitors') return 6
+  if (p.startsWith('/blog')) return 1
+  if (p.startsWith('/entertainment')) return 2
+  if (p === '/visitors') return 7
   return -1
 })
 
@@ -215,26 +216,31 @@ const handleVisitorClick = () => {
             ><el-icon><HomeFilled /></el-icon>首页</span
           >
         </router-link>
-        <router-link v-slot="{ navigate }" to="/entertainment" custom>
+        <router-link v-slot="{ navigate }" to="/blog" custom>
           <span :ref="(el) => setNavRef(1, el)" @click="navigate"
+            ><el-icon><Promotion /></el-icon>博客</span
+          >
+        </router-link>
+        <router-link v-slot="{ navigate }" to="/entertainment" custom>
+          <span :ref="(el) => setNavRef(2, el)" @click="navigate"
             ><el-icon><VideoPlay /></el-icon>游戏</span
           >
         </router-link>
-        <span :ref="(el) => setNavRef(2, el)"
+        <span :ref="(el) => setNavRef(3, el)"
           ><el-icon><Box /></el-icon>项目</span
         >
-        <span :ref="(el) => setNavRef(3, el)"
+        <span :ref="(el) => setNavRef(4, el)"
           ><el-icon><ChatDotSquare /></el-icon>留言</span
         >
-        <span :ref="(el) => setNavRef(4, el)"
+        <span :ref="(el) => setNavRef(5, el)"
           ><el-icon><Guide /></el-icon>导航</span
         >
-        <span :ref="(el) => setNavRef(5, el)"
+        <span :ref="(el) => setNavRef(6, el)"
           ><el-icon><InfoFilled /></el-icon>关于</span
         >
         <span
           v-if="userStore.isAdmin"
-          :ref="(el) => setNavRef(6, el)"
+          :ref="(el) => setNavRef(7, el)"
           style="color: #f56c6c"
           @click="handleVisitorClick"
         >
