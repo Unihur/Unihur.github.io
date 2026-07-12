@@ -449,7 +449,7 @@ onUnmounted(() => {
             :key="'grid'"
             :class="['game-cards-grid', { 'grid-sm': viewMode === 'small' }]"
           >
-            <div v-for="g in filteredGames" :key="g.id" class="game-card">
+            <div v-for="g in filteredGames" :key="g.id" class="game-card" @click="goToGame(g.id)">
               <!-- 封面 + 爱心 -->
               <div class="game-card-cover">
                 <img
@@ -506,7 +506,7 @@ onUnmounted(() => {
 
           <!-- 游戏卡片：列表模式 -->
           <div v-else key="list" class="game-cards-list">
-            <div v-for="g in filteredGames" :key="g.id" class="list-card">
+            <div v-for="g in filteredGames" :key="g.id" class="list-card" @click="goToGame(g.id)">
               <div class="list-card-cover">
                 <img :src="imgUrl(g.img_big)" :alt="g.name" @error="handleImgError(g.img_big)" />
                 <button
@@ -899,6 +899,7 @@ html.dark .game-card-price {
   transition:
     transform 0.25s,
     box-shadow 0.25s;
+  cursor: pointer;
 }
 .list-card:hover {
   transform: translateY(-2px);
@@ -1276,6 +1277,7 @@ html.dark .view-btn {
   transition:
     transform 0.25s,
     box-shadow 0.25s;
+  cursor: pointer;
 }
 .game-card:hover {
   transform: translateY(-3px);
