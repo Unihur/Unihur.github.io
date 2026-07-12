@@ -41,6 +41,7 @@ const router = useRouter()
 const route = useRoute()
 
 // ============ 导航胶囊滑动 ============
+const navbarRef = ref(null)
 const navLinksRef = ref(null)
 const navRefs = ref({})
 function setNavRef(index, el) {
@@ -58,22 +59,35 @@ const activeNavIndex = computed(() => {
 const pillStyle = ref({ left: '0px', top: '0px', width: '0px', height: '0px', opacity: 0 })
 
 function updatePill() {
+  const navbar = navbarRef.value
   const container = navLinksRef.value
   const idx = activeNavIndex.value
   const el = navRefs.value[idx]
-  if (container && el) {
-    const cr = container.getBoundingClientRect()
-    const er = el.getBoundingClientRect()
-    const paddingY = 6
-    pillStyle.value = {
-      left: er.left - cr.left + container.scrollLeft + 'px',
-      top: er.top - cr.top - paddingY + 'px',
-      width: er.width + 'px',
-      height: er.bottom - er.top + paddingY * 2 + 'px',
-      opacity: 1
-    }
-  } else {
+  if (!navbar || !container || !el) {
     pillStyle.value.opacity = 0
+    return
+  }
+  const nRect = navbar.getBoundingClientRect()
+  const cr = container.getBoundingClientRect()
+  const er = el.getBoundingClientRect()
+
+  // 宽度：延伸到相邻板块的中点
+  const allSpans = Object.values(navRefs.value)
+    .filter(Boolean)
+    .map((s) => s.getBoundingClientRect())
+    .sort((a, b) => a.left - b.left)
+  const curIdx = allSpans.findIndex((r) => r.left === er.left && r.top === er.top)
+  let left = er.left
+  if (curIdx > 0) left = (allSpans[curIdx - 1].right + er.left) / 2
+  let right = er.right
+  if (curIdx < allSpans.length - 1) right = (er.right + allSpans[curIdx + 1].left) / 2
+
+  pillStyle.value = {
+    left: left - cr.left + container.scrollLeft + 'px',
+    top: nRect.top - cr.top + 1 + 'px',
+    width: right - left + 'px',
+    height: nRect.height - 2 + 'px',
+    opacity: 1
   }
 }
 
@@ -211,7 +225,7 @@ const handleVisitorClick = () => {
 
 <template>
   <div class="nav-container">
-    <nav class="glass-box navbar">
+    <nav ref="navbarRef" class="glass-box navbar">
       <div ref="navLinksRef" class="nav-links">
         <div class="nav-pill" :style="pillStyle"></div>
         <router-link v-slot="{ navigate }" to="/" custom>
@@ -653,9 +667,29 @@ html.theme-color-orange:not(.dark) .navbar {
   position: absolute;
   z-index: 0;
   border-radius: 999px;
-  background: rgba(64, 158, 255, 0.15);
+  background: rgba(64, 158, 255, 0.22);
   pointer-events: none;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* 夜间模式：胶囊色提亮 */
+html.dark .nav-pill {
+  background: rgba(124, 188, 255, 0.28);
+}
+/* 各主题色适配 */
+html.theme-color-blue:not(.dark) .nav-pill {
+  background: rgba(24, 144, 255, 0.24);
+}
+html.theme-color-pink:not(.dark) .nav-pill {
+  background: rgba(236, 65, 112, 0.22);
+}
+html.theme-color-green:not(.dark) .nav-pill {
+  background: rgba(82, 196, 26, 0.22);
+}
+html.theme-color-purple:not(.dark) .nav-pill {
+  background: rgba(124, 58, 237, 0.22);
+}
+html.theme-color-orange:not(.dark) .nav-pill {
+  background: rgba(237, 137, 54, 0.24);
 }
 .nav-links span {
   position: relative;
@@ -712,7 +746,7 @@ html.dark .divider {
     transform 0.3s;
 }
 .login-avatar:hover {
-  transform: scale(1.25);
+  transform: scale(1.5);
   border-color: #409eff;
 }
 
