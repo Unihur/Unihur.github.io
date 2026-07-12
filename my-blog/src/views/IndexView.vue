@@ -32,6 +32,7 @@ function handleSearch(queryStr) {
 }
 
 function toggleDropdown() {
+  suggestionsVisible.value = false
   engineDropdownOpen.value = !engineDropdownOpen.value
 }
 
@@ -68,6 +69,7 @@ function onInput() {
       const data = await jsonp('https://suggestion.baidu.com/su?wd=' + encodeURIComponent(q), 'cb')
       suggestions.value = (data.s || []).slice(0, 10)
       suggestionsVisible.value = suggestions.value.length > 0
+      if (suggestionsVisible.value) engineDropdownOpen.value = false
     } catch (_) {
       suggestions.value = []
       suggestionsVisible.value = false
@@ -248,8 +250,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
               @focus="searchQuery && suggestions.length && (suggestionsVisible = true)"
             />
 
-            <!-- 建议下拉：宽度和整个 search-bar-wrapper 一致，绝对定位在下方 -->
-            <div v-show="suggestionsVisible" class="suggestions-panel">
+            <!-- 建议下拉 -->
+            <div v-show="suggestionsVisible" class="dropdown-panel suggest-panel">
               <button
                 v-for="(item, idx) in suggestions"
                 :key="idx"
@@ -262,8 +264,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
               </button>
             </div>
 
-            <!-- 引擎下拉菜单 -->
-            <div v-show="engineDropdownOpen" ref="engineDropdownRef" class="engine-dropdown">
+            <!-- 引擎下拉面板 -->
+            <div
+              v-show="engineDropdownOpen"
+              ref="engineDropdownRef"
+              class="dropdown-panel engine-panel"
+            >
               <button
                 v-for="e in engines"
                 :key="e.value"
@@ -574,27 +580,40 @@ html.dark .search-divider {
   border-radius: 0;
 }
 
-/* ===== 搜索建议面板 ===== */
-.suggestions-panel {
+/* ===== 下拉面板共用容器 ===== */
+.dropdown-panel {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   z-index: 80;
+}
+html.dark .dropdown-panel {
+  background: rgba(40, 40, 40, 0.88);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* 引擎面板：两列布局 */
+.engine-panel {
+  display: flex;
+  gap: 0;
+  padding: 8px 12px;
+  flex-direction: row;
+  justify-content: center;
+}
+
+/* 建议面板：纵向列表 */
+.suggest-panel {
   display: flex;
   flex-direction: column;
-}
-html.dark .suggestions-panel {
-  background: rgba(30, 30, 30, 0.78);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .suggest-item {
@@ -633,32 +652,12 @@ html.dark .suggest-item:hover {
   white-space: nowrap;
 }
 
-/* ===== 引擎下拉菜单 ===== */
-.engine-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 4px;
-  display: flex;
-  gap: 8px;
-  padding: 10px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  z-index: 100;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-html.dark .engine-dropdown {
-  background: #2a2a2a;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-}
-
 .engine-option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 16px;
+  gap: 6px;
+  padding: 14px 24px;
   border: 2px solid transparent;
   border-radius: 10px;
   background: transparent;
