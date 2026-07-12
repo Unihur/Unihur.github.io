@@ -4,12 +4,14 @@
 // 每页：左侧 16:9 主图 + 右侧信息区（名字 / 2×2 缩略图 / 简介 / 标签 / 价格右下角）
 // 左右翻页箭头置于图片外；下方胶囊指示器数量 = JSON 的 max，居中
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Refresh, Search } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
+import { useUserStore } from '@/stores/user'
 import { useTypewriter } from '@/composables/useTypewriter'
 import gameBannerData from '@/data/game_banner.json'
 
 const siteStore = useSiteStore()
+const userStore = useUserStore()
 const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
 
 // 图片资源在 /game_banner/ 下（public/game_banner，构建落到 dist/game_banner）
@@ -102,6 +104,37 @@ const highScoreGames = [
 
 // 六个分类标签
 const gameTags = ['国产独游', '像素复古', '剧情叙事', '休闲治愈', '免费Demo', '肉鸽挑战']
+
+// ---- 关注系统（按账号保存到 localStorage） ----
+function loadFavs() {
+  try {
+    const raw = localStorage.getItem(`game_favs_${userStore.username}`)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+function saveFavs(ids) {
+  localStorage.setItem(`game_favs_${userStore.username}`, JSON.stringify(ids))
+}
+const favGameIds = ref(loadFavs())
+function isFav(gameId) {
+  return favGameIds.value.includes(gameId)
+}
+function toggleFav(gameId) {
+  const idx = favGameIds.value.indexOf(gameId)
+  if (idx >= 0) favGameIds.value.splice(idx, 1)
+  else favGameIds.value.push(gameId)
+  saveFavs(favGameIds.value)
+}
+
+// ---- 筛选/视图（暂不实装功能） ----
+const gameTypes = ['全部类型', '动作', '冒险', '角色扮演', '策略', '模拟', '休闲', '独立']
+const releaseFilters = ['最新', '最热', '推荐', '关注']
+const selectedType = ref('全部类型')
+const selectedRelease = ref('最新')
+const viewMode = ref('large') // large | small | list
+const searchKeyword = ref('')
 
 // 响应式高度：移动端纵向布局需更高
 const updateCarouselHeight = () => {
@@ -291,6 +324,103 @@ onUnmounted(() => {
                 <img src="/game_banner/2.png" class="score-img" alt="game cover" />
                 <span class="score-name">{{ g.name }}</span>
                 <span class="score-rank">TOP{{ g.id }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 筛选 + 视图切换行 -->
+        <div class="filter-toolbar">
+          <el-input
+            v-model="searchKeyword"
+            class="search-input"
+            placeholder="搜索游戏名"
+            :prefix-icon="Search"
+            clearable
+          />
+          <div class="filter-right">
+            <el-select v-model="selectedType" class="filter-select" size="default">
+              <el-option v-for="t in gameTypes" :key="t" :label="t" :value="t" />
+            </el-select>
+            <el-select v-model="selectedRelease" class="filter-select" size="default">
+              <el-option v-for="r in releaseFilters" :key="r" :label="r" :value="r" />
+            </el-select>
+            <div class="view-toggles">
+              <el-tooltip content="大卡片" placement="top">
+                <button
+                  type="button"
+                  class="view-btn"
+                  :class="{ active: viewMode === 'large' }"
+                  @click="viewMode = 'large'"
+                >
+                  <span class="vi vi-grid-lg"></span>
+                </button>
+              </el-tooltip>
+              <el-tooltip content="小卡片" placement="top">
+                <button
+                  type="button"
+                  class="view-btn"
+                  :class="{ active: viewMode === 'small' }"
+                  @click="viewMode = 'small'"
+                >
+                  <span class="vi vi-grid-sm"></span>
+                </button>
+              </el-tooltip>
+              <el-tooltip content="列表" placement="top">
+                <button
+                  type="button"
+                  class="view-btn"
+                  :class="{ active: viewMode === 'list' }"
+                  @click="viewMode = 'list'"
+                >
+                  <span class="vi vi-list"></span>
+                </button>
+              </el-tooltip>
+            </div>
+          </div>
+        </div>
+
+        <!-- 游戏卡片网格：一行四列 -->
+        <div class="game-cards-grid">
+          <div v-for="g in slides" :key="g.id" class="game-card">
+            <!-- 封面 + 爱心 -->
+            <div class="game-card-cover">
+              <img
+                :src="imgUrl(g.img_big)"
+                class="gc-cover-img"
+                :alt="g.name"
+                @error="handleImgError(g.img_big)"
+              />
+              <button
+                type="button"
+                class="gc-fav-btn"
+                :title="isFav(g.id) ? '取消关注' : '关注'"
+                @click.stop="toggleFav(g.id)"
+              >
+                <svg
+                  class="gc-heart"
+                  :class="{ filled: isFav(g.id) }"
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                >
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                       2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
+                       C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42
+                       22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  />
+                </svg>
+              </button>
+            </div>
+            <!-- 信息 -->
+            <div class="game-card-info">
+              <div class="gc-name">{{ g.name }}</div>
+              <div class="gc-des">{{ g.des }}</div>
+              <div class="gc-tags">
+                <el-tag v-for="(tag, i) in g.tags" :key="i" size="small" effect="plain">
+                  {{ tag }}
+                </el-tag>
               </div>
             </div>
           </div>
@@ -810,6 +940,208 @@ html.dark .score-name {
   color: #e6a23c;
 }
 
+/* ---- 筛选工具栏 ---- */
+.filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 0 8px;
+}
+.search-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 360px;
+}
+.filter-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.filter-select {
+  width: 110px;
+}
+
+/* 视图切换按钮 */
+.view-toggles {
+  display: flex;
+  gap: 4px;
+  padding-left: 6px;
+  border-left: 1px solid #dcdfe6;
+}
+html.dark .view-toggles {
+  border-left-color: #4c4d4f;
+}
+.view-btn {
+  width: 32px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
+}
+.view-btn:hover {
+  border-color: #409eff;
+}
+.view-btn.active {
+  border-color: #409eff;
+  background: rgba(64, 158, 255, 0.08);
+}
+html.dark .view-btn {
+  background: #2a2a2a;
+  border-color: #4c4d4f;
+}
+
+/* 视图图标（纯 CSS 绘制） */
+.vi {
+  display: block;
+}
+.vi-grid-lg {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #909399;
+  border-radius: 2px;
+  background: #909399;
+}
+.view-btn.active .vi-grid-lg {
+  border-color: #409eff;
+  background: #409eff;
+}
+.vi-grid-sm {
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(#909399, #909399) 0 0 / 5px 5px,
+    linear-gradient(#909399, #909399) 9px 0 / 5px 5px,
+    linear-gradient(#909399, #909399) 0 9px / 5px 5px,
+    linear-gradient(#909399, #909399) 9px 9px / 5px 5px;
+  background-repeat: no-repeat;
+}
+.view-btn.active .vi-grid-sm {
+  background-image:
+    linear-gradient(#409eff, #409eff), linear-gradient(#409eff, #409eff),
+    linear-gradient(#409eff, #409eff), linear-gradient(#409eff, #409eff);
+}
+.vi-list {
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(#909399, #909399) 0 1px / 100% 2px,
+    linear-gradient(#909399, #909399) 0 6px / 100% 2px,
+    linear-gradient(#909399, #909399) 0 11px / 100% 2px;
+  background-repeat: no-repeat;
+}
+.view-btn.active .vi-list {
+  background-image:
+    linear-gradient(#409eff, #409eff), linear-gradient(#409eff, #409eff),
+    linear-gradient(#409eff, #409eff);
+}
+
+/* ---- 游戏卡片网格 ---- */
+.game-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+  padding: 0 8px;
+}
+.game-card {
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.game-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+html.dark .game-card {
+  background: rgba(255, 255, 255, 0.04);
+}
+.game-card-cover {
+  position: relative;
+}
+.gc-cover-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+}
+.gc-fav-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+.gc-fav-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+.gc-heart {
+  fill: transparent;
+  stroke: #fff;
+  stroke-width: 2;
+  transition:
+    fill 0.25s,
+    stroke 0.25s;
+}
+.gc-heart.filled {
+  fill: #f56c6c;
+  stroke: #f56c6c;
+}
+.game-card-info {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gc-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.dark .gc-name {
+  color: #eee;
+}
+.gc-des {
+  font-size: 0.8rem;
+  color: #888;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+html.dark .gc-des {
+  color: #aaa;
+}
+.gc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 @media screen and (max-width: 768px) {
   .blog-title {
     font-size: 2rem !important;
@@ -844,6 +1176,18 @@ html.dark .score-name {
     flex-direction: column;
   }
   .hot-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .filter-toolbar {
+    flex-wrap: wrap;
+  }
+  .search-input {
+    max-width: 100%;
+  }
+  .filter-right {
+    flex-wrap: wrap;
+  }
+  .game-cards-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
