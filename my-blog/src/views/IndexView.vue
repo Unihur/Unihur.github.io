@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
 
@@ -15,7 +16,7 @@ const engineDropdownOpen = ref(false)
 const searchQuery = ref('')
 const engineBtnRef = ref()
 const engineDropdownRef = ref()
-const autocompleteRef = ref()
+const searchBarRef = ref()
 
 function selectEngine(e) {
   selectedEngine.value = e
@@ -50,34 +51,45 @@ function fetchSuggestions(queryStr, cb) {
     return
   }
   clearTimeout(suggestTimer)
-  suggestTimer = setTimeout(async () => {
-    try {
-      const suggestions = await loadSuggestions(queryStr.trim())
-      cb(suggestions)
-    } catch (_) {
-      cb([])
-    }
-  }, 200)
+  suggestTimer = setTimeout(() => {
+    loadSuggestions(queryStr.trim(), cb)
+  }, 250)
 }
 
-async function loadSuggestions(q) {
-  const eng = selectedEngine.value.value
-  if (eng === 'bing') {
-    const res = await fetch(
-      `https://api.bing.com/osjson.aspx?query=${encodeURIComponent(q)}&mkt=zh-CN`,
-      { mode: 'cors' }
-    )
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data[1] || []).map((s) => ({ value: s }))
-  } else {
-    const res = await fetch(
-      `https://suggestion.baidu.com/su?wd=${encodeURIComponent(q)}&json=1&cb=`,
-      { mode: 'cors' }
-    )
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.s || []).map((s) => ({ value: s }))
+let jsonpIdx = 0
+function jsonp(url, cbName) {
+  return new Promise((resolve, reject) => {
+    const id = 'jsonp_' + jsonpIdx++
+    const script = document.createElement('script')
+    const timeout = setTimeout(() => {
+      cleanup()
+      reject(new Error('timeout'))
+    }, 3000)
+    function cleanup() {
+      clearTimeout(timeout)
+      if (script.parentNode) script.parentNode.removeChild(script)
+      delete window[id]
+    }
+    window[id] = (data) => {
+      cleanup()
+      resolve(data)
+    }
+    script.src = url + '&' + cbName + '=' + id
+    script.onerror = () => {
+      cleanup()
+      reject(new Error('network error'))
+    }
+    document.head.appendChild(script)
+  })
+}
+
+async function loadSuggestions(q, cb) {
+  try {
+    const data = await jsonp('https://suggestion.baidu.com/su?wd=' + encodeURIComponent(q), 'cb')
+    const items = (data.s || []).map((s) => ({ value: s }))
+    cb(items)
+  } catch (_) {
+    cb([])
   }
 }
 
@@ -85,9 +97,59 @@ function handleSelect(item) {
   handleSearch(item.value)
 }
 
+// ===== 日历小组件 =====
+const now = new Date()
+const calYear = ref(now.getFullYear())
+const calMonth = ref(now.getMonth())
+const today = now.getDate()
+const todayYear = now.getFullYear()
+const todayMonth = now.getMonth()
+
+const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+
+const calDays = computed(() => {
+  const firstDay = new Date(calYear.value, calMonth.value, 1)
+  const startDow = firstDay.getDay()
+  const adjustedStart = startDow === 0 ? 6 : startDow - 1
+  const daysInMonth = new Date(calYear.value, calMonth.value + 1, 0).getDate()
+  const prevMonthDays = new Date(calYear.value, calMonth.value, 0).getDate()
+
+  const cells = []
+  for (let i = adjustedStart - 1; i >= 0; i--) {
+    cells.push({ day: prevMonthDays - i, type: 'prev' })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = calYear.value === todayYear && calMonth.value === todayMonth && d === today
+    cells.push({ day: d, type: isToday ? 'today' : 'cur' })
+  }
+  const remaining = 7 - (cells.length % 7 || 7)
+  if (remaining < 7) {
+    for (let d = 1; d <= remaining; d++) {
+      cells.push({ day: d, type: 'next' })
+    }
+  }
+  return cells
+})
+
+function prevMonth() {
+  if (calMonth.value === 0) {
+    calYear.value--
+    calMonth.value = 11
+  } else {
+    calMonth.value--
+  }
+}
+function nextMonth() {
+  if (calMonth.value === 11) {
+    calYear.value++
+    calMonth.value = 0
+  } else {
+    calMonth.value++
+  }
+}
+
 const blockMinHeight = computed(() => {
-  const bannerH = siteStore.bannerWrapperHeight
-  if (bannerH === '100vh') return 'calc(100vh - 80px)'
+  if (siteStore.bannerWrapperHeight === '100vh') return 'calc(100vh - 80px)'
   return 'calc(100vh - 120px)'
 })
 
@@ -97,7 +159,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 <template>
   <div class="home-container">
-    <!-- Banner -->
     <header
       v-if="siteStore.bannerMode !== 'hidden'"
       :class="['banner', siteStore.bannerMode]"
@@ -148,14 +209,13 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       </div>
     </header>
 
-    <!-- 主体内容区 -->
     <div
       class="main-content-wrapper"
       :style="{ paddingTop: siteStore.contentPaddingTop, marginTop: siteStore.contentMarginTop }"
     >
       <div class="glass-box search-block" :style="{ minHeight: blockMinHeight }">
         <div class="search-area">
-          <div class="search-bar-wrapper">
+          <div ref="searchBarRef" class="search-bar-wrapper">
             <button ref="engineBtnRef" type="button" class="engine-btn" @click="toggleDropdown">
               <img :src="selectedEngine.icon" class="engine-icon" :alt="selectedEngine.label" />
               <svg class="engine-arrow" viewBox="0 0 12 12" width="10" height="10">
@@ -166,7 +226,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
             <div class="search-divider"></div>
 
             <el-autocomplete
-              ref="autocompleteRef"
               v-model="searchQuery"
               :fetch-suggestions="fetchSuggestions"
               :trigger-on-focus="false"
@@ -178,22 +237,55 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
               @select="handleSelect"
               @keydown.enter="handleSearch()"
             />
+
+            <!-- 引擎下拉菜单 -->
+            <div v-show="engineDropdownOpen" ref="engineDropdownRef" class="engine-dropdown">
+              <button
+                v-for="e in engines"
+                :key="e.value"
+                type="button"
+                class="engine-option"
+                :class="{ active: e.value === selectedEngine.value }"
+                @click="selectEngine(e)"
+              >
+                <img :src="e.icon" class="engine-opt-icon" :alt="e.label" />
+                <span class="engine-opt-label">{{ e.label }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- 引擎下拉菜单 -->
-        <div v-show="engineDropdownOpen" ref="engineDropdownRef" class="engine-dropdown">
-          <button
-            v-for="e in engines"
-            :key="e.value"
-            type="button"
-            class="engine-option"
-            :class="{ active: e.value === selectedEngine.value }"
-            @click="selectEngine(e)"
-          >
-            <img :src="e.icon" class="engine-opt-icon" :alt="e.label" />
-            <span class="engine-opt-label">{{ e.label }}</span>
-          </button>
+        <!-- 小组件网格区 -->
+        <div class="widget-grid">
+          <div class="widget-cell widget-add">
+            <el-icon :size="28"><Plus /></el-icon>
+            <span>添加</span>
+          </div>
+
+          <div class="widget-cell widget-calendar cell-2x2">
+            <div class="cal-header">
+              <button class="cal-nav" @click="prevMonth">&lt;</button>
+              <span class="cal-title">{{ calYear }}年 {{ calMonth + 1 }}月</span>
+              <button class="cal-nav" @click="nextMonth">&gt;</button>
+            </div>
+            <div class="cal-weekdays">
+              <span v-for="w in WEEKDAYS" :key="w" class="cal-wd">{{ w }}</span>
+            </div>
+            <div class="cal-grid">
+              <span
+                v-for="(cell, i) in calDays"
+                :key="i"
+                class="cal-day"
+                :class="{
+                  'is-prev': cell.type === 'prev',
+                  'is-next': cell.type === 'next',
+                  'is-today': cell.type === 'today'
+                }"
+              >
+                {{ cell.day }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -205,7 +297,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   width: 100%;
 }
 
-/* ===== Banner 样式 ===== */
+/* ===== Banner ===== */
 .banner {
   position: relative;
   width: 100%;
@@ -250,7 +342,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   z-index: 2;
   pointer-events: none;
 }
-
 .blog-title {
   position: relative;
   z-index: 3;
@@ -285,7 +376,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     opacity: 0;
   }
 }
-
 .waves-container {
   position: absolute;
   bottom: 0px;
@@ -331,7 +421,6 @@ html.dark .wave3 {
 html.dark .wave4 {
   fill: #1a1525;
 }
-
 .parallax > use {
   animation: move-forever 25s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;
 }
@@ -371,17 +460,18 @@ html.dark .wave4 {
     margin-top 0.5s ease;
 }
 
-/* ===== 搜索板块（glass-box 包裹，延伸到底部） ===== */
+/* ===== 搜索板块 ===== */
 .search-block {
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow: visible;
 }
 
 .search-area {
   display: flex;
   justify-content: center;
-  padding: 32px 0;
+  padding: 32px 0 24px 0;
 }
 
 .search-bar-wrapper {
@@ -393,7 +483,6 @@ html.dark .wave4 {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.5);
-  overflow: visible;
   transition: border-color 0.2s;
 }
 .search-bar-wrapper:focus-within {
@@ -414,7 +503,7 @@ html.dark .search-bar-wrapper:focus-within {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -429,19 +518,20 @@ html.dark .engine-btn:hover {
 }
 
 .engine-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
 }
 
 .engine-arrow {
   flex-shrink: 0;
   transition: transform 0.2s;
+  opacity: 0.5;
 }
 
 .search-divider {
   width: 1px;
-  height: 24px;
+  height: 22px;
   background: rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
 }
@@ -459,26 +549,23 @@ html.dark .search-divider {
   padding: 1px 11px;
   border-radius: 0;
 }
-
-/* el-autocomplete 建议列表样式 */
 .search-input-body :deep(.el-autocomplete__suggestions) {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
   border-radius: 10px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* ===== 引擎下拉菜单（出现在搜索框下方） ===== */
+/* ===== 引擎下拉菜单 ===== */
 .engine-dropdown {
   position: absolute;
-  top: 88px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(100% + 6px);
+  left: 4px;
   display: flex;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
@@ -495,8 +582,8 @@ html.dark .engine-dropdown {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 18px;
+  gap: 4px;
+  padding: 10px 16px;
   border: 2px solid transparent;
   border-radius: 10px;
   background: transparent;
@@ -519,15 +606,157 @@ html.dark .engine-option:hover {
 }
 
 .engine-opt-icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
 }
 
 .engine-opt-label {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* ===== 小组件网格区 ===== */
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 120px;
+  gap: 16px;
+  padding: 0 8px 8px 8px;
+  flex: 1;
+}
+
+.widget-cell {
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  overflow: hidden;
+}
+.widget-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+html.dark .widget-cell {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.widget-add {
+  color: #909399;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.widget-add:hover {
+  color: #409eff;
+}
+
+.cell-2x2 {
+  grid-row: span 2;
+  grid-column: span 2;
+}
+
+/* ===== 日历小组件 ===== */
+.widget-calendar {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 10px 12px 8px 12px;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.cal-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #333;
+}
+html.dark .cal-title {
+  color: #eee;
+}
+
+.cal-nav {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  color: #666;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s;
+}
+.cal-nav:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+html.dark .cal-nav {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ccc;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.cal-wd {
+  font-size: 0.65rem;
+  color: #999;
+  padding: 2px 0;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  flex: 1;
+}
+
+.cal-day {
+  font-size: 0.72rem;
+  padding: 2px 0;
+  color: #444;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+html.dark .cal-day {
+  color: #ccc;
+}
+
+.cal-day.is-prev,
+.cal-day.is-next {
+  color: #ccc;
+}
+html.dark .cal-day.is-prev,
+html.dark .cal-day.is-next {
+  color: #555;
+}
+
+.cal-day.is-today {
+  background: #409eff;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 50%;
 }
 
 @media screen and (max-width: 768px) {
@@ -552,10 +781,15 @@ html.dark .engine-option:hover {
     padding: 20px 10px 20px 10px !important;
   }
   .search-area {
-    padding: 20px 0;
+    padding: 16px 0 12px 0;
+  }
+  .widget-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 100px;
+    gap: 10px;
   }
   .engine-option {
-    padding: 10px 14px;
+    padding: 8px 12px;
   }
 }
 </style>
