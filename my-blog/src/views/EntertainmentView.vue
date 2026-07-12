@@ -187,7 +187,11 @@ const hotGames = computed(() => {
   const rest = [...allGames.value]
     .filter((g) => !existing.has(g.id))
     .sort(() => Math.random() - 0.5)
-  return [...scored, ...rest].slice(0, 8)
+  const list = [...scored, ...rest].slice(0, 8)
+  while (list.length < 8) {
+    list.push({ placeholder: true, id: `ph-hot-${list.length}` })
+  }
+  return list
 })
 
 // ---- 高分口碑榜：点进详情页最高 Top5 ----
@@ -201,13 +205,15 @@ const highScoreGames = computed(() => {
     scored.push({ ...toDisplayItem(repo), viewCount: cnt })
   }
   scored.sort((a, b) => b.viewCount - a.viewCount)
-  if (scored.length >= 5) return scored.slice(0, 5)
-  // 不足 5 个时，用仓库中浏览量最高的补足（随机填充未浏览过的）
   const existing = new Set(scored.map((g) => g.id))
   const rest = [...allGames.value]
     .filter((g) => !existing.has(g.id))
     .sort(() => Math.random() - 0.5)
-  return [...scored, ...rest].slice(0, 5)
+  const list = [...scored, ...rest].slice(0, 5)
+  while (list.length < 5) {
+    list.push({ placeholder: true, id: `ph-score-${list.length}` })
+  }
+  return list
 })
 
 // ---- 关注系统（按账号保存到 localStorage） ----
@@ -453,21 +459,24 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="hot-grid">
-              <div v-for="g in hotGames" :key="g.id" class="hot-card" @click="goToGame(g.id)">
-                <img
-                  :src="imgUrl(g.img_big)"
-                  class="hot-card-img"
-                  :alt="g.name"
-                  @error="handleImgError(g.img_big)"
-                />
-                <div class="hot-card-bottom">
-                  <span class="hot-card-title">{{ g.name }}</span>
-                  <span class="hot-card-likes">
-                    <el-icon><View /></el-icon>
-                    {{ g.hotScore || 0 }}
-                  </span>
+              <template v-for="g in hotGames" :key="g.id">
+                <div v-if="!g.placeholder" class="hot-card" @click="goToGame(g.id)">
+                  <img
+                    :src="imgUrl(g.img_big)"
+                    class="hot-card-img"
+                    :alt="g.name"
+                    @error="handleImgError(g.img_big)"
+                  />
+                  <div class="hot-card-bottom">
+                    <span class="hot-card-title">{{ g.name }}</span>
+                    <span class="hot-card-likes">
+                      <el-icon><View /></el-icon>
+                      {{ g.hotScore || 0 }}
+                    </span>
+                  </div>
                 </div>
-              </div>
+                <div v-else class="hot-card hot-card-placeholder"></div>
+              </template>
             </div>
           </div>
 
@@ -478,21 +487,21 @@ onUnmounted(() => {
               <div class="section-head-right"><span class="label-top">Top5</span></div>
             </div>
             <div class="score-list">
-              <div
-                v-for="(g, i) in highScoreGames"
-                :key="g.id"
-                class="score-item"
-                @click="goToGame(g.id)"
-              >
-                <img
-                  :src="imgUrl(g.img_big)"
-                  class="score-img"
-                  :alt="g.name"
-                  @error="handleImgError(g.img_big)"
-                />
-                <span class="score-name">{{ g.name }}</span>
-                <span class="score-rank">TOP{{ i + 1 }}</span>
-              </div>
+              <template v-for="(g, i) in highScoreGames" :key="g.id">
+                <div v-if="!g.placeholder" class="score-item" @click="goToGame(g.id)">
+                  <img
+                    :src="imgUrl(g.img_big)"
+                    class="score-img"
+                    :alt="g.name"
+                    @error="handleImgError(g.img_big)"
+                  />
+                  <span class="score-name">{{ g.name }}</span>
+                  <span class="score-rank">TOP{{ i + 1 }}</span>
+                </div>
+                <div v-else class="score-item score-item-placeholder">
+                  <span class="score-rank-placeholder">TOP{{ i + 1 }}</span>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -1215,6 +1224,18 @@ html.dark .hot-card-title {
   font-size: 0.85rem;
 }
 
+.hot-card-placeholder {
+  cursor: default;
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  background: transparent;
+}
+.hot-card-placeholder:hover {
+  transform: none;
+}
+html.dark .hot-card-placeholder {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* ---- 高分口碑榜 ---- */
 .score-list {
   display: flex;
@@ -1261,6 +1282,29 @@ html.dark .score-name {
   font-weight: bold;
   font-size: 0.85rem;
   color: #e6a23c;
+}
+
+.score-item-placeholder {
+  cursor: default;
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background: transparent;
+  justify-content: flex-end;
+}
+.score-item-placeholder:hover {
+  background: transparent;
+}
+html.dark .score-item-placeholder {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.score-rank-placeholder {
+  flex-shrink: 0;
+  font-weight: bold;
+  font-size: 0.85rem;
+  color: rgba(0, 0, 0, 0.15);
+}
+html.dark .score-rank-placeholder {
+  color: rgba(255, 255, 255, 0.1);
 }
 
 /* ---- 筛选工具栏 ---- */
