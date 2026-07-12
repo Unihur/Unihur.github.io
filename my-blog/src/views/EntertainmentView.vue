@@ -1108,7 +1108,7 @@ html.dark .capsule-dot {
 .cols-row {
   display: flex;
   gap: 20px;
-  margin-top: 32px;
+  margin-top: 48px;
   padding: 0 8px;
 }
 .hot-section {
@@ -1226,14 +1226,10 @@ html.dark .hot-card-title {
 
 .hot-card-placeholder {
   cursor: default;
-  border: 1px dashed rgba(0, 0, 0, 0.12);
   background: transparent;
 }
 .hot-card-placeholder:hover {
   transform: none;
-}
-html.dark .hot-card-placeholder {
-  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ---- 高分口碑榜 ---- */
@@ -1286,15 +1282,12 @@ html.dark .score-name {
 
 .score-item-placeholder {
   cursor: default;
-  border: 1px dashed rgba(0, 0, 0, 0.1);
   background: transparent;
+  padding: 6px 8px;
   justify-content: flex-end;
 }
 .score-item-placeholder:hover {
   background: transparent;
-}
-html.dark .score-item-placeholder {
-  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .score-rank-placeholder {
