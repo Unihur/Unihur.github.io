@@ -131,12 +131,16 @@ function saveWeeklyData(key, data) {
   localStorage.setItem(key, JSON.stringify(data))
 }
 
+const viewTrigger = ref(0)
+const favTrigger = ref(0)
+
 function recordView(gameId) {
   const weekKey = getWeekKey()
   const data = loadWeeklyData(WEEKLY_VIEWS_KEY)
   if (!data[weekKey]) data[weekKey] = {}
   data[weekKey][gameId] = (data[weekKey][gameId] || 0) + 1
   saveWeeklyData(WEEKLY_VIEWS_KEY, data)
+  viewTrigger.value++
 }
 
 function recordWeeklyFav(gameId) {
@@ -145,6 +149,7 @@ function recordWeeklyFav(gameId) {
   if (!data[weekKey]) data[weekKey] = {}
   data[weekKey][gameId] = (data[weekKey][gameId] || 0) + 1
   saveWeeklyData(WEEKLY_FAVS_KEY, data)
+  favTrigger.value++
 }
 
 function getAllTimeViews() {
@@ -165,6 +170,9 @@ const refreshHot = () => {
 }
 
 const hotGames = computed(() => {
+  void viewTrigger.value
+  void favTrigger.value
+  void randomSeed.value
   const weekKey = getWeekKey()
   const viewsData = loadWeeklyData(WEEKLY_VIEWS_KEY)
   const favsData = loadWeeklyData(WEEKLY_FAVS_KEY)
@@ -182,7 +190,6 @@ const hotGames = computed(() => {
   }
   scored.sort((a, b) => b.hotScore - a.hotScore)
 
-  void randomSeed.value
   const existing = new Set(scored.map((g) => g.id))
   const rest = [...allGames.value]
     .filter((g) => !existing.has(g.id))
@@ -196,6 +203,7 @@ const hotGames = computed(() => {
 
 // ---- 高分口碑榜：点进详情页最高 Top5 ----
 const highScoreGames = computed(() => {
+  void viewTrigger.value
   const allViews = getAllTimeViews()
   const scored = []
   for (const [gidStr, cnt] of Object.entries(allViews)) {
@@ -498,10 +506,7 @@ onUnmounted(() => {
                   <span class="score-name">{{ g.name }}</span>
                   <span class="score-rank">TOP{{ i + 1 }}</span>
                 </div>
-                <div v-else class="score-item score-item-placeholder">
-                  <div class="score-img-placeholder"></div>
-                  <span class="score-rank-placeholder">TOP{{ i + 1 }}</span>
-                </div>
+                <div v-else class="score-item score-item-placeholder"></div>
               </template>
             </div>
           </div>
@@ -1289,29 +1294,13 @@ html.dark .score-name {
 .score-item-placeholder {
   cursor: default;
   background: transparent;
-  justify-content: flex-end;
+  min-height: 52px;
 }
 .score-item-placeholder:hover {
   background: transparent;
 }
 html.dark .score-item-placeholder {
   background: transparent;
-}
-
-.score-img-placeholder {
-  width: 56px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
-.score-rank-placeholder {
-  flex-shrink: 0;
-  font-weight: bold;
-  font-size: 0.85rem;
-  color: rgba(0, 0, 0, 0.15);
-}
-html.dark .score-rank-placeholder {
-  color: rgba(255, 255, 255, 0.1);
 }
 
 /* ---- 筛选工具栏 ---- */
