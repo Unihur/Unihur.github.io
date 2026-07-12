@@ -837,12 +837,15 @@ html.dark .slide-price {
 }
 .price-value {
   color: #fff;
+  font-size: 1.05rem;
 }
 .price-value.is-discount {
   color: #67c23a;
+  font-size: 1.05rem;
 }
 .price-value.is-free {
   color: #67c23a;
+  font-size: 1.05rem;
 }
 
 /* 大/小卡片内售价 -- 复用轮播图售价样式，用 margin 推到底部右侧 */
@@ -1333,6 +1336,7 @@ html.dark .gc-name {
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
