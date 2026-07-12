@@ -1108,7 +1108,7 @@ html.dark .capsule-dot {
 .cols-row {
   display: flex;
   gap: 20px;
-  margin-top: 48px;
+  margin-top: 72px;
   padding: 0 8px;
 }
 .hot-section {
@@ -1284,6 +1284,7 @@ html.dark .score-name {
   cursor: default;
   background: transparent;
   padding: 6px 8px;
+  min-height: 52px;
   justify-content: flex-end;
 }
 .score-item-placeholder:hover {
@@ -1305,7 +1306,7 @@ html.dark .score-rank-placeholder {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 48px;
+  margin-top:72px;
   padding: 0 8px;
 }
 .search-input {
