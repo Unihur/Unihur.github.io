@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
 
@@ -14,6 +14,8 @@ const engines = [
 const selectedEngine = ref(engines[0])
 const engineDropdownOpen = ref(false)
 const searchQuery = ref('')
+const suggestions = ref([])
+const suggestionsVisible = ref(false)
 const engineBtnRef = ref()
 const engineDropdownRef = ref()
 const searchBarRef = ref()
@@ -42,17 +44,34 @@ function handleClickOutside(e) {
   ) {
     engineDropdownOpen.value = false
   }
+  if (searchBarRef.value && !searchBarRef.value.contains(e.target)) {
+    suggestionsVisible.value = false
+  }
+}
+
+function selectSuggestion(item) {
+  suggestionsVisible.value = false
+  handleSearch(item)
 }
 
 let suggestTimer = null
-function fetchSuggestions(queryStr, cb) {
-  if (!queryStr || !queryStr.trim()) {
-    cb([])
+function onInput() {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    suggestions.value = []
+    suggestionsVisible.value = false
     return
   }
   clearTimeout(suggestTimer)
-  suggestTimer = setTimeout(() => {
-    loadSuggestions(queryStr.trim(), cb)
+  suggestTimer = setTimeout(async () => {
+    try {
+      const data = await jsonp('https://suggestion.baidu.com/su?wd=' + encodeURIComponent(q), 'cb')
+      suggestions.value = (data.s || []).slice(0, 10)
+      suggestionsVisible.value = suggestions.value.length > 0
+    } catch (_) {
+      suggestions.value = []
+      suggestionsVisible.value = false
+    }
   }, 250)
 }
 
@@ -83,18 +102,11 @@ function jsonp(url, cbName) {
   })
 }
 
-async function loadSuggestions(q, cb) {
-  try {
-    const data = await jsonp('https://suggestion.baidu.com/su?wd=' + encodeURIComponent(q), 'cb')
-    const items = (data.s || []).map((s) => ({ value: s }))
-    cb(items)
-  } catch (_) {
-    cb([])
+function handleKeydown(e) {
+  if (e.key === 'Enter') {
+    suggestionsVisible.value = false
+    handleSearch()
   }
-}
-
-function handleSelect(item) {
-  handleSearch(item.value)
 }
 
 // ===== 日历小组件 =====
@@ -225,18 +237,30 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
             <div class="search-divider"></div>
 
-            <el-autocomplete
+            <el-input
               v-model="searchQuery"
-              :fetch-suggestions="fetchSuggestions"
-              :trigger-on-focus="false"
-              clearable
               size="large"
               placeholder="输入关键词，搜索你想要的内容..."
               class="search-input-body"
-              :popper-append-to-body="false"
-              @select="handleSelect"
-              @keydown.enter="handleSearch()"
+              clearable
+              @input="onInput"
+              @keydown="handleKeydown"
+              @focus="searchQuery && suggestions.length && (suggestionsVisible = true)"
             />
+
+            <!-- 建议下拉：宽度和整个 search-bar-wrapper 一致，绝对定位在下方 -->
+            <div v-show="suggestionsVisible" class="suggestions-panel">
+              <button
+                v-for="(item, idx) in suggestions"
+                :key="idx"
+                type="button"
+                class="suggest-item"
+                @mousedown.prevent="selectSuggestion(item)"
+              >
+                <el-icon class="suggest-icon"><Search /></el-icon>
+                <span class="suggest-text">{{ item }}</span>
+              </button>
+            </div>
 
             <!-- 引擎下拉菜单 -->
             <div v-show="engineDropdownOpen" ref="engineDropdownRef" class="engine-dropdown">
@@ -549,13 +573,64 @@ html.dark .search-divider {
   padding: 1px 11px;
   border-radius: 0;
 }
-.search-input-body :deep(.el-autocomplete__suggestions) {
+
+/* ===== 搜索建议面板 ===== */
+.suggestions-panel {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+}
+html.dark .suggestions-panel {
+  background: rgba(30, 30, 30, 0.78);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.92rem;
+  color: #333;
+  transition: background 0.15s;
+  width: 100%;
+}
+.suggest-item:hover {
+  background: rgba(64, 158, 255, 0.08);
+}
+html.dark .suggest-item {
+  color: #eee;
+}
+html.dark .suggest-item:hover {
+  background: rgba(64, 158, 255, 0.12);
+}
+
+.suggest-icon {
+  color: #999;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.suggest-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ===== 引擎下拉菜单 ===== */
