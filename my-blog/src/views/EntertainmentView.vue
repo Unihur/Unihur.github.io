@@ -4,6 +4,7 @@
 // 每页：左侧 16:9 主图 + 右侧信息区（名字 / 2×2 缩略图 / 简介 / 标签 / 价格右下角）
 // 左右翻页箭头置于图片外；下方胶囊指示器数量 = JSON 的 max，居中
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, Refresh, Search } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useUserStore } from '@/stores/user'
@@ -13,6 +14,7 @@ import gameRepository from '@/data/game_repository.json'
 
 const siteStore = useSiteStore()
 const userStore = useUserStore()
+const router = useRouter()
 const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
 
 // 图片资源在 /game_banner/ 下（public/game_banner，构建落到 dist/game_banner）
@@ -97,6 +99,7 @@ const goToSlide = (index) => {
 
 const prevSlide = () => carouselRef.value?.prev()
 const nextSlide = () => carouselRef.value?.next()
+const goToGame = (id) => router.push(`/game/${id}`)
 
 // ---- 本周热门 ----
 const hotGames = ref(
@@ -289,7 +292,7 @@ onUnmounted(() => {
             @change="handleCarouselChange"
           >
             <el-carousel-item v-for="slide in slides" :key="slide.id">
-              <div class="slide-layout">
+              <div class="slide-layout" @click="goToGame(slide.id)">
                 <!-- 左：16:9 主图 -->
                 <div class="main-image-area">
                   <img
@@ -747,6 +750,13 @@ html.dark .wave4 {
   gap: 12px;
   padding: 10px;
   box-sizing: border-box;
+  border: 2px solid rgba(64, 158, 255, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+.slide-layout:hover {
+  border-color: #409eff;
 }
 .main-image-area {
   height: 100%;

@@ -580,11 +580,11 @@ const handleVisitorClick = () => {
 
 .navbar {
   width: 100%;
-  max-width: 100%;
+  max-width: 1160px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 0;
+  border-radius: 50px;
   padding: 10px 30px;
   margin: 0;
   /* 不透明底色：滚动时内容不再从导航栏后透出。
@@ -739,7 +739,7 @@ html.dark .divider {
   }
   .navbar {
     padding: 10px !important;
-    border-radius: 0 !important;
+    border-radius: 16px !important;
   }
   .nav-links {
     overflow-x: auto;

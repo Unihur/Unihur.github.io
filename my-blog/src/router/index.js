@@ -7,13 +7,15 @@ const WriteView = () => import('@/views/WriteView.vue')
 const ArticleView = () => import('@/views/ArticleView.vue')
 const VisitorsView = () => import('@/views/VisitorsView.vue')
 const EntertainmentView = () => import('@/views/EntertainmentView.vue')
+const GameDetailView = () => import('@/views/GameDetailView.vue')
 
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
   { path: '/write', name: 'Write', component: WriteView, meta: { requiresWriter: true } },
   { path: '/post/:slug', name: 'Article', component: ArticleView },
   { path: '/visitors', name: 'Visitors', component: VisitorsView, meta: { requiresAdmin: true } },
-  { path: '/entertainment', name: 'Entertainment', component: EntertainmentView }
+  { path: '/entertainment', name: 'Entertainment', component: EntertainmentView },
+  { path: '/game/:slug', name: 'GameDetail', component: GameDetailView }
 ]
 
 const router = createRouter({
