@@ -455,8 +455,11 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 游戏卡片网格 -->
-        <div class="game-cards-grid">
+        <!-- 游戏卡片：大卡片 / 小卡片 模式（grid） -->
+        <div
+          v-if="viewMode !== 'list'"
+          :class="['game-cards-grid', { 'grid-sm': viewMode === 'small' }]"
+        >
           <div v-for="g in filteredGames" :key="g.id" class="game-card">
             <!-- 封面 + 爱心 -->
             <div class="game-card-cover">
@@ -491,11 +494,70 @@ onUnmounted(() => {
             <!-- 信息 -->
             <div class="game-card-info">
               <div class="gc-name">{{ g.name }}</div>
-              <div class="gc-des">{{ g.des }}</div>
-              <div class="gc-tags">
+              <template v-if="viewMode !== 'small'">
+                <div class="gc-des">{{ g.des }}</div>
+                <div class="gc-tags">
+                  <el-tag v-for="(tag, i) in g.tags" :key="i" size="small" effect="plain">
+                    {{ tag }}
+                  </el-tag>
+                </div>
+                <div class="game-card-price">
+                  <span v-if="g.isFree" class="price-value is-free">免费</span>
+                  <template v-else-if="g.discounted">
+                    <span class="discount-tag">-{{ g.discountPct }}%</span>
+                    <span class="origin-price">¥{{ g.cost }}</span>
+                    <span class="price-value is-discount">¥{{ g.currentPrice }}</span>
+                  </template>
+                  <span v-else class="price-value">¥{{ g.cost }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- 游戏卡片：列表模式 -->
+        <div v-else class="game-cards-list">
+          <div v-for="g in filteredGames" :key="g.id" class="list-card">
+            <div class="list-card-cover">
+              <img :src="imgUrl(g.img_big)" :alt="g.name" @error="handleImgError(g.img_big)" />
+              <button
+                type="button"
+                class="gc-fav-btn"
+                :title="isFav(g.id) ? '取消关注' : '关注'"
+                @click.stop="toggleFav(g.id)"
+              >
+                <svg
+                  class="gc-heart"
+                  :class="{ filled: isFav(g.id) }"
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                >
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                       2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
+                       C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42
+                       22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div class="list-card-info">
+              <div class="list-name">{{ g.name }}</div>
+              <div class="list-tags">
                 <el-tag v-for="(tag, i) in g.tags" :key="i" size="small" effect="plain">
                   {{ tag }}
                 </el-tag>
+              </div>
+              <div class="list-time">{{ g.time }}</div>
+              <div class="game-card-price list-price">
+                <span v-if="g.isFree" class="price-value is-free">免费</span>
+                <template v-else-if="g.discounted">
+                  <span class="discount-tag">-{{ g.discountPct }}%</span>
+                  <span class="origin-price">¥{{ g.cost }}</span>
+                  <span class="price-value is-discount">¥{{ g.currentPrice }}</span>
+                </template>
+                <span v-else class="price-value">¥{{ g.cost }}</span>
               </div>
             </div>
           </div>
@@ -794,6 +856,100 @@ html.dark .slide-price {
 }
 .price-value.is-free {
   color: #67c23a;
+}
+
+/* 大/小卡片内售价 -- 复用轮播图售价样式，用 margin 推到底部右侧 */
+.game-card-price {
+  margin-top: auto;
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+html.dark .game-card-price {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* 小卡片网格：5列 */
+.game-cards-grid.grid-sm {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* 列表模式 */
+.game-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 0 8px;
+}
+.list-card {
+  display: flex;
+  gap: 16px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.list-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+html.dark .list-card {
+  background: rgba(255, 255, 255, 0.04);
+}
+.list-card-cover {
+  position: relative;
+  flex-shrink: 0;
+  width: 280px;
+  aspect-ratio: 21 / 9;
+  overflow: hidden;
+  border-radius: 6px 0 0 6px;
+}
+.list-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.list-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 12px 0;
+}
+.list-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.dark .list-name {
+  color: #eee;
+}
+.list-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.list-time {
+  font-size: 0.82rem;
+  color: #909399;
+}
+.list-price {
+  margin-top: auto;
+  align-self: flex-end;
 }
 
 /* 胶囊指示器：居中、更小更紧凑、高度略高 */
@@ -1128,6 +1284,8 @@ html.dark .view-btn {
   padding: 0 8px;
 }
 .game-card {
+  display: flex;
+  flex-direction: column;
   border-radius: 10px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.03);
@@ -1154,7 +1312,7 @@ html.dark .game-card {
 .gc-fav-btn {
   position: absolute;
   top: 8px;
-  right: 8px;
+  left: 8px;
   width: 32px;
   height: 32px;
   display: flex;
@@ -1183,6 +1341,7 @@ html.dark .game-card {
   stroke: #f56c6c;
 }
 .game-card-info {
+  flex: 1;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -1264,6 +1423,20 @@ html.dark .gc-des {
   }
   .game-cards-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .game-cards-grid.grid-sm {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .list-card {
+    flex-direction: column;
+  }
+  .list-card-cover {
+    width: 100%;
+    border-radius: 6px 6px 0 0;
+    aspect-ratio: 21 / 9;
+  }
+  .list-card-info {
+    padding: 10px 12px;
   }
 }
 </style>
