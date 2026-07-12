@@ -499,6 +499,7 @@ onUnmounted(() => {
                   <span class="score-rank">TOP{{ i + 1 }}</span>
                 </div>
                 <div v-else class="score-item score-item-placeholder">
+                  <div class="score-img-placeholder"></div>
                   <span class="score-rank-placeholder">TOP{{ i + 1 }}</span>
                 </div>
               </template>
@@ -1227,9 +1228,14 @@ html.dark .hot-card-title {
 .hot-card-placeholder {
   cursor: default;
   background: transparent;
+  overflow: visible;
+  border-radius: 0;
 }
 .hot-card-placeholder:hover {
   transform: none;
+}
+html.dark .hot-card-placeholder {
+  background: transparent;
 }
 
 /* ---- 高分口碑榜 ---- */
@@ -1283,12 +1289,19 @@ html.dark .score-name {
 .score-item-placeholder {
   cursor: default;
   background: transparent;
-  padding: 6px 8px;
-  min-height: 52px;
   justify-content: flex-end;
 }
 .score-item-placeholder:hover {
   background: transparent;
+}
+html.dark .score-item-placeholder {
+  background: transparent;
+}
+
+.score-img-placeholder {
+  width: 56px;
+  height: 40px;
+  flex-shrink: 0;
 }
 
 .score-rank-placeholder {
@@ -1306,7 +1319,7 @@ html.dark .score-rank-placeholder {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top:72px;
+  margin-top: 72px;
   padding: 0 8px;
 }
 .search-input {
