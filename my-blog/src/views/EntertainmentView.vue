@@ -123,6 +123,12 @@ const highScoreGames = [
 ]
 
 // ---- 关注系统（按账号保存到 localStorage） ----
+function formatGameDate(timeStr) {
+  if (!timeStr) return ''
+  const d = timeStr.split(' ')[0]
+  const [y, m, day] = d.split('/')
+  return `${y}年${m}月${day}日`
+}
 function loadFavs() {
   try {
     const raw = localStorage.getItem(`game_favs_${userStore.username}`)
@@ -538,7 +544,7 @@ onUnmounted(() => {
                   </template>
                   <span v-else class="price-value">¥{{ g.cost }}</span>
                 </div>
-                <div class="list-time">{{ g.time }}</div>
+                <div class="list-time">{{ formatGameDate(g.time) }}</div>
               </div>
             </div>
           </div>
