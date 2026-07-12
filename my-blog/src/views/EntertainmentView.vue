@@ -4,7 +4,7 @@
 // 每页：左侧 16:9 主图 + 右侧信息区（名字 / 2×2 缩略图 / 简介 / 标签 / 价格右下角）
 // 左右翻页箭头置于图片外；下方胶囊指示器数量 = JSON 的 max，居中
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
 import gameBannerData from '@/data/game_banner.json'
@@ -75,6 +75,33 @@ const goToSlide = (index) => {
 
 const prevSlide = () => carouselRef.value?.prev()
 const nextSlide = () => carouselRef.value?.next()
+
+// ---- 本周热门 ----
+const hotGames = ref(
+  Array.from({ length: 8 }, (_, i) => ({
+    id: i + 1,
+    title: `游戏标题${i + 1}`,
+    likes: Math.floor(Math.random() * 9000) + 100
+  }))
+)
+const refreshHot = () => {
+  hotGames.value = hotGames.value.map((g) => ({
+    ...g,
+    likes: Math.floor(Math.random() * 9000) + 100
+  }))
+}
+
+// ---- 高分口碑榜 ----
+const highScoreGames = [
+  { id: 1, name: '游戏名称1' },
+  { id: 2, name: '游戏名称2' },
+  { id: 3, name: '游戏名称3' },
+  { id: 4, name: '游戏名称4' },
+  { id: 5, name: '游戏名称5' }
+]
+
+// 六个分类标签
+const gameTags = ['国产独游', '像素复古', '剧情叙事', '休闲治愈', '免费Demo', '肉鸽挑战']
 
 // 响应式高度：移动端纵向布局需更高
 const updateCarouselHeight = () => {
@@ -220,6 +247,53 @@ onUnmounted(() => {
             :class="{ 'is-active': activeIndex === n - 1 }"
             @click="goToSlide(n - 1)"
           ></button>
+        </div>
+
+        <!-- 六标签按钮行 -->
+        <div class="game-tag-row">
+          <button v-for="tag in gameTags" :key="tag" type="button" class="game-tag-btn">
+            {{ tag }}
+          </button>
+        </div>
+
+        <!-- 本周热门 + 高分口碑榜 两栏 -->
+        <div class="cols-row">
+          <!-- 左侧 3/4：本周热门 -->
+          <div class="hot-section">
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="label-week">本周</span><span class="label-hot">热门</span>
+              </div>
+              <div class="section-head-right" @click="refreshHot">
+                <span>换一批</span>
+                <el-icon><Refresh /></el-icon>
+              </div>
+            </div>
+            <div class="hot-grid">
+              <div v-for="g in hotGames" :key="g.id" class="hot-card">
+                <img src="/game_banner/2.png" class="hot-card-img" alt="game cover" />
+                <div class="hot-card-bottom">
+                  <span class="hot-card-title">{{ g.title }}</span>
+                  <span class="hot-card-likes">{{ g.likes }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧 1/4：高分口碑榜 -->
+          <div class="score-section">
+            <div class="section-head">
+              <div class="section-head-left"><span class="label-score">高分口碑榜</span></div>
+              <div class="section-head-right"><span class="label-top">Top5</span></div>
+            </div>
+            <div class="score-list">
+              <div v-for="g in highScoreGames" :key="g.id" class="score-item">
+                <img src="/game_banner/2.png" class="score-img" alt="game cover" />
+                <span class="score-name">{{ g.name }}</span>
+                <span class="score-rank">TOP{{ g.id }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -545,6 +619,197 @@ html.dark .capsule-dot {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* ---- 六标签按钮 ---- */
+.game-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 0 8px;
+}
+.game-tag-btn {
+  padding: 5px 16px;
+  border: 1px solid #c0c4cc;
+  border-radius: 999px;
+  background: transparent;
+  color: #606266;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.game-tag-btn:hover {
+  color: #409eff;
+  border-color: #409eff;
+}
+html.dark .game-tag-btn {
+  color: #c8c8c8;
+  border-color: #555;
+}
+html.dark .game-tag-btn:hover {
+  color: #409eff;
+  border-color: #409eff;
+}
+
+/* ---- 两栏布局 ---- */
+.cols-row {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 0 8px;
+}
+.hot-section {
+  flex: 3;
+  min-width: 0;
+}
+.score-section {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- section 通用头部 ---- */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-head-left {
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #333;
+}
+html.dark .section-head-left {
+  color: #eee;
+}
+.section-head-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #909399;
+  cursor: pointer;
+  user-select: none;
+}
+.section-head-right:hover {
+  color: #409eff;
+}
+.label-week {
+  color: #409eff;
+  margin-right: 4px;
+}
+.label-hot {
+  color: #333;
+}
+html.dark .label-hot {
+  color: #eee;
+}
+.label-score {
+  color: #333;
+}
+html.dark .label-score {
+  color: #eee;
+}
+.label-top {
+  color: #e6a23c;
+  font-weight: bold;
+}
+
+/* ---- 本周热门 grid ---- */
+.hot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.hot-card {
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s;
+}
+.hot-card:hover {
+  transform: translateY(-2px);
+}
+html.dark .hot-card {
+  background: rgba(255, 255, 255, 0.04);
+}
+.hot-card-img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}
+.hot-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+.hot-card-title {
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.dark .hot-card-title {
+  color: #ddd;
+}
+.hot-card-likes {
+  color: #909399;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* ---- 高分口碑榜 ---- */
+.score-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.score-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  transition: background 0.2s;
+}
+.score-item:hover {
+  background: rgba(64, 158, 255, 0.06);
+}
+html.dark .score-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+.score-img {
+  width: 56px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.score-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  color: #333;
+}
+html.dark .score-name {
+  color: #ddd;
+}
+.score-rank {
+  flex-shrink: 0;
+  font-weight: bold;
+  font-size: 0.85rem;
+  color: #e6a23c;
+}
+
 @media screen and (max-width: 768px) {
   .blog-title {
     font-size: 2rem !important;
@@ -574,6 +839,12 @@ html.dark .capsule-dot {
   .main-image-area {
     width: 100%;
     height: auto;
+  }
+  .cols-row {
+    flex-direction: column;
+  }
+  .hot-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
