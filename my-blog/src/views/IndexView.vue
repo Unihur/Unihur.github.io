@@ -607,7 +607,7 @@ html.dark .dropdown-panel {
   gap: 0;
   padding: 8px 12px;
   flex-direction: row;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 /* 建议面板：纵向列表 */
