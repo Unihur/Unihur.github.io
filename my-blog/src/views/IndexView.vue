@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
 
@@ -15,14 +15,15 @@ const engineDropdownOpen = ref(false)
 const searchQuery = ref('')
 const engineBtnRef = ref()
 const engineDropdownRef = ref()
+const autocompleteRef = ref()
 
 function selectEngine(e) {
   selectedEngine.value = e
   engineDropdownOpen.value = false
 }
 
-function handleSearch() {
-  const q = searchQuery.value.trim()
+function handleSearch(queryStr) {
+  const q = (queryStr || searchQuery.value).trim()
   if (!q) return
   window.open(selectedEngine.value.url + encodeURIComponent(q), '_blank')
 }
@@ -41,6 +42,54 @@ function handleClickOutside(e) {
     engineDropdownOpen.value = false
   }
 }
+
+let suggestTimer = null
+function fetchSuggestions(queryStr, cb) {
+  if (!queryStr || !queryStr.trim()) {
+    cb([])
+    return
+  }
+  clearTimeout(suggestTimer)
+  suggestTimer = setTimeout(async () => {
+    try {
+      const suggestions = await loadSuggestions(queryStr.trim())
+      cb(suggestions)
+    } catch (_) {
+      cb([])
+    }
+  }, 200)
+}
+
+async function loadSuggestions(q) {
+  const eng = selectedEngine.value.value
+  if (eng === 'bing') {
+    const res = await fetch(
+      `https://api.bing.com/osjson.aspx?query=${encodeURIComponent(q)}&mkt=zh-CN`,
+      { mode: 'cors' }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data[1] || []).map((s) => ({ value: s }))
+  } else {
+    const res = await fetch(
+      `https://suggestion.baidu.com/su?wd=${encodeURIComponent(q)}&json=1&cb=`,
+      { mode: 'cors' }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.s || []).map((s) => ({ value: s }))
+  }
+}
+
+function handleSelect(item) {
+  handleSearch(item.value)
+}
+
+const blockMinHeight = computed(() => {
+  const bannerH = siteStore.bannerWrapperHeight
+  if (bannerH === '100vh') return 'calc(100vh - 80px)'
+  return 'calc(100vh - 120px)'
+})
 
 onMounted(() => document.addEventListener('click', handleClickOutside))
 onUnmounted(() => document.removeEventListener('click', handleClickOutside))
@@ -104,12 +153,11 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       class="main-content-wrapper"
       :style="{ paddingTop: siteStore.contentPaddingTop, marginTop: siteStore.contentMarginTop }"
     >
-      <div class="glass-box search-block">
+      <div class="glass-box search-block" :style="{ minHeight: blockMinHeight }">
         <div class="search-area">
           <div class="search-bar-wrapper">
             <button ref="engineBtnRef" type="button" class="engine-btn" @click="toggleDropdown">
               <img :src="selectedEngine.icon" class="engine-icon" :alt="selectedEngine.label" />
-              <span class="engine-label">{{ selectedEngine.label }}</span>
               <svg class="engine-arrow" viewBox="0 0 12 12" width="10" height="10">
                 <path fill="none" d="M3 4.5l3 3 3-3" stroke="#999" stroke-width="1.5" />
               </svg>
@@ -117,13 +165,18 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
             <div class="search-divider"></div>
 
-            <el-input
+            <el-autocomplete
+              ref="autocompleteRef"
               v-model="searchQuery"
+              :fetch-suggestions="fetchSuggestions"
+              :trigger-on-focus="false"
+              clearable
               size="large"
               placeholder="输入关键词，搜索你想要的内容..."
               class="search-input-body"
-              clearable
-              @keydown.enter="handleSearch"
+              :popper-append-to-body="false"
+              @select="handleSelect"
+              @keydown.enter="handleSearch()"
             />
           </div>
         </div>
@@ -318,7 +371,7 @@ html.dark .wave4 {
     margin-top 0.5s ease;
 }
 
-/* ===== 搜索板块（glass-box 包裹） ===== */
+/* ===== 搜索板块（glass-box 包裹，延伸到底部） ===== */
 .search-block {
   position: relative;
   display: flex;
@@ -328,11 +381,11 @@ html.dark .wave4 {
 .search-area {
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 24px 0;
+  padding: 32px 0;
 }
 
 .search-bar-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
@@ -340,7 +393,7 @@ html.dark .wave4 {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.5);
-  overflow: hidden;
+  overflow: visible;
   transition: border-color 0.2s;
 }
 .search-bar-wrapper:focus-within {
@@ -359,9 +412,9 @@ html.dark .search-bar-wrapper:focus-within {
 .engine-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
-  padding: 8px 14px;
+  padding: 8px 10px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -379,16 +432,6 @@ html.dark .engine-btn:hover {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-}
-
-.engine-label {
-  font-size: 0.88rem;
-  font-weight: 500;
-  color: #333;
-  white-space: nowrap;
-}
-html.dark .engine-label {
-  color: #ddd;
 }
 
 .engine-arrow {
@@ -417,11 +460,22 @@ html.dark .search-divider {
   border-radius: 0;
 }
 
-/* ===== 引擎下拉菜单 ===== */
+/* el-autocomplete 建议列表样式 */
+.search-input-body :deep(.el-autocomplete__suggestions) {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== 引擎下拉菜单（出现在搜索框下方） ===== */
 .engine-dropdown {
   position: absolute;
-  top: 100%;
-  left: 16px;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
   padding: 12px;
@@ -498,13 +552,10 @@ html.dark .engine-option:hover {
     padding: 20px 10px 20px 10px !important;
   }
   .search-area {
-    padding: 16px 0;
+    padding: 20px 0;
   }
   .engine-option {
     padding: 10px 14px;
-  }
-  .engine-label {
-    display: none;
   }
 }
 </style>
