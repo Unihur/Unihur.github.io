@@ -41,7 +41,6 @@ const router = useRouter()
 const route = useRoute()
 
 // ============ 导航胶囊滑动 ============
-const navbarRef = ref(null)
 const navLinksRef = ref(null)
 const navRefs = ref({})
 function setNavRef(index, el) {
@@ -59,34 +58,23 @@ const activeNavIndex = computed(() => {
 const pillStyle = ref({ left: '0px', top: '0px', width: '0px', height: '0px', opacity: 0 })
 
 function updatePill() {
-  const navbar = navbarRef.value
   const container = navLinksRef.value
   const idx = activeNavIndex.value
   const el = navRefs.value[idx]
-  if (!navbar || !container || !el) {
+  if (!container || !el) {
     pillStyle.value.opacity = 0
     return
   }
-  const nRect = navbar.getBoundingClientRect()
   const cr = container.getBoundingClientRect()
   const er = el.getBoundingClientRect()
-
-  // 宽度：延伸到相邻板块的中点
-  const allSpans = Object.values(navRefs.value)
-    .filter(Boolean)
-    .map((s) => s.getBoundingClientRect())
-    .sort((a, b) => a.left - b.left)
-  const curIdx = allSpans.findIndex((r) => r.left === er.left && r.top === er.top)
-  let left = er.left
-  if (curIdx > 0) left = (allSpans[curIdx - 1].right + er.left) / 2
-  let right = er.right
-  if (curIdx < allSpans.length - 1) right = (er.right + allSpans[curIdx + 1].left) / 2
+  const hPad = 16
+  const vPad = 4
 
   pillStyle.value = {
-    left: left - cr.left + container.scrollLeft + 'px',
-    top: nRect.top - cr.top + 1 + 'px',
-    width: right - left + 'px',
-    height: nRect.height - 2 + 'px',
+    left: er.left - cr.left + container.scrollLeft - hPad + 'px',
+    top: er.top - cr.top - vPad + 'px',
+    width: er.width + hPad * 2 + 'px',
+    height: er.height + vPad * 2 + 'px',
     opacity: 1
   }
 }
@@ -216,7 +204,7 @@ const handleVisitorClick = () => {
 
 <template>
   <div class="nav-container">
-    <nav ref="navbarRef" class="glass-box navbar">
+    <nav class="glass-box navbar">
       <div ref="navLinksRef" class="nav-links">
         <div class="nav-pill" :style="pillStyle"></div>
         <router-link v-slot="{ navigate }" to="/" custom>
@@ -261,6 +249,7 @@ const handleVisitorClick = () => {
           trigger="hover"
           :show-arrow="false"
           :offset="0"
+          :teleported="false"
           popper-class="avatar-dropdown-popper"
         >
           <template #reference>
@@ -735,6 +724,11 @@ html.dark .divider {
   border-color: #409eff;
 }
 
+.avatar-wrapper {
+  position: relative;
+  z-index: 1000;
+}
+
 /* 手机端适配 */
 @media screen and (max-width: 768px) {
   .nav-container {
@@ -764,6 +758,7 @@ html.dark .divider {
 <style>
 /* ===== 主弹窗 popper 本身 ===== */
 .avatar-dropdown-popper.el-popper {
+  z-index: 900 !important;
   padding: 0 !important;
   border-radius: 12px !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
@@ -828,6 +823,7 @@ html.dark.liquid-glass-clear .avatar-dropdown-popper.el-popper {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 8px;
   text-align: center;
 }
 
