@@ -158,17 +158,8 @@ const logout = () => {
   ElMessage.success('已安全退出登录')
 }
 
-// ============ 头像上传 / 昵称修改 ============
+// ============ 昵称修改 ============
 const newUsernameInput = ref('')
-
-const handleAvatarUpload = async (options) => {
-  try {
-    await userStore.uploadAvatar(options.file)
-    ElMessage.success('头像修改成功！')
-  } catch (e) {
-    ElMessage.error('上传失败')
-  }
-}
 
 const updateUsername = async () => {
   if (!newUsernameInput.value) return ElMessage.warning('新用户名不能为空')
@@ -269,7 +260,7 @@ const handleVisitorClick = () => {
           :width="280"
           trigger="hover"
           :show-arrow="false"
-          :offset="10"
+          :offset="0"
           popper-class="avatar-dropdown-popper"
         >
           <template #reference>
@@ -296,22 +287,15 @@ const handleVisitorClick = () => {
           <div class="avatar-menu-content">
             <!-- 顶部头像 + 昵称 -->
             <div class="avatar-menu-header">
-              <el-upload
-                action=""
-                :http-request="handleAvatarUpload"
-                :show-file-list="false"
-                accept="image/png, image/jpeg, image/gif"
-              >
-                <el-tooltip content="点击上传新头像" placement="right">
-                  <el-avatar
-                    :size="56"
-                    :src="userStore.avatar || ''"
-                    :icon="userStore.avatar ? '' : UserFilled"
-                    style="margin-bottom: 10px; border: 2px solid #f4f4f5; cursor: pointer"
-                  />
-                </el-tooltip>
-              </el-upload>
-              <h3 style="margin: 0; font-size: 1.1rem; color: #333">{{ userStore.username }}</h3>
+              <el-avatar
+                :size="56"
+                :src="userStore.avatar || ''"
+                :icon="userStore.avatar ? '' : UserFilled"
+                style="border: 2px solid #f4f4f5"
+              />
+              <h3 style="margin: 0; font-size: 1.1rem; color: #333; width: 100%">
+                {{ userStore.username }}
+              </h3>
             </div>
 
             <el-divider style="margin: 10px 0" />
@@ -744,9 +728,10 @@ html.dark .divider {
   transition:
     border-color 0.3s,
     transform 0.3s;
+  transform-origin: top center;
 }
 .login-avatar:hover {
-  transform: scale(1.5);
+  transform: scale(2.5);
   border-color: #409eff;
 }
 
@@ -836,7 +821,14 @@ html.dark.liquid-glass-clear .avatar-dropdown-popper.el-popper {
 
 /* ===== 弹窗内容容器 ===== */
 .avatar-dropdown-popper .avatar-menu-content {
-  padding: 15px;
+  padding: 40px 15px 15px 15px;
+}
+
+.avatar-dropdown-popper .avatar-menu-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 /* ===== 菜单结构 ===== */
