@@ -39,6 +39,15 @@
           </el-form-item>
         </div>
 
+        <el-divider>个人账号设置</el-divider>
+
+        <el-form-item label="个人头像 (点击修改)">
+          <div class="img-preview" @click="triggerUpload('userAvatar')">
+            <img :src="userStore.avatar || ''" alt="user-avatar" />
+            <div class="hover-mask">上传</div>
+          </div>
+        </el-form-item>
+
         <el-divider>Live2D 看板娘设置</el-divider>
 
         <el-form-item label="看板娘状态">
@@ -78,10 +87,13 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 
 const props = defineProps({ visible: Boolean, config: Object })
 const emit = defineEmits(['update:visible', 'updateConfig'])
 const drawerVisible = ref(props.visible)
+const userStore = useUserStore()
 
 // 深度克隆一份本地数据
 const localConfig = ref(JSON.parse(JSON.stringify(props.config)))
@@ -139,6 +151,16 @@ const cropImageToSquare = (file) => {
 const handleFileUpload = async (event) => {
   const file = event.target.files[0]
   if (!file) return
+  if (currentUploadType.value === 'userAvatar') {
+    try {
+      await userStore.uploadAvatar(file)
+      ElMessage.success('个人头像修改成功！')
+    } catch {
+      ElMessage.error('上传失败')
+    }
+    event.target.value = ''
+    return
+  }
   const base64Img = await cropImageToSquare(file)
   if (currentUploadType.value === 'avatar') localConfig.value.avatar = base64Img
   else if (currentUploadType.value === 'favicon') localConfig.value.favicon = base64Img

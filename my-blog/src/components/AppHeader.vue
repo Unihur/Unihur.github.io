@@ -146,6 +146,9 @@ const logout = () => {
   ElMessage.success('已安全退出登录')
 }
 
+// 头像弹窗放大状态
+const avatarZoomed = ref(false)
+
 // ============ 昵称修改 ============
 const newUsernameInput = ref('')
 
@@ -248,9 +251,11 @@ const handleVisitorClick = () => {
           :width="280"
           trigger="hover"
           :show-arrow="false"
-          :offset="0"
+          :offset="4"
           :teleported="false"
           popper-class="avatar-dropdown-popper"
+          @show="avatarZoomed = true"
+          @hide="avatarZoomed = false"
         >
           <template #reference>
             <div
@@ -267,24 +272,16 @@ const handleVisitorClick = () => {
                   :size="36"
                   :src="userStore.avatar || ''"
                   :icon="userStore.avatar ? '' : UserFilled"
-                  class="login-avatar"
+                  :class="['login-avatar', { 'avatar-zoomed': avatarZoomed }]"
                 />
               </el-tooltip>
             </div>
           </template>
           <!-- 主菜单内容 -->
           <div class="avatar-menu-content">
-            <!-- 顶部头像 + 昵称 -->
+            <!-- 顶部昵称 -->
             <div class="avatar-menu-header">
-              <el-avatar
-                :size="56"
-                :src="userStore.avatar || ''"
-                :icon="userStore.avatar ? '' : UserFilled"
-                style="border: 2px solid #f4f4f5"
-              />
-              <h3 style="margin: 0; font-size: 1.1rem; color: #333; width: 100%">
-                {{ userStore.username }}
-              </h3>
+              <h3 style="margin: 0; font-size: 1.1rem; color: #333">{{ userStore.username }}</h3>
             </div>
 
             <el-divider style="margin: 10px 0" />
@@ -633,7 +630,7 @@ html.theme-color-orange:not(.dark) .navbar {
 
 .nav-links {
   display: flex;
-  gap: 20px;
+  gap: 28px;
   position: relative;
 }
 .nav-pill {
@@ -719,7 +716,8 @@ html.dark .divider {
     transform 0.3s;
   transform-origin: top center;
 }
-.login-avatar:hover {
+.login-avatar:hover,
+.login-avatar.avatar-zoomed {
   transform: scale(2.5);
   border-color: #409eff;
 }
