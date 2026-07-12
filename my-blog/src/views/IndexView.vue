@@ -7,8 +7,8 @@ const siteStore = useSiteStore()
 const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
 
 const engines = [
-  { label: 'Bing', value: 'bing', url: 'https://cn.bing.com/search?q=' },
-  { label: '百度', value: 'baidu', url: 'https://www.baidu.com/s?wd=' }
+  { label: 'Bing', value: 'bing', icon: '/icon/bing.ico', url: 'https://cn.bing.com/search?q=' },
+  { label: '百度', value: 'baidu', icon: '/icon/baidu.ico', url: 'https://www.baidu.com/s?wd=' }
 ]
 const selectedEngine = ref(engines[0])
 const engineDropdownOpen = ref(false)
@@ -105,41 +105,27 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       :style="{ paddingTop: siteStore.contentPaddingTop, marginTop: siteStore.contentMarginTop }"
     >
       <div class="glass-box search-block">
-        <div class="search-row">
-          <button ref="engineBtnRef" type="button" class="engine-btn" @click="toggleDropdown">
-            <svg
-              v-if="selectedEngine.value === 'bing'"
-              class="engine-icon"
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-            >
-              <path
-                fill="#008373"
-                d="M5.71 3.7l2.56 7.18L3 13.44l7.67 1.1 2.59 7.18 2.58-7.18L23.5 13.44l-5.27-2.56 2.56-7.18-5.28 2.54z"
-              />
-            </svg>
-            <svg v-else class="engine-icon" viewBox="0 0 24 24" width="24" height="24">
-              <path
-                fill="#2932E1"
-                d="M12 2c-1.5 0-3 .5-4 1.5C6.5 5 6 7 6 9c0 1.5.5 3 1.5 4.5C9 15 10.5 16 12 16c1.5 0 3-.5 4.5-1.5 1-1 2-2 2.5-3.5H13v-2h7c.5-1 .5-2 .5-3 0-2-.5-3.5-1.5-4.5C17.5 2.5 15 2 12 2zm-2 2.5c.5-.5 1.2-.8 2-.8s1.5.3 2 .8c.5.5.8 1.2.8 2s-.3 1.5-.8 2c-.5.5-1.2.8-2 .8s-1.5-.3-2-.8c-.5-.5-.8-1.2-.8-2s.3-1.5.8-2zM6 7c0-.5 0-1 .2-1.5l1 3L6 8c-.5.5-1 1.2-1 2s.5 1.5 1 2c.5.5 1 .8 1.5 1l-1 3c-.5-.5-1-1-1.5-2C4 11.5 3.5 10 3.5 8.5 3.5 7 4 5.8 5 5c.3-.3.6-.5 1-.7V7z"
-              />
-            </svg>
-            <svg class="engine-arrow" viewBox="0 0 12 12" width="10" height="10">
-              <path fill="none" d="M3 4.5l3 3 3-3" stroke="#999" stroke-width="1.5" />
-            </svg>
-          </button>
+        <div class="search-area">
+          <div class="search-bar-wrapper">
+            <button ref="engineBtnRef" type="button" class="engine-btn" @click="toggleDropdown">
+              <img :src="selectedEngine.icon" class="engine-icon" :alt="selectedEngine.label" />
+              <span class="engine-label">{{ selectedEngine.label }}</span>
+              <svg class="engine-arrow" viewBox="0 0 12 12" width="10" height="10">
+                <path fill="none" d="M3 4.5l3 3 3-3" stroke="#999" stroke-width="1.5" />
+              </svg>
+            </button>
 
-          <div class="search-divider"></div>
+            <div class="search-divider"></div>
 
-          <el-input
-            v-model="searchQuery"
-            size="large"
-            placeholder="输入关键词，搜索你想要的内容..."
-            class="search-input-body"
-            clearable
-            @keydown.enter="handleSearch"
-          />
+            <el-input
+              v-model="searchQuery"
+              size="large"
+              placeholder="输入关键词，搜索你想要的内容..."
+              class="search-input-body"
+              clearable
+              @keydown.enter="handleSearch"
+            />
+          </div>
         </div>
 
         <!-- 引擎下拉菜单 -->
@@ -152,24 +138,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
             :class="{ active: e.value === selectedEngine.value }"
             @click="selectEngine(e)"
           >
-            <svg
-              v-if="e.value === 'bing'"
-              class="engine-opt-icon"
-              viewBox="0 0 24 24"
-              width="32"
-              height="32"
-            >
-              <path
-                fill="#008373"
-                d="M5.71 3.7l2.56 7.18L3 13.44l7.67 1.1 2.59 7.18 2.58-7.18L23.5 13.44l-5.27-2.56 2.56-7.18-5.28 2.54z"
-              />
-            </svg>
-            <svg v-else class="engine-opt-icon" viewBox="0 0 24 24" width="32" height="32">
-              <path
-                fill="#2932E1"
-                d="M12 2c-1.5 0-3 .5-4 1.5C6.5 5 6 7 6 9c0 1.5.5 3 1.5 4.5C9 15 10.5 16 12 16c1.5 0 3-.5 4.5-1.5 1-1 2-2 2.5-3.5H13v-2h7c.5-1 .5-2 .5-3 0-2-.5-3.5-1.5-4.5C17.5 2.5 15 2 12 2zm-2 2.5c.5-.5 1.2-.8 2-.8s1.5.3 2 .8c.5.5.8 1.2.8 2s-.3 1.5-.8 2c-.5.5-1.2.8-2 .8s-1.5-.3-2-.8c-.5-.5-.8-1.2-.8-2s.3-1.5.8-2zM6 7c0-.5 0-1 .2-1.5l1 3L6 8c-.5.5-1 1.2-1 2s.5 1.5 1 2c.5.5 1 .8 1.5 1l-1 3c-.5-.5-1-1-1.5-2C4 11.5 3.5 10 3.5 8.5 3.5 7 4 5.8 5 5c.3-.3.6-.5 1-.7V7z"
-              />
-            </svg>
+            <img :src="e.icon" class="engine-opt-icon" :alt="e.label" />
             <span class="engine-opt-label">{{ e.label }}</span>
           </button>
         </div>
@@ -349,17 +318,42 @@ html.dark .wave4 {
     margin-top 0.5s ease;
 }
 
-/* ===== 搜索区 ===== */
+/* ===== 搜索板块（glass-box 包裹） ===== */
 .search-block {
   position: relative;
-  max-width: 720px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.search-row {
+.search-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 0;
+}
+
+.search-bar-wrapper {
   display: flex;
   align-items: center;
-  gap: 0;
+  width: 100%;
+  max-width: 640px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.search-bar-wrapper:focus-within {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
+html.dark .search-bar-wrapper {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+html.dark .search-bar-wrapper:focus-within {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.25);
 }
 
 .engine-btn {
@@ -367,29 +361,34 @@ html.dark .wave4 {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border: none;
-  border-radius: 6px;
   background: transparent;
   cursor: pointer;
   transition: background 0.2s;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #333;
   line-height: 1;
 }
 .engine-btn:hover {
   background: rgba(0, 0, 0, 0.05);
 }
-html.dark .engine-btn {
-  color: #eee;
-}
 html.dark .engine-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .engine-icon {
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
+}
+
+.engine-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+}
+html.dark .engine-label {
+  color: #ddd;
 }
 
 .engine-arrow {
@@ -399,10 +398,9 @@ html.dark .engine-btn:hover {
 
 .search-divider {
   width: 1px;
-  height: 28px;
+  height: 24px;
   background: rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
-  margin: 0 4px;
 }
 html.dark .search-divider {
   background: rgba(255, 255, 255, 0.12);
@@ -416,13 +414,14 @@ html.dark .search-divider {
   box-shadow: none;
   background: transparent;
   padding: 1px 11px;
+  border-radius: 0;
 }
 
 /* ===== 引擎下拉菜单 ===== */
 .engine-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 8px;
+  top: 100%;
+  left: 16px;
   display: flex;
   gap: 8px;
   padding: 12px;
@@ -466,6 +465,8 @@ html.dark .engine-option:hover {
 }
 
 .engine-opt-icon {
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -496,8 +497,14 @@ html.dark .engine-option:hover {
   .main-content-wrapper {
     padding: 20px 10px 20px 10px !important;
   }
+  .search-area {
+    padding: 16px 0;
+  }
   .engine-option {
     padding: 10px 14px;
+  }
+  .engine-label {
+    display: none;
   }
 }
 </style>
