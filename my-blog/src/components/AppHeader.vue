@@ -568,23 +568,23 @@ const handleVisitorClick = () => {
 <style scoped>
 .nav-container {
   position: fixed;
-  top: 15px;
+  top: 0;
   left: 0;
   width: 100%;
   display: flex;
   justify-content: center;
   z-index: 999;
-  padding: 0 20px;
+  padding: 0;
   box-sizing: border-box;
 }
 
 .navbar {
   width: 100%;
-  max-width: 1160px;
+  max-width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 50px;
+  border-radius: 0;
   padding: 10px 30px;
   margin: 0;
   /* 不透明底色：滚动时内容不再从导航栏后透出。
@@ -734,12 +734,12 @@ html.dark .divider {
 /* 手机端适配 */
 @media screen and (max-width: 768px) {
   .nav-container {
-    top: 5px !important;
-    padding: 0 10px !important;
+    top: 0 !important;
+    padding: 0 !important;
   }
   .navbar {
     padding: 10px !important;
-    border-radius: 16px !important;
+    border-radius: 0 !important;
   }
   .nav-links {
     overflow-x: auto;
@@ -818,7 +818,7 @@ html.dark.liquid-glass-clear .avatar-dropdown-popper.el-popper {
 
 /* ===== 弹窗内容容器 ===== */
 .avatar-dropdown-popper .avatar-menu-content {
-  padding: 40px 15px 15px 15px;
+  padding: 60px 15px 15px 15px;
 }
 
 .avatar-dropdown-popper .avatar-menu-header {
