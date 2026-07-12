@@ -7,5 +7,14 @@
     "json_path": "G:/my_blog/my-blog/src/data",
     "remark": "游戏板块每日推荐游戏banner资源配置",
     "checked": true
+  },
+  {
+    "id": "e8be7922",
+    "excel_path": "G:/my_blog/my-blog/src/excel/游戏库.xlsx",
+    "sheet_name": "Sheet1",
+    "json_name": "game_repository.json",
+    "json_path": "G:/my_blog/my-blog/src/data",
+    "remark": "游戏仓库",
+    "checked": true
   }
 ]

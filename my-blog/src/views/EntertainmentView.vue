@@ -9,6 +9,7 @@ import { useSiteStore } from '@/stores/site'
 import { useUserStore } from '@/stores/user'
 import { useTypewriter } from '@/composables/useTypewriter'
 import gameBannerData from '@/data/game_banner.json'
+import gameRepository from '@/data/game_repository.json'
 
 const siteStore = useSiteStore()
 const userStore = useUserStore()
@@ -34,29 +35,48 @@ const onThumbLeave = (slide) => {
   delete bigImgOverride[slide.id]
 }
 
-// 轮播数据：按 order 排序；拆分 tag、预计算折扣
+// ---- 仓库查找表 ----
+const repoMap = computed(() => {
+  const map = {}
+  for (const g of gameRepository) map[g.id] = g
+  return map
+})
+
+function toDisplayItem(repo) {
+  const tags = repo.tag
+    ? repo.tag
+        .split(/[,，]/)
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : []
+  const isFree = !repo.cost
+  const discounted = !isFree && repo.count < 1
+  return {
+    ...repo,
+    tags,
+    isFree,
+    discounted,
+    discountPct: discounted ? Math.round((1 - repo.count) * 100) : 0,
+    currentPrice: isFree ? 0 : Math.round(repo.cost * repo.count)
+  }
+}
+
+// 轮播数据：顺序来自 banner json，数据来自仓库
 const slides = computed(() =>
   [...gameBannerData]
     .sort((a, b) => a.order - b.order)
     .map((item) => {
-      const isFree = !item.cost
-      const discounted = !isFree && item.count < 1
+      const repo = repoMap.value[item.game_id] || {}
       return {
         ...item,
-        thumbs: [item.img_1, item.img_2, item.img_3, item.img_4].filter(Boolean),
-        tags: item.tag
-          ? item.tag
-              .split(/[,，]/)
-              .map((t) => t.trim())
-              .filter(Boolean)
-          : [],
-        isFree,
-        discounted,
-        discountPct: discounted ? Math.round((1 - item.count) * 100) : 0,
-        currentPrice: isFree ? 0 : Math.round(item.cost * item.count)
+        ...toDisplayItem(repo),
+        thumbs: [repo.img_1, repo.img_2, repo.img_3, repo.img_4].filter(Boolean)
       }
     })
 )
+
+// 全部游戏（从仓库）
+const allGames = computed(() => gameRepository.map(toDisplayItem))
 
 // 胶囊数量 = max（允许实时修改），取首项 max，回退到 slides 长度
 const capsuleCount = computed(() => slides.value[0]?.max || slides.value.length)
@@ -128,13 +148,62 @@ function toggleFav(gameId) {
   saveFavs(favGameIds.value)
 }
 
-// ---- 筛选/视图（暂不实装功能） ----
-const gameTypes = ['全部类型', '动作', '冒险', '角色扮演', '策略', '模拟', '休闲', '独立']
+// ---- 筛选/视图 ----
 const releaseFilters = ['最新', '最热', '推荐', '关注']
 const selectedType = ref('全部类型')
 const selectedRelease = ref('最新')
-const viewMode = ref('large') // large | small | list
+const viewMode = ref('large')
 const searchKeyword = ref('')
+
+// 从仓库收集所有类型
+const allTypes = computed(() => {
+  const set = new Set()
+  for (const g of gameRepository) {
+    if (g.type) {
+      g.type.split(/[,，]/).forEach((t) => set.add(t.trim()))
+    }
+  }
+  return Array.from(set).sort()
+})
+
+// 筛选用类型选项
+const gameTypes = computed(() => ['全部类型', ...allTypes.value])
+
+// 按搜索/类型/发布筛选全部游戏
+const filteredGames = computed(() => {
+  let games = allGames.value
+
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (kw) {
+    games = games.filter(
+      (g) => g.name.toLowerCase().includes(kw) || g.tags.some((t) => t.toLowerCase().includes(kw))
+    )
+  }
+
+  if (selectedType.value !== '全部类型') {
+    games = games.filter((g) => {
+      const types = (g.type || '').split(/[,，]/).map((t) => t.trim())
+      return types.includes(selectedType.value)
+    })
+  }
+
+  if (selectedRelease.value === '推荐') {
+    games = games.filter((g) => g.is_recommended === 1)
+  } else if (selectedRelease.value === '最新') {
+    games = [...games].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0))
+  } else if (selectedRelease.value === '关注') {
+    games = games.filter((g) => favGameIds.value.includes(g.id))
+  }
+  // '最热' 暂无排序逻辑
+
+  return games
+})
+
+// 点击标签按钮时同步筛选
+function selectTag(tag) {
+  selectedType.value = tag
+  selectedRelease.value = '最新'
+}
 
 // 响应式高度：移动端纵向布局需更高
 const updateCarouselHeight = () => {
@@ -284,7 +353,13 @@ onUnmounted(() => {
 
         <!-- 六标签按钮行 -->
         <div class="game-tag-row">
-          <button v-for="tag in gameTags" :key="tag" type="button" class="game-tag-btn">
+          <button
+            v-for="tag in gameTags"
+            :key="tag"
+            type="button"
+            class="game-tag-btn"
+            @click="selectTag(tag)"
+          >
             {{ tag }}
           </button>
         </div>
@@ -334,7 +409,7 @@ onUnmounted(() => {
           <el-input
             v-model="searchKeyword"
             class="search-input"
-            placeholder="搜索游戏名"
+            placeholder="搜索游戏名/标签"
             :prefix-icon="Search"
             clearable
           />
@@ -380,9 +455,9 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 游戏卡片网格：一行四列 -->
+        <!-- 游戏卡片网格 -->
         <div class="game-cards-grid">
-          <div v-for="g in slides" :key="g.id" class="game-card">
+          <div v-for="g in filteredGames" :key="g.id" class="game-card">
             <!-- 封面 + 爱心 -->
             <div class="game-card-cover">
               <img
@@ -755,7 +830,7 @@ html.dark .capsule-dot {
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 28px;
   padding: 0 8px;
 }
 .game-tag-btn {
@@ -945,7 +1020,7 @@ html.dark .score-name {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 32px;
   padding: 0 8px;
 }
 .search-input {
