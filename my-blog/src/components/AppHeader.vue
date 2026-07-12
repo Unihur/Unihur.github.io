@@ -14,7 +14,7 @@ import {
   Sunny,
   Moon,
   HomeFilled,
-  Edit,
+  Promotion,
   Box,
   VideoPlay,
   ChatDotSquare,
@@ -177,9 +177,6 @@ const handleVisitorClick = () => {
             ><el-icon><HomeFilled /></el-icon>首页</span
           >
         </router-link>
-        <span @click="handleWriteClick"
-          ><el-icon><Edit /></el-icon>写作</span
-        >
         <span
           ><el-icon><Box /></el-icon>项目</span
         >
@@ -277,6 +274,20 @@ const handleVisitorClick = () => {
                 <el-icon class="submenu-icon"><Setting /></el-icon>
                 <span class="submenu-label">设置</span>
                 <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+              </div>
+
+              <!-- 发布：hover 右侧弹出子面板，含写作入口 -->
+              <div class="submenu-row has-sub">
+                <el-icon class="submenu-icon"><Promotion /></el-icon>
+                <span class="submenu-label">发布</span>
+                <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                <div class="submenu-panel">
+                  <div class="submenu-panel-content">
+                    <div class="submenu-item" @click="handleWriteClick">
+                      <span>写作</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- 主题与材质：hover 行右侧弹出子面板（纯 CSS hover） -->
