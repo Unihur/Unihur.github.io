@@ -13,6 +13,9 @@
     "count": 0.9,
     "type": "独立",
     "is_recommended": 1,
+    "developer": "独立制作组",
+    "publisher": "独立发行",
+    "rating": 4.5,
     "time": "2026/7/12 15:00:00"
   },
   {
@@ -29,6 +32,9 @@
     "count": 0,
     "type": "独立,角色扮演,策略",
     "is_recommended": 1,
+    "developer": "个人开发者",
+    "publisher": "自行发行",
+    "rating": 4.0,
     "time": "2026/7/12 15:00:00"
   },
   {
@@ -45,6 +51,9 @@
     "count": 0.8,
     "type": "策略",
     "is_recommended": 0,
+    "developer": "示例开发组",
+    "publisher": "示例发行商",
+    "rating": 3.5,
     "time": "2026/7/12 15:00:00"
   }
 ]

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
@@ -22,15 +22,6 @@ const tags = computed(() => {
     .filter(Boolean)
 })
 
-const isFree = computed(() => !game.value?.cost)
-const discounted = computed(() => !isFree.value && game.value.count < 1)
-const discountPct = computed(() =>
-  discounted.value ? Math.round((1 - game.value.count) * 100) : 0
-)
-const currentPrice = computed(() =>
-  isFree.value ? 0 : Math.round((game.value?.cost || 0) * (game.value?.count || 1))
-)
-
 const allImages = computed(() => {
   if (!game.value) return []
   return [
@@ -40,6 +31,41 @@ const allImages = computed(() => {
     game.value.img_3,
     game.value.img_4
   ].filter((n, i, arr) => n && arr.indexOf(n) === i)
+})
+
+const activeImageIndex = ref(0)
+const currentImage = computed(() => allImages.value[activeImageIndex.value] || allImages.value[0])
+
+let autoTimer = null
+const AUTO_INTERVAL = 4000
+
+function nextImage() {
+  if (allImages.value.length <= 1) return
+  activeImageIndex.value = (activeImageIndex.value + 1) % allImages.value.length
+}
+function prevImage() {
+  if (allImages.value.length <= 1) return
+  activeImageIndex.value =
+    (activeImageIndex.value - 1 + allImages.value.length) % allImages.value.length
+}
+
+function startAutoPlay() {
+  stopAutoPlay()
+  if (allImages.value.length <= 1) return
+  autoTimer = setInterval(nextImage, AUTO_INTERVAL)
+}
+function stopAutoPlay() {
+  if (autoTimer) {
+    clearInterval(autoTimer)
+    autoTimer = null
+  }
+}
+
+onMounted(() => {
+  startAutoPlay()
+})
+onUnmounted(() => {
+  stopAutoPlay()
 })
 
 const imgUrl = (name) => `/game_banner/${name}.png`
@@ -114,45 +140,61 @@ function goBack() {
       :style="{ paddingTop: siteStore.contentPaddingTop, marginTop: siteStore.contentMarginTop }"
     >
       <div v-if="game" class="game-detail-container">
-        <div class="detail-hero">
-          <img :src="imgUrl(game.img_big)" class="hero-img" :alt="game.name" />
-          <button class="back-btn" @click="goBack">
-            <el-icon><ArrowLeft /></el-icon>
-          </button>
-        </div>
+        <button class="back-btn" @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>
+        </button>
+
+        <h1 class="detail-name">{{ game.name }}</h1>
 
         <div class="detail-body">
-          <div class="detail-header">
-            <h1 class="detail-name">{{ game.name }}</h1>
-            <div class="detail-price">
-              <span v-if="isFree" class="price-value is-free">免费</span>
-              <template v-else-if="discounted">
-                <span class="discount-tag">-{{ discountPct }}%</span>
-                <span class="origin-price">¥{{ game.cost }}</span>
-                <span class="price-value is-discount">¥{{ currentPrice }}</span>
-              </template>
-              <span v-else class="price-value">¥{{ game.cost }}</span>
+          <div class="detail-gallery">
+            <div class="gallery-main" @mouseenter="stopAutoPlay" @mouseleave="startAutoPlay">
+              <button class="gallery-arrow gallery-prev" @click="prevImage">‹</button>
+              <img :src="imgUrl(currentImage)" class="gallery-main-img" :alt="game.name" />
+              <button class="gallery-arrow gallery-next" @click="nextImage">›</button>
+            </div>
+            <div v-if="allImages.length > 1" class="gallery-thumbs">
+              <img
+                v-for="(img, i) in allImages"
+                :key="i"
+                :src="imgUrl(img)"
+                class="gallery-thumb"
+                :class="{ active: i === activeImageIndex }"
+                :alt="`截图 ${i + 1}`"
+                @click="activeImageIndex = i"
+              />
             </div>
           </div>
 
-          <div class="detail-tags">
-            <el-tag v-for="tag in tags" :key="tag" size="default">{{ tag }}</el-tag>
-          </div>
+          <div class="detail-info">
+            <div class="info-cover">
+              <img :src="imgUrl(currentImage)" :alt="game.name" />
+            </div>
 
-          <div class="detail-time">{{ formatDate(game.time) }}</div>
+            <div class="info-desc">{{ game.des }}</div>
 
-          <div class="detail-description">
-            <p>{{ game.des }}</p>
-          </div>
+            <div class="info-meta">
+              <div class="meta-item">
+                <span class="meta-label">发行时间</span>
+                <span class="meta-value">{{ formatDate(game.time) }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">用户评分</span>
+                <span class="meta-value rating">{{ game.rating }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">开发商</span>
+                <span class="meta-value">{{ game.developer || '-' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">发行商</span>
+                <span class="meta-value">{{ game.publisher || '-' }}</span>
+              </div>
+            </div>
 
-          <div v-if="allImages.length > 1" class="detail-gallery">
-            <img
-              v-for="(img, i) in allImages"
-              :key="i"
-              :src="imgUrl(img)"
-              class="gallery-img"
-              :alt="`${game.name} 截图 ${i + 1}`"
-            />
+            <div class="info-tags">
+              <el-tag v-for="tag in tags" :key="tag" size="small">{{ tag }}</el-tag>
+            </div>
           </div>
         </div>
       </div>
@@ -338,141 +380,190 @@ html.dark .wave4 {
 
 /* ===== 游戏详情样式 ===== */
 .game-detail-container {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 0 20px 40px;
-}
-
-.detail-hero {
+  padding: 20px 20px 40px;
   position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  margin-top: 20px;
-}
-
-.hero-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
 .back-btn {
   position: absolute;
   top: 16px;
-  left: 16px;
-  width: 40px;
-  height: 40px;
+  left: 20px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+  z-index: 10;
 }
 .back-btn:hover {
   background: rgba(0, 0, 0, 0.75);
-}
-
-.detail-body {
-  padding: 24px 0;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
 }
 
 .detail-name {
   font-size: 1.8rem;
   font-weight: 700;
   color: #333;
-  margin: 0;
+  margin: 0 0 24px 48px;
 }
 html.dark .detail-name {
   color: #eee;
 }
 
-.detail-price {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  font-size: 1.1rem;
-  font-weight: bold;
+.detail-body {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* ---- 左侧轮播图 ---- */
+.detail-gallery {
+  flex: 1;
+  min-width: 0;
+}
+
+.gallery-main {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+.gallery-main-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gallery-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 5;
+  line-height: 1;
+}
+.gallery-arrow:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+.gallery-prev {
+  left: 10px;
+}
+.gallery-next {
+  right: 10px;
+}
+
+.gallery-thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.gallery-thumb {
+  width: 72px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  opacity: 0.6;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s;
   flex-shrink: 0;
 }
-html.dark .detail-price {
-  background: rgba(0, 0, 0, 0.6);
+.gallery-thumb:hover {
+  opacity: 0.85;
+}
+.gallery-thumb.active {
+  border-color: var(--el-color-primary);
+  opacity: 1;
 }
 
-.discount-tag {
-  color: #67c23a;
-  font-size: 0.9rem;
-}
-.origin-price {
-  color: #999;
-  text-decoration: line-through;
-  font-size: 0.95rem;
-  font-weight: normal;
-}
-.price-value {
-  color: #fff;
-  font-size: 1.1rem;
-}
-.price-value.is-discount {
-  color: #67c23a;
-}
-.price-value.is-free {
-  color: #67c23a;
-  font-size: 1.1rem;
+/* ---- 右侧信息 ---- */
+.detail-info {
+  width: 340px;
+  flex-shrink: 0;
 }
 
-.detail-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+.info-cover {
+  aspect-ratio: 21 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: #1a1a2e;
+}
+.info-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.detail-time {
-  font-size: 0.88rem;
-  color: #909399;
-  margin-top: 12px;
-}
-
-.detail-description {
-  margin-top: 24px;
-  font-size: 1rem;
+.info-desc {
+  font-size: 0.92rem;
   color: #555;
-  line-height: 1.8;
+  line-height: 1.7;
+  margin-bottom: 20px;
 }
-html.dark .detail-description {
+html.dark .info-desc {
   color: #bbb;
 }
 
-.detail-gallery {
+.info-meta {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-top: 32px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin-bottom: 20px;
 }
-.gallery-img {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 8px;
-  display: block;
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.meta-label {
+  font-size: 0.78rem;
+  color: #909399;
+}
+.meta-value {
+  font-size: 0.92rem;
+  color: #333;
+  font-weight: 500;
+}
+html.dark .meta-value {
+  color: #ddd;
+}
+.meta-value.rating {
+  color: #e6a23c;
+  font-weight: 700;
+}
+
+.info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .game-not-found {
@@ -507,9 +598,17 @@ html.dark .detail-description {
   }
   .detail-name {
     font-size: 1.3rem;
+    margin-left: 40px;
   }
-  .detail-gallery {
-    grid-template-columns: repeat(2, 1fr);
+  .detail-body {
+    flex-direction: column;
+  }
+  .detail-info {
+    width: 100%;
+  }
+  .gallery-thumb {
+    width: 56px;
+    height: 32px;
   }
 }
 </style>
