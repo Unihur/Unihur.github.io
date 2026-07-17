@@ -11,6 +11,7 @@ import { useUserStore } from '@/stores/user'
 import { useTypewriter } from '@/composables/useTypewriter'
 import gameBannerData from '@/data/game_banner.json'
 import gameRepository from '@/data/game_repository.json'
+import { parseList } from '@/utils/parseList'
 
 const siteStore = useSiteStore()
 const userStore = useUserStore()
@@ -45,12 +46,7 @@ const repoMap = computed(() => {
 })
 
 function toDisplayItem(repo) {
-  const tags = repo.tag
-    ? repo.tag
-        .split(/[,，]/)
-        .map((t) => t.trim())
-        .filter(Boolean)
-    : []
+  const tags = parseList(repo.tag)
   const isFree = !repo.cost
   const discounted = !isFree && repo.count < 1
   return {
@@ -72,7 +68,7 @@ const slides = computed(() =>
       return {
         ...item,
         ...toDisplayItem(repo),
-        thumbs: [repo.img_1, repo.img_2, repo.img_3, repo.img_4].filter(Boolean)
+        thumbs: parseList(repo.img_small)
       }
     })
 )
@@ -268,7 +264,7 @@ const allTypes = computed(() => {
   const set = new Set()
   for (const g of gameRepository) {
     if (g.type) {
-      g.type.split(/[,，]/).forEach((t) => set.add(t.trim()))
+      parseList(g.type).forEach((t) => set.add(t))
     }
   }
   return Array.from(set).sort()
@@ -290,7 +286,7 @@ const filteredGames = computed(() => {
 
   if (selectedType.value !== '全部类型') {
     games = games.filter((g) => {
-      const types = (g.type || '').split(/[,，]/).map((t) => t.trim())
+      const types = parseList(g.type)
       return types.includes(selectedType.value)
     })
   }

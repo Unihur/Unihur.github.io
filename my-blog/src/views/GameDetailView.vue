@@ -5,6 +5,7 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { useSiteStore } from '@/stores/site'
 import { useTypewriter } from '@/composables/useTypewriter'
 import gameRepository from '@/data/game_repository.json'
+import { parseList } from '@/utils/parseList'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,29 +15,12 @@ const { typewriterText } = useTypewriter(() => siteStore.siteConfig.signature)
 const gameId = Number(route.params.slug)
 const game = computed(() => gameRepository.find((g) => g.id === gameId) || null)
 
-const tags = computed(() => {
-  if (!game.value?.tag) return []
-  return game.value.tag
-    .split(/[,，]/)
-    .map((t) => t.trim())
-    .filter(Boolean)
-})
+const tags = computed(() => parseList(game.value?.tag))
 
 const allImages = computed(() => {
   if (!game.value) return []
-  return [
-    game.value.img_big,
-    game.value.img_1,
-    game.value.img_2,
-    game.value.img_3,
-    game.value.img_4,
-    game.value.img_5,
-    game.value.img_6,
-    game.value.img_7,
-    game.value.img_8,
-    game.value.img_9,
-    game.value.img_10
-  ].filter((n, i, arr) => n && arr.indexOf(n) === i)
+  const smalls = parseList(game.value.img_small)
+  return [game.value.img_big, ...smalls].filter((n, i, arr) => n && arr.indexOf(n) === i)
 })
 
 const coverImage = computed(() => allImages.value[0] || '')
